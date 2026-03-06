@@ -1,0 +1,5 @@
+[build]
+  # Provide the command to install Flutter and then build the web app
+  command = "git clone https://github.com/flutter/flutter.git -b stable && ./flutter/bin/flutter build web --release"
+  # The directory where the built web files will be generated
+  publish = "build/web"
