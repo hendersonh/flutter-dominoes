@@ -400,7 +400,7 @@ class GameController extends ChangeNotifier {
 
     print("AI Action: $aiAction");
     if (aiAction is DrawAction) {
-      _topOverlayMessage = "AI no moves... drawing tiles";
+      _topOverlayMessage = "Hendy is drawing tiles";
     } else if (aiAction is PassAction) {
       _topOverlayMessage = "AI no moves... passing turn";
     } else {
