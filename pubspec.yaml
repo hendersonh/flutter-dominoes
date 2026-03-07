@@ -20,6 +20,7 @@ dev_dependencies:
   flutter_driver:
     sdk: flutter
   test: ^1.29.0
+  flutter_launcher_icons: ^0.13.1
 
 flutter:
   uses-material-design: true
@@ -27,3 +28,17 @@ flutter:
   assets:
     - assets/hendy.png
     - assets/human.png
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  web:
+    generate: true
+    image_path: "assets/hendy.png"
+  macos:
+    generate: true
+    image_path: "assets/hendy.png"
+  windows:
+    generate: true
+    image_path: "assets/hendy.png"
+  image_path: "assets/hendy.png"
