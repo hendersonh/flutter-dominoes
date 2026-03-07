@@ -49,6 +49,8 @@ class GameController extends ChangeNotifier {
   String? _bottomOverlayMessage;
   bool _showNextRoundButton = false;
 
+  DominoTile? _selectedTile;
+
   int _lifetimeMatchWins = 0;
   int _lifetimeMatchLosses = 0;
   bool _matchStatsSaved = false;
@@ -65,6 +67,7 @@ class GameController extends ChangeNotifier {
   String? get bottomOverlayMessage => _bottomOverlayMessage;
   bool get showNextRoundButton => _showNextRoundButton;
   bool get isInitialized => _match.currentRound != null;
+  DominoTile? get selectedTile => _selectedTile;
   int get lifetimeMatchWins => _lifetimeMatchWins;
   int get lifetimeMatchLosses => _lifetimeMatchLosses;
 
@@ -92,6 +95,9 @@ class GameController extends ChangeNotifier {
 
   Future<void> _initMatch() async {
     _match = MatchModel(targetScore: 150);
+    _topOverlayMessage = null;
+    _bottomOverlayMessage = null;
+    _selectedTile = null;
     // Explicitly set a non-null placeholder if needed, but we handle it with isInitialized
     await _loadLifetimeStats();
     await _loadMatch();
@@ -180,12 +186,64 @@ class GameController extends ChangeNotifier {
   void _startNextRound() {
     _topOverlayMessage = null;
     _bottomOverlayMessage = null;
+    _selectedTile = null;
     _match.startNewRound(_match.nextStarter);
     _updateStatusMessage();
     notifyListeners();
 
     if (_match.currentRound!.currentPlayer == 1) {
       _runAiTurn();
+    }
+  }
+
+  void clearSelection() {
+    if (_selectedTile != null) {
+      _selectedTile = null;
+      notifyListeners();
+    }
+  }
+
+  void selectTile(DominoTile tile) {
+    if (game == null ||
+        game!.isGameOver ||
+        game!.currentPlayer != 0 ||
+        _isAiThinking)
+      return;
+
+    bool canPlayLeft = game!.board.isEmpty || tile.contains(game!.leftEnd!);
+    bool canPlayRight = game!.board.isEmpty || tile.contains(game!.rightEnd!);
+
+    if (!canPlayLeft && !canPlayRight) return; // Unplayable
+
+    if (game!.board.isEmpty) {
+      playTile(tile, 'left');
+      return;
+    }
+
+    if (canPlayLeft && !canPlayRight) {
+      playTile(tile, 'left');
+      return;
+    }
+
+    if (canPlayRight && !canPlayLeft) {
+      playTile(tile, 'right');
+      return;
+    }
+
+    if (game!.leftEnd == game!.rightEnd) {
+      playTile(tile, 'left');
+      return;
+    }
+
+    // Playable on both sides, wait for user to select board end
+    _selectedTile = tile;
+    notifyListeners();
+  }
+
+  void confirmPlay(String side) {
+    if (_selectedTile != null) {
+      playTile(_selectedTile!, side);
+      _selectedTile = null;
     }
   }
 
@@ -479,580 +537,540 @@ class _GameScreenState extends State<GameScreen> {
           ),
         ],
       ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Glassmorphism Header
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16.0,
-                vertical: 12.0,
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.3),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.white.withOpacity(0.1)),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        // Human Stats
-                        Row(
-                          children: [
-                            const CircleAvatar(
-                              radius: 18,
-                              backgroundImage: AssetImage('assets/human.png'),
-                            ),
-                            const SizedBox(width: 8),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'YOU',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    color: Colors.white54,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                Text(
-                                  '${controller.match.humanScore}',
-                                  style: const TextStyle(
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-
-                        // Status Center
-                        Column(
-                          children: [
-                            Text(
-                              'TARGET: ${controller.match.targetScore}',
-                              style: const TextStyle(
-                                fontSize: 10,
-                                color: Colors.white54,
-                                letterSpacing: 1.5,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              controller.statusMessage ?? '',
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF2BEE4B),
-                              ),
-                            ),
-                          ],
-                        ),
-
-                        // AI Stats
-                        Row(
-                          children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                const Text(
-                                  'HENDY',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    color: Colors.white54,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                Text(
-                                  '${controller.match.aiScore}',
-                                  style: const TextStyle(
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(width: 8),
-                            const CircleAvatar(
-                              radius: 18,
-                              backgroundImage: AssetImage('assets/hendy.png'),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
+      body: GestureDetector(
+        onTap: controller.clearSelection,
+        child: SafeArea(
+          child: Column(
+            children: [
+              // Glassmorphism Header
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16.0,
+                  vertical: 12.0,
                 ),
-              ),
-            ),
-
-            // Auxiliary Stats
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8.0, left: 32, right: 32),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'HENDY TILES: ${game.hands[1].length}',
-                    style: const TextStyle(
-                      fontSize: 10,
-                      color: Colors.white54,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.2,
-                    ),
-                  ),
-                  Text(
-                    'BONEYARD: ${game.boneyard.length}',
-                    style: const TextStyle(
-                      fontSize: 10,
-                      color: Colors.white54,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.2,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // Game Board
-            Expanded(
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: const RadialGradient(
-                    center: Alignment.center,
-                    radius: 1.0,
-                    colors: [Color(0xFF2E6F40), Color(0xFF113820)],
-                  ),
+                child: ClipRRect(
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.white.withOpacity(0.05)),
-                ),
-                margin: const EdgeInsets.symmetric(horizontal: 16),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    // Center Text Decal
-                    Align(
-                      alignment: Alignment.topCenter,
-                      child: Padding(
-                        padding: const EdgeInsets.only(top: 60),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 48,
-                            vertical: 24,
-                          ),
-                          decoration: BoxDecoration(
-                            border: Border.all(
-                              color: Colors.white.withOpacity(0.08),
-                              width: 2,
-                            ),
-                            borderRadius: BorderRadius.circular(100),
-                          ),
-                          child: Text(
-                            'Can you beat Hendy?',
-                            style: TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.w900,
-                              color: Colors.white.withOpacity(0.12),
-                              letterSpacing: 2,
-                            ),
-                          ),
-                        ),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
                       ),
-                    ),
-
-                    // Interactive Board Content
-                    Center(
-                      child: game.board.isEmpty
-                          ? Text(
-                              game.currentPlayer == 0
-                                  ? 'Place your first tile to start'
-                                  : 'Waiting for Hendy...',
-                            )
-                          : InteractiveViewer(
-                              boundaryMargin: const EdgeInsets.all(1000),
-                              minScale: 0.1,
-                              maxScale: 2.0,
-                              child: LayoutBuilder(
-                                builder: (context, constraints) {
-                                  return SnakingBoard(
-                                    board: game.board,
-                                    rootIndex: game.rootIndex,
-                                    maxWidth: constraints.maxWidth,
-                                  );
-                                },
-                              ),
-                            ),
-                    ),
-
-                    // Status Overlay (Top Center)
-                    if (controller.topOverlayMessage != null)
-                      Align(
-                        alignment: Alignment.topCenter,
-                        child: Padding(
-                          padding: const EdgeInsets.only(top: 16.0),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 8,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.6),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: const Color(0xFF2BEE4B).withOpacity(0.5),
-                              ),
-                            ),
-                            child: Text(
-                              controller.topOverlayMessage!,
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF2BEE4B),
-                                letterSpacing: 1.2,
-                              ),
-                            ),
-                          ),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.3),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.1),
                         ),
-                      ),
-
-                    // Status Overlay (Bottom Center)
-                    if (controller.bottomOverlayMessage != null &&
-                        !controller.showNextRoundButton)
-                      Align(
-                        alignment: Alignment.bottomCenter,
-                        child: Padding(
-                          padding: const EdgeInsets.only(bottom: 16.0),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 8,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.6),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: const Color(0xFF2BEE4B).withOpacity(0.5),
-                              ),
-                            ),
-                            child: Text(
-                              controller.bottomOverlayMessage!,
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF2BEE4B),
-                                letterSpacing: 1.2,
-                              ),
-                            ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.2),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
                           ),
-                        ),
+                        ],
                       ),
-
-                    // Game Over Modal (Idea B)
-                    if (game.isGameOver && controller.showNextRoundButton)
-                      Positioned.fill(
-                        child: Container(
-                          color: Colors.black.withOpacity(0.7),
-                          child: Center(
-                            child: Container(
-                              margin: const EdgeInsets.symmetric(
-                                horizontal: 24,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          // Human Stats
+                          Row(
+                            children: [
+                              const CircleAvatar(
+                                radius: 18,
+                                backgroundImage: AssetImage('assets/human.png'),
                               ),
-                              padding: const EdgeInsets.all(32),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF1E1E1E),
-                                borderRadius: BorderRadius.circular(24),
-                                border: Border.all(
-                                  color: controller.match.isMatchOver
-                                      ? (controller.match.matchWinner == 0
-                                            ? const Color(0xFF2BEE4B)
-                                            : Colors.red)
-                                      : const Color(
-                                          0xFF2BEE4B,
-                                        ).withOpacity(0.5),
-                                  width: 2,
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.5),
-                                    blurRadius: 20,
-                                    offset: const Offset(0, 10),
-                                  ),
-                                ],
-                              ),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
+                              const SizedBox(width: 8),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
-                                    controller.bottomOverlayMessage ??
-                                        'Game Over',
-                                    style: TextStyle(
-                                      fontSize: 28,
-                                      fontWeight: FontWeight.bold,
-                                      color:
-                                          controller.match.isMatchOver &&
-                                              controller.match.matchWinner != 0
-                                          ? Colors.red
-                                          : const Color(0xFF2BEE4B),
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                  const SizedBox(height: 24),
                                   const Text(
-                                    'LIFETIME MATCH RECORD',
+                                    'YOU',
                                     style: TextStyle(
-                                      fontSize: 12,
+                                      fontSize: 10,
                                       color: Colors.white54,
                                       fontWeight: FontWeight.bold,
-                                      letterSpacing: 2,
                                     ),
                                   ),
-                                  const SizedBox(height: 12),
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      _StatBox(
-                                        label: 'WINS',
-                                        value: controller.lifetimeMatchWins,
-                                        color: const Color(0xFF2BEE4B),
-                                      ),
-                                      const SizedBox(width: 16),
-                                      _StatBox(
-                                        label: 'LOSSES',
-                                        value: controller.lifetimeMatchLosses,
-                                        color: Colors.orange,
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 32),
-                                  SizedBox(
-                                    width: double.infinity,
-                                    child: ElevatedButton.icon(
-                                      icon: Icon(
-                                        controller.match.isMatchOver
-                                            ? Icons.replay
-                                            : Icons.play_arrow,
-                                      ),
-                                      label: Text(
-                                        controller.match.isMatchOver
-                                            ? 'START NEW MATCH'
-                                            : 'PLAY NEXT ROUND',
-                                      ),
-                                      onPressed: controller.restartGame,
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: const Color(
-                                          0xFF2BEE4B,
-                                        ),
-                                        foregroundColor: Colors.black,
-                                        padding: const EdgeInsets.symmetric(
-                                          vertical: 16,
-                                        ),
-                                        textStyle: const TextStyle(
-                                          inherit: false,
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
+                                  Text(
+                                    '${controller.match.humanScore}',
+                                    style: const TextStyle(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
                                     ),
                                   ),
                                 ],
                               ),
-                            ),
+                            ],
                           ),
-                        ),
+
+                          // Status Center
+                          Column(
+                            children: [
+                              Text(
+                                'TARGET: ${controller.match.targetScore}',
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.white54,
+                                  letterSpacing: 1.5,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                controller.statusMessage ?? '',
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF2BEE4B),
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          // AI Stats
+                          Row(
+                            children: [
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  const Text(
+                                    'HENDY',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.white54,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  Text(
+                                    '${controller.match.aiScore}',
+                                    style: const TextStyle(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(width: 8),
+                              const CircleAvatar(
+                                radius: 18,
+                                backgroundImage: AssetImage('assets/hendy.png'),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
+                    ),
+                  ),
+                ),
+              ),
+
+              // Auxiliary Stats
+              Padding(
+                padding: const EdgeInsets.only(
+                  bottom: 8.0,
+                  left: 32,
+                  right: 32,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'HENDY TILES: ${game.hands[1].length}',
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: Colors.white54,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                    Text(
+                      'BONEYARD: ${game.boneyard.length}',
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: Colors.white54,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
                   ],
                 ),
               ),
-            ),
 
-            // Control Area (Ends)
-            if (game.board.isNotEmpty &&
-                controller.statusMessage == "Your Turn")
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [const Text('Tap a tile in your hand to play')],
-                ),
-              ),
-
-            // Player Hand (Vertical Rack)
-            Builder(
-              builder: (context) {
-                final screenWidth = MediaQuery.of(context).size.width;
-                final availableWidth =
-                    screenWidth - 32; // 16 horizontal padding on each side
-                // 7 tiles + 6 gaps (12px each). A normal tile is 50px wide.
-                // We want to fit 7 tiles comfortably. Target max width = 7 * 50 + 6 * 12 = 422
-                double tileScale = (availableWidth / 422).clamp(0.5, 1.0);
-
-                return SizedBox(
-                  height:
-                      102 * tileScale +
-                      18, // Reclaims board space while fitting scaled tiles + padding
-                  child: SingleChildScrollView(
-                    controller: _scrollController,
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
+              // Game Board
+              Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: const RadialGradient(
+                      center: Alignment.center,
+                      radius: 1.0,
+                      colors: [Color(0xFF2E6F40), Color(0xFF113820)],
                     ),
-                    child: Row(
-                      children: game.hands[0].asMap().entries.map((entry) {
-                        final index = entry.key;
-                        final tile = entry.value;
-                        final isPlayable =
-                            !game.isGameOver &&
-                            game.currentPlayer == 0 &&
-                            (game.board.isEmpty ||
-                                tile.contains(game.leftEnd!) ||
-                                tile.contains(game.rightEnd!));
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.white.withOpacity(0.05)),
+                  ),
+                  margin: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      // Center Text Decal
+                      Align(
+                        alignment: Alignment.topCenter,
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 60),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 48,
+                              vertical: 24,
+                            ),
+                            decoration: BoxDecoration(
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.08),
+                                width: 2,
+                              ),
+                              borderRadius: BorderRadius.circular(100),
+                            ),
+                            child: Text(
+                              'Can you beat Hendy?',
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.w900,
+                                color: Colors.white.withOpacity(0.12),
+                                letterSpacing: 2,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
 
-                        return Padding(
-                          padding: EdgeInsets.only(right: 12.0 * tileScale),
-                          child: GestureDetector(
-                            onTap: game.isGameOver || !isPlayable
-                                ? null
-                                : () => _showPlayOptions(
-                                    context,
-                                    controller,
-                                    tile,
-                                  ),
-                            child: Opacity(
-                              opacity:
-                                  game.isGameOver ||
-                                      game.currentPlayer != 0 ||
-                                      isPlayable
-                                  ? 1.0
-                                  : 0.4,
-                              child: Hero(
-                                tag: 'tile-$index',
-                                child: DominoTileWidget(
-                                  tile: tile,
-                                  isVertical: true,
-                                  isHighlight: isPlayable,
-                                  scale: tileScale,
+                      // Interactive Board Content
+                      Center(
+                        child: game.board.isEmpty
+                            ? (game.currentPlayer == 0
+                                  ? const Text(
+                                      'Tap a tile to start',
+                                      style: TextStyle(
+                                        fontSize:
+                                            18.0, // approx 15% larger than default
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    )
+                                  : const Text('Waiting for Hendy...'))
+                            : InteractiveViewer(
+                                boundaryMargin: const EdgeInsets.all(1000),
+                                minScale: 0.1,
+                                maxScale: 2.0,
+                                child: LayoutBuilder(
+                                  builder: (context, constraints) {
+                                    return SnakingBoard(
+                                      board: game.board,
+                                      rootIndex: game.rootIndex,
+                                      maxWidth: constraints.maxWidth,
+                                      isSelectingSide:
+                                          controller.selectedTile != null,
+                                      onSelectSide: controller.confirmPlay,
+                                    );
+                                  },
+                                ),
+                              ),
+                      ),
+
+                      // Status Overlay (Top Center)
+                      if (controller.topOverlayMessage != null)
+                        Align(
+                          alignment: Alignment.topCenter,
+                          child: Padding(
+                            padding: const EdgeInsets.only(top: 16.0),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.6),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: const Color(
+                                    0xFF2BEE4B,
+                                  ).withOpacity(0.5),
+                                ),
+                              ),
+                              child: Text(
+                                controller.topOverlayMessage!,
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF2BEE4B),
+                                  letterSpacing: 1.2,
                                 ),
                               ),
                             ),
                           ),
-                        );
-                      }).toList(),
-                    ),
+                        ),
+
+                      // Status Overlay (Bottom Center)
+                      if (controller.bottomOverlayMessage != null &&
+                          !controller.showNextRoundButton)
+                        Align(
+                          alignment: Alignment.bottomCenter,
+                          child: Padding(
+                            padding: const EdgeInsets.only(bottom: 16.0),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.6),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: const Color(
+                                    0xFF2BEE4B,
+                                  ).withOpacity(0.5),
+                                ),
+                              ),
+                              child: Text(
+                                controller.bottomOverlayMessage!,
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF2BEE4B),
+                                  letterSpacing: 1.2,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+
+                      // Game Over Modal (Idea B)
+                      if (game.isGameOver && controller.showNextRoundButton)
+                        Positioned.fill(
+                          child: Container(
+                            color: Colors.black.withOpacity(0.7),
+                            child: Center(
+                              child: Container(
+                                margin: const EdgeInsets.symmetric(
+                                  horizontal: 24,
+                                ),
+                                padding: const EdgeInsets.all(32),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF1E1E1E),
+                                  borderRadius: BorderRadius.circular(24),
+                                  border: Border.all(
+                                    color: controller.match.isMatchOver
+                                        ? (controller.match.matchWinner == 0
+                                              ? const Color(0xFF2BEE4B)
+                                              : Colors.red)
+                                        : const Color(
+                                            0xFF2BEE4B,
+                                          ).withOpacity(0.5),
+                                    width: 2,
+                                  ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.5),
+                                      blurRadius: 20,
+                                      offset: const Offset(0, 10),
+                                    ),
+                                  ],
+                                ),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      controller.bottomOverlayMessage ??
+                                          'Game Over',
+                                      style: TextStyle(
+                                        fontSize: 28,
+                                        fontWeight: FontWeight.bold,
+                                        color:
+                                            controller.match.isMatchOver &&
+                                                controller.match.matchWinner !=
+                                                    0
+                                            ? Colors.red
+                                            : const Color(0xFF2BEE4B),
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                    const SizedBox(height: 24),
+                                    const Text(
+                                      'LIFETIME MATCH RECORD',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.white54,
+                                        fontWeight: FontWeight.bold,
+                                        letterSpacing: 2,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        _StatBox(
+                                          label: 'WINS',
+                                          value: controller.lifetimeMatchWins,
+                                          color: const Color(0xFF2BEE4B),
+                                        ),
+                                        const SizedBox(width: 16),
+                                        _StatBox(
+                                          label: 'LOSSES',
+                                          value: controller.lifetimeMatchLosses,
+                                          color: Colors.orange,
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 32),
+                                    SizedBox(
+                                      width: double.infinity,
+                                      child: ElevatedButton.icon(
+                                        icon: Icon(
+                                          controller.match.isMatchOver
+                                              ? Icons.replay
+                                              : Icons.play_arrow,
+                                        ),
+                                        label: Text(
+                                          controller.match.isMatchOver
+                                              ? 'START NEW MATCH'
+                                              : 'PLAY NEXT ROUND',
+                                        ),
+                                        onPressed: controller.restartGame,
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: const Color(
+                                            0xFF2BEE4B,
+                                          ),
+                                          foregroundColor: Colors.black,
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 16,
+                                          ),
+                                          textStyle: const TextStyle(
+                                            inherit: false,
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
-                );
-              },
-            ),
+                ),
+              ),
 
-            // Bottom spacer
-            const SizedBox(height: 16),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showPlayOptions(
-    BuildContext context,
-    GameController controller,
-    DominoTile tile,
-  ) {
-    final game = controller.game!;
-
-    // Check if playable
-    bool canPlayLeft = game.board.isEmpty || tile.contains(game.leftEnd!);
-    bool canPlayRight = game.board.isEmpty || tile.contains(game.rightEnd!);
-
-    if (!canPlayLeft && !canPlayRight) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('This tile cannot be played!')),
-      );
-      return;
-    }
-
-    if (game.board.isEmpty) {
-      controller.playTile(tile, 'left');
-      return;
-    }
-
-    if (canPlayLeft && !canPlayRight) {
-      controller.playTile(tile, 'left');
-      return;
-    }
-
-    if (canPlayRight && !canPlayLeft) {
-      controller.playTile(tile, 'right');
-      return;
-    }
-
-    // If both ends are the same number, playing on left or right is logically identical
-    if (game.leftEnd == game.rightEnd) {
-      controller.playTile(tile, 'left');
-      return;
-    }
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: const Color(0xFF1E1E1E),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Play on which side?',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 24),
-            Row(
-              children: [
-                if (canPlayLeft)
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () {
-                        controller.playTile(tile, 'left');
-                        Navigator.pop(context);
-                      },
-                      child: const Text('LEFT END'),
-                    ),
+              // Control Area (Ends)
+              if (game.board.isNotEmpty &&
+                  controller.statusMessage == "Your Turn" &&
+                  controller.selectedTile == null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [const Text('Tap a tile in your hand to play')],
                   ),
-                if (canPlayLeft && canPlayRight) const SizedBox(width: 16),
-                if (canPlayRight)
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () {
-                        controller.playTile(tile, 'right');
-                        Navigator.pop(context);
-                      },
-                      child: const Text('RIGHT END'),
-                    ),
+                ),
+
+              if (controller.selectedTile != null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Text(
+                        'Tap a ',
+                        style: TextStyle(color: Colors.white70),
+                      ),
+                      const Text(
+                        'glowing end',
+                        style: TextStyle(
+                          color: Color(0xFF2BEE4B),
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const Text(
+                        ' on the board to play',
+                        style: TextStyle(color: Colors.white70),
+                      ),
+                    ],
                   ),
-              ],
-            ),
-          ],
+                ),
+
+              // Player Hand (Vertical Rack)
+              Builder(
+                builder: (context) {
+                  final screenWidth = MediaQuery.of(context).size.width;
+                  final availableWidth =
+                      screenWidth - 32; // 16 horizontal padding on each side
+                  // 7 tiles + 6 gaps (12px each). A normal tile is 50px wide.
+                  // We want to fit 7 tiles comfortably. Target max width = 7 * 50 + 6 * 12 = 422
+                  double tileScale = (availableWidth / 422).clamp(0.5, 1.0);
+
+                  return SizedBox(
+                    height:
+                        102 * tileScale +
+                        18, // Reclaims board space while fitting scaled tiles + padding
+                    child: SingleChildScrollView(
+                      controller: _scrollController,
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      child: Row(
+                        children: game.hands[0].asMap().entries.map((entry) {
+                          final index = entry.key;
+                          final tile = entry.value;
+                          final isPlayable =
+                              !game.isGameOver &&
+                              game.currentPlayer == 0 &&
+                              (game.board.isEmpty ||
+                                  tile.contains(game.leftEnd!) ||
+                                  tile.contains(game.rightEnd!));
+
+                          return Padding(
+                            padding: EdgeInsets.only(right: 12.0 * tileScale),
+                            child: GestureDetector(
+                              onTap: game.isGameOver || !isPlayable
+                                  ? null
+                                  : () => controller.selectTile(tile),
+                              child: Opacity(
+                                opacity:
+                                    game.isGameOver ||
+                                        game.currentPlayer != 0 ||
+                                        isPlayable
+                                    ? 1.0
+                                    : 0.4,
+                                child: Hero(
+                                  tag: 'tile-$index',
+                                  child: DominoTileWidget(
+                                    tile: tile,
+                                    isVertical: true,
+                                    isHighlight: isPlayable,
+                                    isSelected: controller.selectedTile == tile,
+                                    scale: tileScale,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  );
+                },
+              ),
+
+              // Bottom spacer
+              const SizedBox(height: 16),
+            ],
+          ),
         ),
       ),
     );
@@ -1063,6 +1081,7 @@ class DominoTileWidget extends StatelessWidget {
   final DominoTile tile;
   final bool isVertical;
   final bool isHighlight;
+  final bool isSelected;
   final bool isFlipped;
   final double scale;
 
@@ -1071,6 +1090,7 @@ class DominoTileWidget extends StatelessWidget {
     required this.tile,
     this.isVertical = false,
     this.isHighlight = false,
+    this.isSelected = false,
     this.isFlipped = false,
     this.scale = 1.0,
   });
@@ -1085,20 +1105,33 @@ class DominoTileWidget extends StatelessWidget {
           height: (isVertical ? 102 : 50) * scale,
           decoration: BoxDecoration(
             color: const Color(0xFFFDFBF7),
-            border: isHighlight
-                ? Border.all(color: const Color(0xFF2BEE4B), width: 3 * scale)
+            border: isSelected
+                ? Border.all(color: const Color(0xFF2BEE4B), width: 4 * scale)
+                : isHighlight
+                ? Border.all(
+                    color: const Color(0xFF2BEE4B).withOpacity(0.5),
+                    width: 2 * scale,
+                  )
                 : Border.all(
                     color: const Color(0xFF9CA3AF),
                     width: 1.5 * scale,
                   ),
             borderRadius: BorderRadius.circular(4 * scale),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.4),
-                blurRadius: 6 * scale,
-                offset: Offset(1 * scale, 3 * scale),
-              ),
-            ],
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: const Color(0xFF2BEE4B).withOpacity(0.6),
+                      blurRadius: 12 * scale,
+                      spreadRadius: 2 * scale,
+                    ),
+                  ]
+                : [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.4),
+                      blurRadius: 6 * scale,
+                      offset: Offset(1 * scale, 3 * scale),
+                    ),
+                  ],
           ),
           child: Flex(
             direction: isVertical ? Axis.vertical : Axis.horizontal,
@@ -1252,12 +1285,16 @@ class SnakingBoard extends StatelessWidget {
   final List<DominoTile> board;
   final int rootIndex;
   final double maxWidth;
+  final bool isSelectingSide;
+  final Function(String)? onSelectSide;
 
   const SnakingBoard({
     super.key,
     required this.board,
     required this.rootIndex,
     required this.maxWidth,
+    this.isSelectingSide = false,
+    this.onSelectSide,
   });
 
   @override
@@ -1452,19 +1489,85 @@ class SnakingBoard extends StatelessWidget {
         height: boardHeight,
         child: Stack(
           clipBehavior: Clip.none,
-          children: positions.entries.map((entry) {
-            final pos = entry.value;
-            return Positioned(
-              left: pos.offset.dx - minX,
-              top: pos.offset.dy - minY,
-              child: DominoTileWidget(
-                tile: board[entry.key],
-                isVertical: pos.isVertical,
-                isFlipped: pos.isFlipped,
-                scale: scale,
+          children: [
+            ...positions.entries.map((entry) {
+              final pos = entry.value;
+              return Positioned(
+                left: pos.offset.dx - minX,
+                top: pos.offset.dy - minY,
+                child: DominoTileWidget(
+                  tile: board[entry.key],
+                  isVertical: pos.isVertical,
+                  isFlipped: pos.isFlipped,
+                  scale: scale,
+                ),
+              );
+            }),
+            if (isSelectingSide && board.length > 1) ...[
+              Positioned(
+                left: positions[0]!.offset.dx - minX - (20 * scale),
+                top: positions[0]!.offset.dy - minY - (20 * scale),
+                child: GestureDetector(
+                  onTap: () => onSelectSide?.call('left'),
+                  child: Container(
+                    width:
+                        (positions[0]!.isVertical ? vWidth : hWidth) +
+                        (40 * scale),
+                    height:
+                        (positions[0]!.isVertical ? vHeight : hHeight) +
+                        (40 * scale),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF2BEE4B).withOpacity(0.4),
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF2BEE4B).withOpacity(0.6),
+                          blurRadius: 20 * scale,
+                          spreadRadius: 5 * scale,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
-            );
-          }).toList(),
+              Positioned(
+                left:
+                    positions[board.length - 1]!.offset.dx -
+                    minX -
+                    (20 * scale),
+                top:
+                    positions[board.length - 1]!.offset.dy -
+                    minY -
+                    (20 * scale),
+                child: GestureDetector(
+                  onTap: () => onSelectSide?.call('right'),
+                  child: Container(
+                    width:
+                        (positions[board.length - 1]!.isVertical
+                            ? vWidth
+                            : hWidth) +
+                        (40 * scale),
+                    height:
+                        (positions[board.length - 1]!.isVertical
+                            ? vHeight
+                            : hHeight) +
+                        (40 * scale),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF2BEE4B).withOpacity(0.4),
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF2BEE4B).withOpacity(0.6),
+                          blurRadius: 20 * scale,
+                          spreadRadius: 5 * scale,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ],
         ),
       ),
     );
