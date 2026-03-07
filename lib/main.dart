@@ -49,6 +49,10 @@ class GameController extends ChangeNotifier {
   String? _bottomOverlayMessage;
   bool _showNextRoundButton = false;
 
+  int _lifetimeMatchWins = 0;
+  int _lifetimeMatchLosses = 0;
+  bool _matchStatsSaved = false;
+
   GameController() {
     _initMatch();
   }
@@ -61,12 +65,35 @@ class GameController extends ChangeNotifier {
   String? get bottomOverlayMessage => _bottomOverlayMessage;
   bool get showNextRoundButton => _showNextRoundButton;
   bool get isInitialized => _match.currentRound != null;
+  int get lifetimeMatchWins => _lifetimeMatchWins;
+  int get lifetimeMatchLosses => _lifetimeMatchLosses;
 
   static const String _kMatchKey = 'dominoes_match_data';
+
+  Future<void> _loadLifetimeStats() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _lifetimeMatchWins = prefs.getInt('lifetime_match_wins') ?? 0;
+      _lifetimeMatchLosses = prefs.getInt('lifetime_match_losses') ?? 0;
+    } catch (e) {
+      debugPrint("Error loading lifetime stats: $e");
+    }
+  }
+
+  Future<void> _saveLifetimeStats() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt('lifetime_match_wins', _lifetimeMatchWins);
+      await prefs.setInt('lifetime_match_losses', _lifetimeMatchLosses);
+    } catch (e) {
+      debugPrint("Error saving lifetime stats: $e");
+    }
+  }
 
   Future<void> _initMatch() async {
     _match = MatchModel(targetScore: 150);
     // Explicitly set a non-null placeholder if needed, but we handle it with isInitialized
+    await _loadLifetimeStats();
     await _loadMatch();
 
     // If we loaded a match but no round is active, start one
@@ -145,6 +172,7 @@ class GameController extends ChangeNotifier {
   Future<void> resetMatch() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_kMatchKey);
+    _matchStatsSaved = false;
     // Restart from scratch
     await _initMatch();
   }
@@ -217,10 +245,16 @@ class GameController extends ChangeNotifier {
       int roundWinner = _match.recordRoundResult();
       _saveMatch(); // Persist scores!
 
-      if (roundWinner == 0) {
-        // Human wins round, stays starter or logic handled by MatchModel
-      } else if (roundWinner == 1) {
-        // AI wins round
+      if (_match.isMatchOver) {
+        if (!_matchStatsSaved) {
+          _matchStatsSaved = true;
+          if (_match.matchWinner == 0) {
+            _lifetimeMatchWins++;
+          } else if (_match.matchWinner == 1) {
+            _lifetimeMatchLosses++;
+          }
+          _saveLifetimeStats();
+        }
       }
 
       if (_match.isMatchOver) {
@@ -243,7 +277,7 @@ class GameController extends ChangeNotifier {
 
       _showNextRoundButton = false;
       notifyListeners();
-      Future.delayed(const Duration(milliseconds: 1500), () {
+      Future.delayed(const Duration(milliseconds: 1000), () {
         _showNextRoundButton = true;
         notifyListeners();
       });
@@ -702,7 +736,8 @@ class _GameScreenState extends State<GameScreen> {
                       ),
 
                     // Status Overlay (Bottom Center)
-                    if (controller.bottomOverlayMessage != null)
+                    if (controller.bottomOverlayMessage != null &&
+                        !controller.showNextRoundButton)
                       Align(
                         alignment: Alignment.bottomCenter,
                         child: Padding(
@@ -726,6 +761,120 @@ class _GameScreenState extends State<GameScreen> {
                                 fontWeight: FontWeight.bold,
                                 color: Color(0xFF2BEE4B),
                                 letterSpacing: 1.2,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+
+                    // Game Over Modal (Idea B)
+                    if (game.isGameOver && controller.showNextRoundButton)
+                      Positioned.fill(
+                        child: Container(
+                          color: Colors.black.withOpacity(0.7),
+                          child: Center(
+                            child: Container(
+                              margin: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                              ),
+                              padding: const EdgeInsets.all(32),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF1E1E1E),
+                                borderRadius: BorderRadius.circular(24),
+                                border: Border.all(
+                                  color: controller.match.isMatchOver
+                                      ? (controller.match.matchWinner == 0
+                                            ? const Color(0xFF2BEE4B)
+                                            : Colors.red)
+                                      : const Color(
+                                          0xFF2BEE4B,
+                                        ).withOpacity(0.5),
+                                  width: 2,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.5),
+                                    blurRadius: 20,
+                                    offset: const Offset(0, 10),
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    controller.bottomOverlayMessage ??
+                                        'Game Over',
+                                    style: TextStyle(
+                                      fontSize: 28,
+                                      fontWeight: FontWeight.bold,
+                                      color:
+                                          controller.match.isMatchOver &&
+                                              controller.match.matchWinner != 0
+                                          ? Colors.red
+                                          : const Color(0xFF2BEE4B),
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                  const SizedBox(height: 24),
+                                  const Text(
+                                    'LIFETIME MATCH RECORD',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.white54,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 2,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      _StatBox(
+                                        label: 'WINS',
+                                        value: controller.lifetimeMatchWins,
+                                        color: const Color(0xFF2BEE4B),
+                                      ),
+                                      const SizedBox(width: 16),
+                                      _StatBox(
+                                        label: 'LOSSES',
+                                        value: controller.lifetimeMatchLosses,
+                                        color: Colors.orange,
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 32),
+                                  SizedBox(
+                                    width: double.infinity,
+                                    child: ElevatedButton.icon(
+                                      icon: Icon(
+                                        controller.match.isMatchOver
+                                            ? Icons.replay
+                                            : Icons.play_arrow,
+                                      ),
+                                      label: Text(
+                                        controller.match.isMatchOver
+                                            ? 'START NEW MATCH'
+                                            : 'PLAY NEXT ROUND',
+                                      ),
+                                      onPressed: controller.restartGame,
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: const Color(
+                                          0xFF2BEE4B,
+                                        ),
+                                        foregroundColor: Colors.black,
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 16,
+                                        ),
+                                        textStyle: const TextStyle(
+                                          inherit: false,
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ),
@@ -815,45 +964,8 @@ class _GameScreenState extends State<GameScreen> {
               },
             ),
 
-            // Action Buttons
-            Padding(
-              padding: const EdgeInsets.only(bottom: 16.0, left: 16, right: 16),
-              child: game.isGameOver
-                  ? controller.showNextRoundButton
-                        ? Row(
-                            children: [
-                              Expanded(
-                                child: ElevatedButton.icon(
-                                  icon: Icon(
-                                    controller.match.isMatchOver
-                                        ? Icons.replay
-                                        : Icons.play_arrow,
-                                  ),
-                                  label: Text(
-                                    controller.match.isMatchOver
-                                        ? 'START NEW MATCH'
-                                        : 'START NEXT ROUND',
-                                  ),
-                                  onPressed: controller.restartGame,
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF2BEE4B),
-                                    foregroundColor: Colors.black,
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 16,
-                                    ),
-                                    textStyle: const TextStyle(
-                                      inherit: false,
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          )
-                        : const SizedBox(height: 8) // space while waiting
-                  : const SizedBox(height: 8), // spacer for the removed buttons
-            ),
+            // Bottom spacer
+            const SizedBox(height: 16),
           ],
         ),
       ),
@@ -1368,4 +1480,51 @@ class _TilePos {
     required this.isVertical,
     this.isFlipped = false,
   });
+}
+
+class _StatBox extends StatelessWidget {
+  final String label;
+  final int value;
+  final Color color;
+  const _StatBox({
+    super.key,
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withOpacity(0.3), width: 2),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: color,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1.5,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '$value',
+            style: const TextStyle(
+              fontSize: 32,
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
