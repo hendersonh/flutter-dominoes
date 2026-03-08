@@ -81,19 +81,17 @@ class PassAction extends Action {
 /// The state of the game.
 class GameModel {
   List<List<DominoTile>> hands;
-  List<DominoTile> boneyard;
-  List<Set<int>>
-  passedSuits; // [0] for p0, [1] for p1 - suits they passed/drew on
+  List<Set<int>> passedSuits; // [0..3] for players 0-3
   int? leftEnd;
   int? rightEnd;
   int currentPlayer;
   int consecutivePasses;
   int rootIndex = 0;
   List<DominoTile> board; // Just for visualization
+  bool isFirstHandOfMatch;
 
   GameModel({
     required this.hands,
-    required this.boneyard,
     List<Set<int>>? passedSuits,
     this.leftEnd,
     this.rightEnd,
@@ -101,13 +99,13 @@ class GameModel {
     this.consecutivePasses = 0,
     this.rootIndex = 0,
     List<DominoTile>? board,
+    this.isFirstHandOfMatch = false,
   }) : board = board ?? [],
-       passedSuits = passedSuits ?? [{}, {}];
+       passedSuits = passedSuits ?? [{}, {}, {}, {}];
 
   GameModel clone() {
     return GameModel(
-      hands: [List.from(hands[0]), List.from(hands[1])],
-      boneyard: List.from(boneyard),
+      hands: hands.map((h) => List<DominoTile>.from(h)).toList(),
       passedSuits: passedSuits.map((s) => Set<int>.from(s)).toList(),
       leftEnd: leftEnd,
       rightEnd: rightEnd,
@@ -115,27 +113,36 @@ class GameModel {
       consecutivePasses: consecutivePasses,
       rootIndex: rootIndex,
       board: List.from(board),
+      isFirstHandOfMatch: isFirstHandOfMatch,
     );
   }
 
   bool get isGameOver {
-    if (hands[0].isEmpty || hands[1].isEmpty) return true;
-    if (consecutivePasses >= 2) return true; // Blocked game
+    for (int i = 0; i < 4; i++) {
+      if (hands[i].isEmpty) return true;
+    }
+    if (consecutivePasses >= 4) return true; // Blocked game
     return false;
   }
 
   int get winner {
     if (!isGameOver) return -1;
-    if (hands[0].isEmpty) return 0;
-    if (hands[1].isEmpty) return 1;
+    for (int i = 0; i < 4; i++) {
+      if (hands[i].isEmpty) return i;
+    }
 
     // Blocked game: player with lowest score in hand wins
-    int score0 = hands[0].fold(0, (sum, tile) => sum + tile.score);
-    int score1 = hands[1].fold(0, (sum, tile) => sum + tile.score);
+    List<int> scores = hands
+        .map((h) => h.fold(0, (sum, tile) => sum + tile.score))
+        .toList();
+    int minScore = scores.reduce(min);
 
-    if (score0 < score1) return 0;
-    if (score1 < score0) return 1;
-    return -1; // Draw
+    // Check for ties
+    if (scores.where((s) => s == minScore).length > 1) {
+      return -1; // Draw
+    }
+
+    return scores.indexOf(minScore);
   }
 
   bool canPlayerPlay(int player) {
@@ -152,8 +159,20 @@ class GameModel {
 
     if (leftEnd == null && rightEnd == null) {
       // First move of the game
-      for (var tile in hands[player]) {
-        actions.add(PlayAction(tile, 'left', isFirstMove: true));
+      if (isFirstHandOfMatch) {
+        DominoTile doubleSix = const DominoTile(6, 6);
+        if (hands[player].contains(doubleSix)) {
+          actions.add(PlayAction(doubleSix, 'left', isFirstMove: true));
+        } else {
+          // Fallback if rules are broken, should not happen if MatchModel sets startingPlayer correctly
+          for (var tile in hands[player]) {
+            actions.add(PlayAction(tile, 'left', isFirstMove: true));
+          }
+        }
+      } else {
+        for (var tile in hands[player]) {
+          actions.add(PlayAction(tile, 'left', isFirstMove: true));
+        }
       }
       return actions;
     }
@@ -173,11 +192,7 @@ class GameModel {
     }
 
     if (!canPlay) {
-      if (boneyard.isNotEmpty) {
-        actions.add(DrawAction());
-      } else {
-        actions.add(PassAction());
-      }
+      actions.add(PassAction());
     }
 
     return actions;
@@ -218,33 +233,14 @@ class GameModel {
         }
       }
       consecutivePasses = 0;
-      currentPlayer = 1 - currentPlayer;
-    } else if (action is DrawAction) {
-      // If they had to draw, they don't have the left or right ends
-      if (leftEnd != null) passedSuits[currentPlayer].add(leftEnd!);
-      if (rightEnd != null) passedSuits[currentPlayer].add(rightEnd!);
-
-      if (boneyard.isNotEmpty) {
-        // Since we drew an unknown tile, it could be ANY suit.
-        // Therefore, we must clear our historical voids to be logically safe.
-        passedSuits[currentPlayer].clear();
-
-        DominoTile drawnTile = boneyard.removeLast();
-        hands[currentPlayer].add(drawnTile);
-      }
-
-      // Re-apply the void for the CURRENT ends, because if we cannot play
-      // the newly drawn tile, it definitely doesn't match the current ends.
-      if (leftEnd != null) passedSuits[currentPlayer].add(leftEnd!);
-      if (rightEnd != null) passedSuits[currentPlayer].add(rightEnd!);
-      // Current player remains the same to play or draw again
+      currentPlayer = (currentPlayer + 1) % 4;
     } else if (action is PassAction) {
       // If they passed, they don't have the left or right ends
       if (leftEnd != null) passedSuits[currentPlayer].add(leftEnd!);
       if (rightEnd != null) passedSuits[currentPlayer].add(rightEnd!);
 
       consecutivePasses++;
-      currentPlayer = 1 - currentPlayer;
+      currentPlayer = (currentPlayer + 1) % 4;
     }
   }
 }
@@ -304,90 +300,85 @@ class MCTSPlayer {
 
   MCTSPlayer(this.playerId, {this.maxIterations = 10000});
 
-  /// Determinization: Randomly assign unknown tiles to opponent and boneyard respecting game history constraints
+  /// Determinization: Randomly assign unknown tiles to opponents respecting game history constraints
   GameModel determinize(GameModel state) {
     GameModel detState = state.clone();
-    int opponentId = 1 - playerId;
 
-    // Collect all unknown tiles (opponent hand + boneyard)
+    // Collect all unknown tiles (opponents' hands)
     List<DominoTile> unknownTiles = [];
-    unknownTiles.addAll(detState.hands[opponentId]);
-    unknownTiles.addAll(detState.boneyard);
+    List<int> needed = List.filled(4, 0);
+    List<Set<int>> voids = detState.passedSuits;
 
-    // Shuffle unknown tiles
+    for (int i = 0; i < 4; i++) {
+      if (i != playerId) {
+        unknownTiles.addAll(detState.hands[i]);
+        needed[i] = detState.hands[i].length;
+        detState.hands[i] = []; // Clear for reassignment
+      }
+    }
+
+    // Shuffle pool to ensure random valid distribution on each MCTS iteration
     unknownTiles.shuffle(random);
 
-    // Constraints: Opponent cannot have tiles with suits they previously passed on
-    Set<int> opponentVoids = detState.passedSuits[opponentId];
+    // Process opponents using the Fail-First principle (Minimum Remaining Values heuristic).
+    // Sort by the number of voids (descending) so heavily constrained players get tiles first.
+    List<int> opponents = [0, 1, 2, 3]
+      ..remove(playerId)
+      ..shuffle(random); // Shuffle first to randomly break ties
+    opponents.sort((a, b) => voids[b].length.compareTo(voids[a].length));
 
-    for (int attempts = 0; attempts < 20; attempts++) {
+    int iterations = 0;
+
+    bool assignTilesRec(int oppIndexIndex) {
+      iterations++;
+      if (iterations > 5000)
+        return false; // Safety cutoff for pathological constraint graphs
+
+      if (oppIndexIndex >= opponents.length) return true;
+      int pIndex = opponents[oppIndexIndex];
+
+      if (needed[pIndex] == 0) return assignTilesRec(oppIndexIndex + 1);
+
+      for (int i = 0; i < unknownTiles.length; i++) {
+        DominoTile t = unknownTiles[i];
+        if (!voids[pIndex].contains(t.end1) &&
+            !voids[pIndex].contains(t.end2)) {
+          unknownTiles.removeAt(i);
+          detState.hands[pIndex].add(t);
+          needed[pIndex]--;
+
+          if (assignTilesRec(oppIndexIndex)) {
+            return true;
+          }
+
+          // Backtrack
+          needed[pIndex]++;
+          detState.hands[pIndex].removeLast();
+          unknownTiles.insert(i, t);
+        }
+      }
+      return false;
+    }
+
+    bool success = assignTilesRec(0);
+
+    if (!success) {
+      // Fallback: If absolutely impossible to satisfy constraints, distribute randomly
+      for (int i = 0; i < 4; i++) {
+        if (i != playerId) detState.hands[i] = [];
+      }
       unknownTiles.shuffle(random);
-
-      List<DominoTile> validOpponentHand = [];
-      List<DominoTile> remainingForBoneyard = [];
-
-      int opponentHandSize = detState.hands[opponentId].length;
-
-      for (var tile in unknownTiles) {
-        if (validOpponentHand.length < opponentHandSize) {
-          bool canOpponentHave = true;
-          for (int voidSuit in opponentVoids) {
-            if (tile.contains(voidSuit)) {
-              canOpponentHave = false;
-              break;
-            }
-          }
-
-          if (canOpponentHave) {
-            validOpponentHand.add(tile);
-          } else {
-            remainingForBoneyard.add(tile);
-          }
-        } else {
-          remainingForBoneyard.add(tile);
-        }
-      }
-
-      if (validOpponentHand.length == opponentHandSize) {
-        detState.hands[opponentId] = validOpponentHand;
-        detState.boneyard = remainingForBoneyard;
-        return detState;
+      int tileIndex = 0;
+      for (int i = 0; i < 4; i++) {
+        if (i == playerId) continue;
+        int assignCount = state.hands[i].length;
+        detState.hands[i] = unknownTiles.sublist(
+          tileIndex,
+          tileIndex + assignCount,
+        );
+        tileIndex += assignCount;
       }
     }
-
-    // Fallback exactly as before if mathematically forced to relax constraints
-    List<DominoTile> validOpponentHand = [];
-    List<DominoTile> remainingForBoneyard = [];
-    int opponentHandSize = detState.hands[opponentId].length;
-
-    for (var tile in unknownTiles) {
-      if (validOpponentHand.length < opponentHandSize) {
-        bool canOpponentHave = true;
-        for (int voidSuit in opponentVoids) {
-          if (tile.contains(voidSuit)) {
-            canOpponentHave = false;
-            break;
-          }
-        }
-
-        if (canOpponentHave) {
-          validOpponentHand.add(tile);
-        } else {
-          remainingForBoneyard.add(tile);
-        }
-      } else {
-        remainingForBoneyard.add(tile);
-      }
-    }
-
-    if (validOpponentHand.length < opponentHandSize) {
-      int needed = opponentHandSize - validOpponentHand.length;
-      validOpponentHand.addAll(remainingForBoneyard.take(needed));
-      remainingForBoneyard.removeRange(0, needed);
-    }
-
-    detState.hands[opponentId] = validOpponentHand;
-    detState.boneyard = remainingForBoneyard;
 
     return detState;
   }
@@ -396,7 +387,7 @@ class MCTSPlayer {
     List<Action> rootLegalActions = rootState.getLegalActions(playerId);
     if (rootLegalActions.length == 1) return rootLegalActions[0];
 
-    MCTSNode rootNode = MCTSNode(player: 1 - playerId);
+    MCTSNode rootNode = MCTSNode(player: (rootState.currentPlayer - 1 + 4) % 4);
     Stopwatch sw = Stopwatch()..start();
 
     while (sw.elapsedMilliseconds < timeLimitMs) {
@@ -468,33 +459,43 @@ class MCTSPlayer {
 
       // 5. Backpropagation
       int winner = state.winner;
-      double result = 0.0;
-      if (winner == -1) {
-        result = 0.5; // Natural Draw
-      } else {
-        // Evaluate win/loss magnitude based on pip differential
-        int myScore = state.hands[playerId].fold(0, (sum, t) => sum + t.score);
-        int opScore = state.hands[1 - playerId].fold(
-          0,
-          (sum, t) => sum + t.score,
-        );
-        int scoreDiff = (opScore - myScore).abs();
 
-        if (winner == playerId) {
-          // Win: Guarantee > 0.5 (base 0.6 + up to 0.4 for margin)
-          result = 0.6 + 0.4 * (scoreDiff / 100.0).clamp(0.0, 1.0);
+      MCTSNode? currentNode = node;
+      while (currentNode != null) {
+        double result = 0.0;
+        int movingPlayer = currentNode.player;
+
+        if (winner == -1) {
+          result = 0.5; // Natural Draw
         } else {
-          // Loss: Guarantee < 0.5 (base 0.4 - up to 0.4 for margin)
-          result = 0.4 - 0.4 * (scoreDiff / 100.0).clamp(0.0, 1.0);
-        }
-      }
+          // Evaluate win/loss magnitude based on pip differential
+          int myPips = state.hands[movingPlayer].fold(
+            0,
+            (sum, t) => sum + t.score,
+          );
 
-      while (node.parent != null) {
-        // node.player is the player who made the move to reach this node
-        node.update(node.player == playerId ? result : 1.0 - result);
-        node = node.parent!;
+          if (winner == movingPlayer) {
+            // Win: Reward based on total pips trapped (actual game rules)
+            int sumOpPips = 0;
+            for (int i = 0; i < 4; i++) {
+              if (i != movingPlayer) {
+                sumOpPips += state.hands[i].fold(0, (sum, t) => sum + t.score);
+              }
+            }
+            // Max theoretical sum is around 63 * 3 = 189, though closer to 100 in practice.
+            // Normalize sumOpPips against a reasonable cap, say 150 points.
+            result = 0.6 + 0.4 * (sumOpPips / 150.0).clamp(0.0, 1.0);
+          } else {
+            // Loss: Heavily penalize having a large number of pips left in hand.
+            // A score near 0.0 means terrible loss (many pips left).
+            // A score near 0.4 means a "good" loss (very few pips left).
+            result = 0.4 - 0.4 * (myPips / 100.0).clamp(0.0, 1.0);
+          }
+        }
+
+        currentNode.update(result);
+        currentNode = currentNode.parent;
       }
-      rootNode.update(result);
     }
 
     // Return the action with the most visits
@@ -534,24 +535,25 @@ Future<Action> getBestActionAsync(
 
 /// Model to govern multiple rounds of dominoes up to a target score
 class MatchModel {
-  int humanScore = 0;
-  int aiScore = 0;
+  List<int> scores = [0, 0, 0, 0]; // 0: Human, 1-3: AIs
   int roundNumber = 1;
-  int nextStarter = 0; // 0 for human, 1 for AI
+  int nextStarter = 0; // 0 for human, 1-3 for AI
   final int targetScore;
   GameModel? currentRound;
 
-  MatchModel({this.targetScore = 150});
+  MatchModel({this.targetScore = 120});
 
-  bool get isMatchOver => humanScore >= targetScore || aiScore >= targetScore;
+  bool get isMatchOver => scores.any((s) => s >= targetScore);
 
   int get matchWinner {
-    if (humanScore >= targetScore && humanScore > aiScore) return 0;
-    if (aiScore >= targetScore && aiScore > humanScore) return 1;
+    int maxScore = scores.reduce(max);
+    if (maxScore >= targetScore) {
+      return scores.indexOf(maxScore);
+    }
     return -1;
   }
 
-  void startNewRound(int startingPlayer) {
+  void startNewRound(int roundStarterOverride, {bool isFirstHand = false}) {
     List<DominoTile> allTiles = [];
     for (int i = 0; i <= 6; i++) {
       for (int j = i; j <= 6; j++) {
@@ -560,14 +562,32 @@ class MatchModel {
     }
     allTiles.shuffle();
 
-    List<DominoTile> humanHand = allTiles.sublist(0, 7);
-    List<DominoTile> aiHand = allTiles.sublist(7, 14);
-    List<DominoTile> boneyard = allTiles.sublist(14);
+    List<List<DominoTile>> dealtHands = [
+      allTiles.sublist(0, 7),
+      allTiles.sublist(7, 14),
+      allTiles.sublist(14, 21),
+      allTiles.sublist(21, 28),
+    ];
+
+    int startingPlayer = roundStarterOverride;
+
+    if (isFirstHand) {
+      // strictly find 6-6
+      DominoTile doubleSix = const DominoTile(6, 6);
+      for (int i = 0; i < 4; i++) {
+        if (dealtHands[i].contains(doubleSix)) {
+          startingPlayer = i;
+          break;
+        }
+      }
+    }
+
+    nextStarter = startingPlayer; // Store who actually started
 
     currentRound = GameModel(
-      hands: [humanHand, aiHand],
-      boneyard: boneyard,
+      hands: dealtHands,
       currentPlayer: startingPlayer,
+      isFirstHandOfMatch: isFirstHand,
     );
   }
 
@@ -577,30 +597,33 @@ class MatchModel {
     if (currentRound == null) return -1;
     int winner = currentRound!.winner;
 
-    int p0Remaining = currentRound!.hands[0].fold(0, (sum, t) => sum + t.score);
-    int p1Remaining = currentRound!.hands[1].fold(0, (sum, t) => sum + t.score);
-
-    if (winner == 0) {
-      humanScore += (p1Remaining - p0Remaining).abs();
-    } else if (winner == 1) {
-      aiScore += (p0Remaining - p1Remaining).abs();
+    if (winner != -1) {
+      // Winner gets sum of all OTHER players' pips
+      int totalPipsRound = 0;
+      for (int i = 0; i < 4; i++) {
+        if (i != winner) {
+          totalPipsRound += currentRound!.hands[i].fold(
+            0,
+            (sum, t) => sum + t.score,
+          );
+        }
+      }
+      scores[winner] += totalPipsRound;
     }
-    // If draw (winner == -1), no score is awarded.
 
     roundNumber++;
     // Set next starter based on previous round winner
-    if (winner == 0) {
-      nextStarter = 0;
-    } else if (winner == 1) {
-      nextStarter = 1;
+    if (winner != -1) {
+      nextStarter = winner; // Winner starts next round
+    } else {
+      nextStarter = (nextStarter + 1) % 4; // Tie: rotate starter clockwise
     }
     return winner;
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'humanScore': humanScore,
-      'aiScore': aiScore,
+      'scores': scores,
       'roundNumber': roundNumber,
       'targetScore': targetScore,
       'nextStarter': nextStarter,
@@ -608,39 +631,47 @@ class MatchModel {
   }
 
   factory MatchModel.fromJson(Map<String, dynamic> json) {
-    final match = MatchModel(targetScore: json['targetScore'] ?? 150);
-    match.humanScore = json['humanScore'] ?? 0;
-    match.aiScore = json['aiScore'] ?? 0;
+    final match = MatchModel(targetScore: json['targetScore'] ?? 120);
+    if (json['scores'] != null) {
+      match.scores = List<int>.from(json['scores']);
+    } else {
+      // Migration from 2-player state
+      match.scores[0] = json['humanScore'] ?? 0;
+      match.scores[1] = json['aiScore'] ?? 0;
+    }
     match.roundNumber = json['roundNumber'] ?? 1;
     match.nextStarter = json['nextStarter'] ?? 0;
     return match;
   }
 }
 
-/// Main function to simulate a Human vs AI Match
+/// Main function to simulate a Human vs 3 AI Match
 void main() async {
-  print("=== Draw Dominoes: Human vs AI Match (IS-MCTS) ===");
-  print("Target Score: 150 points");
+  print("=== Block Dominoes: 4-Player Match (IS-MCTS) ===");
+  print("Target Score: 100 points");
 
-  MatchModel match = MatchModel(targetScore: 150);
-  int nextStarter = 0; // Human starts first round
+  MatchModel match = MatchModel(targetScore: 120);
 
   while (!match.isMatchOver) {
     print("\n==================================================");
-    print("MATCH SCORE - Human: ${match.humanScore} | AI: ${match.aiScore}");
+    print(
+      "MATCH SCORE - P0: ${match.scores[0]} | P1: ${match.scores[1]} | P2: ${match.scores[2]} | P3: ${match.scores[3]}",
+    );
     print("--- ROUND ${match.roundNumber} ---");
 
-    match.startNewRound(nextStarter);
+    match.startNewRound(match.nextStarter, isFirstHand: match.roundNumber == 1);
     GameModel game = match.currentRound!;
 
     while (!game.isGameOver) {
       print("\n--------------------------------------------------");
       print("Board: ${game.board.isEmpty ? 'Empty' : game.board.join(' ')}");
       print("Ends: [${game.leftEnd ?? '?'} | ${game.rightEnd ?? '?'}]");
-      print("Boneyard: ${game.boneyard.length} tiles");
-      print("AI Hand: ${game.hands[1].length} tiles");
+      print(
+        "Hands: P0:${game.hands[0].length} P1:${game.hands[1].length} P2:${game.hands[2].length} P3:${game.hands[3].length}",
+      );
 
-      if (game.currentPlayer == 0) {
+      int cp = game.currentPlayer;
+      if (cp == 0) {
         // Human Turn
         print(
           "Your Hand: ${game.hands[0].asMap().entries.map((e) => '${e.key}: ${e.value}').join(', ')}",
@@ -652,23 +683,20 @@ void main() async {
           print("$i: ${legalActions[i]}");
         }
 
-        // Auto-play for CLI simulation (Always picks first legal move)
-        // In a real CLI, we would use stdin.readLineSync()
+        // Auto-play for CLI simulation
         Action chosenAction = legalActions[0];
-        print("Human chooses: $chosenAction");
+        print("P0 (Human) chooses: $chosenAction");
         game.applyAction(chosenAction);
       } else {
         // AI Turn
-        print("\nAI is thinking...");
+        print("\nP$cp (AI) is thinking...");
         Stopwatch stopwatch = Stopwatch()..start();
 
-        // 3 seconds for CLI simulation so games don't take forever,
-        // 10s is overkill for a continuous test loop
-        Action aiAction = await getBestActionAsync(game, 1, 3000);
+        Action aiAction = await getBestActionAsync(game, cp, 1000);
 
         stopwatch.stop();
         print(
-          "AI chooses: $aiAction (took ${stopwatch.elapsedMilliseconds}ms)",
+          "P$cp chooses: $aiAction (took ${stopwatch.elapsedMilliseconds}ms)",
         );
         game.applyAction(aiAction);
       }
@@ -676,35 +704,30 @@ void main() async {
 
     print("\n--- Round ${match.roundNumber} Over ---");
     print("Final Board: ${game.board.join(' ')}");
-    print(
-      "Human Hand Remaining: ${game.hands[0]} (Pips: ${game.hands[0].fold(0, (sum, t) => sum + t.score)})",
-    );
-    print(
-      "AI Hand Remaining: ${game.hands[1]} (Pips: ${game.hands[1].fold(0, (sum, t) => sum + t.score)})",
-    );
+    for (int i = 0; i < 4; i++) {
+      print(
+        "P$i Hand Remaining: ${game.hands[i]} (Pips: ${game.hands[i].fold(0, (sum, t) => sum + t.score)})",
+      );
+    }
 
     int roundWinner = match.recordRoundResult();
 
-    if (roundWinner == 0) {
-      print(">> Human wins the round!");
-      nextStarter = 0; // Winner starts next round
-    } else if (roundWinner == 1) {
-      print(">> AI wins the round!");
-      nextStarter = 1;
+    if (roundWinner != -1) {
+      print(">> Player $roundWinner wins the round!");
     } else {
       print(">> Round is a draw!");
-      // Starter remains the same
     }
   }
 
   print("\n==================================================");
   print("=== MATCH OVER ===");
-  print("FINAL SCORE - Human: ${match.humanScore} | AI: ${match.aiScore}");
+  print(
+    "FINAL SCORE - P0: ${match.scores[0]} | P1: ${match.scores[1]} | P2: ${match.scores[2]} | P3: ${match.scores[3]}",
+  );
 
-  if (match.matchWinner == 0) {
-    print("🏆 HUMAN WINS THE MATCH! 🏆");
-  } else if (match.matchWinner == 1) {
-    print("🤖 AI WINS THE MATCH! 🤖");
+  int winner = match.matchWinner;
+  if (winner != -1) {
+    print("🏆 PLAYER $winner WINS THE MATCH! 🏆");
   } else {
     print("It's a tie!");
   }

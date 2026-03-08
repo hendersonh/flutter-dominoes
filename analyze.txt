@@ -1,0 +1,71 @@
+Analyzing flutter_app...
+
+warning - lib\main.dart:1570:11 - A value for optional parameter 'key' isn't ever given. Try removing the unused parameter. - unused_element_parameter
+warning - lib\main.dart:1606:11 - A value for optional parameter 'key' isn't ever given. Try removing the unused parameter. - unused_element_parameter
+warning - lib\main.dart:1652:32 - A value for optional parameter 'key' isn't ever given. Try removing the unused parameter. - unused_element_parameter
+   info - lib\engine\dominoes_ai.dart:282:13 - The variable name 'Ni' isn't a lowerCamelCase identifier. Try changing the name to follow the lowerCamelCase style. - non_constant_identifier_names
+   info - lib\engine\dominoes_ai.dart:624:3 - Don't invoke 'print' in production code. Try using a logging framework. - avoid_print
+   info - lib\engine\dominoes_ai.dart:625:3 - Don't invoke 'print' in production code. Try using a logging framework. - avoid_print
+   info - lib\engine\dominoes_ai.dart:630:5 - Don't invoke 'print' in production code. Try using a logging framework. - avoid_print
+   info - lib\engine\dominoes_ai.dart:631:5 - Don't invoke 'print' in production code. Try using a logging framework. - avoid_print
+   info - lib\engine\dominoes_ai.dart:634:5 - Don't invoke 'print' in production code. Try using a logging framework. - avoid_print
+   info - lib\engine\dominoes_ai.dart:640:7 - Don't invoke 'print' in production code. Try using a logging framework. - avoid_print
+   info - lib\engine\dominoes_ai.dart:641:7 - Don't invoke 'print' in production code. Try using a logging framework. - avoid_print
+   info - lib\engine\dominoes_ai.dart:642:7 - Don't invoke 'print' in production code. Try using a logging framework. - avoid_print
+   info - lib\engine\dominoes_ai.dart:643:7 - Don't invoke 'print' in production code. Try using a logging framework. - avoid_print
+   info - lib\engine\dominoes_ai.dart:650:9 - Don't invoke 'print' in production code. Try using a logging framework. - avoid_print
+   info - lib\engine\dominoes_ai.dart:655:9 - Don't invoke 'print' in production code. Try using a logging framework. - avoid_print
+   info - lib\engine\dominoes_ai.dart:657:11 - Don't invoke 'print' in production code. Try using a logging framework. - avoid_print
+   info - lib\engine\dominoes_ai.dart:662:9 - Don't invoke 'print' in production code. Try using a logging framework. - avoid_print
+   info - lib\engine\dominoes_ai.dart:666:9 - Don't invoke 'print' in production code. Try using a logging framework. - avoid_print
+   info - lib\engine\dominoes_ai.dart:672:9 - Don't invoke 'print' in production code. Try using a logging framework. - avoid_print
+   info - lib\engine\dominoes_ai.dart:679:5 - Don't invoke 'print' in production code. Try using a logging framework. - avoid_print
+   info - lib\engine\dominoes_ai.dart:680:5 - Don't invoke 'print' in production code. Try using a logging framework. - avoid_print
+   info - lib\engine\dominoes_ai.dart:682:7 - Don't invoke 'print' in production code. Try using a logging framework. - avoid_print
+   info - lib\engine\dominoes_ai.dart:690:7 - Don't invoke 'print' in production code. Try using a logging framework. - avoid_print
+   info - lib\engine\dominoes_ai.dart:692:7 - Don't invoke 'print' in production code. Try using a logging framework. - avoid_print
+   info - lib\engine\dominoes_ai.dart:696:3 - Don't invoke 'print' in production code. Try using a logging framework. - avoid_print
+   info - lib\engine\dominoes_ai.dart:697:3 - Don't invoke 'print' in production code. Try using a logging framework. - avoid_print
+   info - lib\engine\dominoes_ai.dart:698:3 - Don't invoke 'print' in production code. Try using a logging framework. - avoid_print
+   info - lib\engine\dominoes_ai.dart:704:5 - Don't invoke 'print' in production code. Try using a logging framework. - avoid_print
+   info - lib\engine\dominoes_ai.dart:706:5 - Don't invoke 'print' in production code. Try using a logging framework. - avoid_print
+   info - lib\main.dart:156:7 - Don't invoke 'print' in production code. Try using a logging framework. - avoid_print
+   info - lib\main.dart:169:9 - Don't invoke 'print' in production code. Try using a logging framework. - avoid_print
+   info - lib\main.dart:209:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib\main.dart:253:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib\main.dart:258:7 - Don't invoke 'print' in production code. Try using a logging framework. - avoid_print
+   info - lib\main.dart:274:7 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib\main.dart:376:5 - Don't invoke 'print' in production code. Try using a logging framework. - avoid_print
+   info - lib\main.dart:388:7 - Don't invoke 'print' in production code. Try using a logging framework. - avoid_print
+   info - lib\main.dart:535:45 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\main.dart:538:47 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\main.dart:542:49 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\main.dart:658:60 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\main.dart:676:53 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\main.dart:686:53 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\main.dart:738:53 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\main.dart:743:37 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\main.dart:772:53 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\main.dart:777:37 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\main.dart:797:49 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\main.dart:814:45 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\main.dart:819:59 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\main.dart:1088:52 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\main.dart:1099:54 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\main.dart:1106:43 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\main.dart:1153:37 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\main.dart:1158:39 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\main.dart:1246:45 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\main.dart:1316:11 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib\main.dart:1320:11 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib\main.dart:1388:11 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib\main.dart:1392:11 - Statements in an if should be enclosed in a block. Try wrapping the statement in a block. - curly_braces_in_flow_control_structures
+   info - lib\main.dart:1496:54 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\main.dart:1500:58 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\main.dart:1532:54 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\main.dart:1536:58 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\main.dart:1617:29 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\main.dart:1619:41 - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss. Try replacing the use of the deprecated member with the replacement. - deprecated_member_use
+   info - lib\main_test.dart:1:8 - The imported package 'flutter_driver' isn't a dependency of the importing package. Try adding a dependency for 'flutter_driver' in the 'pubspec.yaml' file. - depend_on_referenced_packages
+
+67 issues found.

@@ -94,7 +94,7 @@ class GameController extends ChangeNotifier {
   }
 
   Future<void> _initMatch() async {
-    _match = MatchModel(targetScore: 150);
+    _match = MatchModel(targetScore: 120);
     _topOverlayMessage = null;
     _bottomOverlayMessage = null;
     _selectedTile = null;
@@ -104,14 +104,17 @@ class GameController extends ChangeNotifier {
 
     // If we loaded a match but no round is active, start one
     if (_match.currentRound == null) {
-      _match.startNewRound(_match.nextStarter);
+      _match.startNewRound(
+        _match.nextStarter,
+        isFirstHand: _match.roundNumber == 1,
+      );
     }
 
     _updateStatusMessage();
     notifyListeners();
 
     // If it's AI's turn to start the restored match
-    if (_match.currentRound!.currentPlayer == 1) {
+    if (_match.currentRound!.currentPlayer != 0) {
       _runAiTurn();
     }
   }
@@ -120,10 +123,8 @@ class GameController extends ChangeNotifier {
     if (_match.isMatchOver) {
       if (_match.matchWinner == 0) {
         _statusMessage = "MATCH OVER: You Win!";
-      } else if (_match.matchWinner == 1) {
-        _statusMessage = "MATCH OVER: Hendy Wins!";
       } else {
-        _statusMessage = "MATCH OVER: Tie!";
+        _statusMessage = "MATCH OVER: Player ${_match.matchWinner} Wins!";
       }
       return;
     }
@@ -134,8 +135,8 @@ class GameController extends ChangeNotifier {
         int winner = _match.currentRound!.winner;
         if (winner == 0) {
           _bottomOverlayMessage = "Round Won!";
-        } else if (winner == 1) {
-          _bottomOverlayMessage = "Round Lost!";
+        } else if (winner != -1) {
+          _bottomOverlayMessage = "Player $winner Wins Round!";
         } else {
           _bottomOverlayMessage = "Round Drawn!";
         }
@@ -147,7 +148,7 @@ class GameController extends ChangeNotifier {
 
     _statusMessage = _match.currentRound!.currentPlayer == 0
         ? "Your Turn"
-        : "Hendy Thinking...";
+        : "Player ${_match.currentRound!.currentPlayer} Thinking...";
   }
 
   Future<void> _saveMatch() async {
@@ -187,11 +188,11 @@ class GameController extends ChangeNotifier {
     _topOverlayMessage = null;
     _bottomOverlayMessage = null;
     _selectedTile = null;
-    _match.startNewRound(_match.nextStarter);
+    _match.startNewRound(_match.nextStarter, isFirstHand: false);
     _updateStatusMessage();
     notifyListeners();
 
-    if (_match.currentRound!.currentPlayer == 1) {
+    if (_match.currentRound!.currentPlayer != 0) {
       _runAiTurn();
     }
   }
@@ -262,38 +263,24 @@ class GameController extends ChangeNotifier {
       _checkGameState();
       notifyListeners();
 
-      if (!game!.isGameOver && game!.currentPlayer == 1) {
+      if (!game!.isGameOver && game!.currentPlayer != 0) {
         _runAiTurn();
       }
     }
-  }
-
-  void drawFromBoneyard() {
-    if (game == null ||
-        game!.isGameOver ||
-        game!.currentPlayer != 0 ||
-        _isAiThinking ||
-        game!.boneyard.isEmpty)
-      return;
-
-    game!.applyAction(DrawAction());
-    _checkGameState();
-    notifyListeners();
   }
 
   void passTurn() {
     if (game == null ||
         game!.isGameOver ||
         game!.currentPlayer != 0 ||
-        _isAiThinking ||
-        game!.boneyard.isNotEmpty)
+        _isAiThinking)
       return;
 
     game!.applyAction(PassAction());
     _checkGameState();
     notifyListeners();
 
-    if (!game!.isGameOver && game!.currentPlayer == 1) {
+    if (!game!.isGameOver && game!.currentPlayer != 0) {
       _runAiTurn();
     }
   }
@@ -308,7 +295,7 @@ class GameController extends ChangeNotifier {
           _matchStatsSaved = true;
           if (_match.matchWinner == 0) {
             _lifetimeMatchWins++;
-          } else if (_match.matchWinner == 1) {
+          } else {
             _lifetimeMatchLosses++;
           }
           _saveLifetimeStats();
@@ -318,16 +305,17 @@ class GameController extends ChangeNotifier {
       if (_match.isMatchOver) {
         if (_match.matchWinner == 0) {
           _bottomOverlayMessage = "MATCH OVER: You Win!";
-        } else if (_match.matchWinner == 1) {
-          _bottomOverlayMessage = "MATCH OVER: Hendy Wins!";
+        } else if (_match.matchWinner != -1) {
+          _bottomOverlayMessage =
+              "MATCH OVER: Player ${_match.matchWinner} Wins!";
         } else {
           _bottomOverlayMessage = "MATCH OVER: Tie!";
         }
       } else {
         if (roundWinner == 0) {
           _bottomOverlayMessage = "Round Won!";
-        } else if (roundWinner == 1) {
-          _bottomOverlayMessage = "Round Lost!";
+        } else if (roundWinner != -1) {
+          _bottomOverlayMessage = "Player $roundWinner Wins Round!";
         } else {
           _bottomOverlayMessage = "Round Drawn!";
         }
@@ -346,7 +334,7 @@ class GameController extends ChangeNotifier {
       _bottomOverlayMessage = null;
       _statusMessage = game!.currentPlayer == 0
           ? "Your Turn"
-          : "Hendy Thinking...";
+          : "Player ${game!.currentPlayer} Thinking...";
       if (game!.currentPlayer == 0) {
         _handlePlayerAutoTurn();
       }
@@ -355,23 +343,13 @@ class GameController extends ChangeNotifier {
 
   void _handlePlayerAutoTurn() {
     if (game != null && !game!.canPlayerPlay(0)) {
-      if (game!.boneyard.isNotEmpty) {
-        _bottomOverlayMessage = "No moves. Drawing...";
-        notifyListeners();
-        Future.delayed(const Duration(milliseconds: 800), () {
-          if (game != null && !game!.isGameOver && game!.currentPlayer == 0) {
-            drawFromBoneyard();
-          }
-        });
-      } else {
-        _bottomOverlayMessage = "No moves. Passing...";
-        notifyListeners();
-        Future.delayed(const Duration(milliseconds: 800), () {
-          if (game != null && !game!.isGameOver && game!.currentPlayer == 0) {
-            passTurn();
-          }
-        });
-      }
+      _bottomOverlayMessage = "No moves. Passing...";
+      notifyListeners();
+      Future.delayed(const Duration(milliseconds: 1500), () {
+        if (game != null && !game!.isGameOver && game!.currentPlayer == 0) {
+          passTurn();
+        }
+      });
     }
   }
 
@@ -381,47 +359,46 @@ class GameController extends ChangeNotifier {
       return;
     }
     _isAiThinking = true;
-    _statusMessage = "Hendy Thinking...";
+    int cp = game!.currentPlayer;
+    _statusMessage = "Player $cp Thinking...";
     notifyListeners();
 
-    // Yield to the event loop so Flutter can render the human's move
-    // BEFORE the heavy synchronous AI computation starts and blocks the web thread.
-    await Future.delayed(const Duration(milliseconds: 50));
+    // Yield to the event loop so Flutter can render the human's/previous move
+    await Future.delayed(const Duration(milliseconds: 500));
 
+    // Fast calculation: AI needs less time physically, but we still add a minimum UI delay
     final stopwatch = Stopwatch()..start();
-
-    // Give the AI exactly 2 seconds to think to ensure high quality moves without locking the game
-    final aiAction = await getBestActionAsync(game!, 1, 2000);
-
+    final aiAction = await getBestActionAsync(game!, cp, 1000);
     final elapsed = stopwatch.elapsedMilliseconds;
+
+    // Total artificial minimum delay per AI turn is 1.5s
     if (elapsed < 1500) {
       await Future.delayed(Duration(milliseconds: 1500 - elapsed));
     }
 
-    print("AI Action: $aiAction");
-    if (aiAction is DrawAction) {
-      _topOverlayMessage = "Hendy is drawing tiles";
-    } else if (aiAction is PassAction) {
-      _topOverlayMessage = "AI no moves... passing turn";
+    print("AI Player $cp Action: $aiAction");
+    if (aiAction is PassAction) {
+      // Show pass message clearly and give user time to read
+      _topOverlayMessage = "Player $cp passed turn";
+      notifyListeners();
+      await Future.delayed(const Duration(milliseconds: 1500));
     } else {
       _topOverlayMessage = null;
     }
-    notifyListeners();
 
     if (game != null) {
       game!.applyAction(aiAction);
-      print("Hendy played ${aiAction.toString()}");
+      print("Player $cp played ${aiAction.toString()}");
     }
 
     _isAiThinking = false;
     _checkGameState();
     notifyListeners();
 
-    // If AI just drew a tile, it might need to take another step immediately.
-    // However, MCTS determinization already considers the draw action.
-    // If the currentPlayer is still 1, it means the AI needs to move again.
-    if (game != null && !game!.isGameOver && game!.currentPlayer == 1) {
-      _runAiTurn();
+    // Loop directly back to run AI turn if the next player is ALSO an AI
+    if (game != null && !game!.isGameOver && game!.currentPlayer != 0) {
+      // Call async microtask to safely chain AI turns
+      Future.microtask(() => _runAiTurn());
     }
   }
 
@@ -571,43 +548,11 @@ class _GameScreenState extends State<GameScreen> {
                           ),
                         ],
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          // Human Stats
                           Row(
-                            children: [
-                              const CircleAvatar(
-                                radius: 18,
-                                backgroundImage: AssetImage('assets/human.png'),
-                              ),
-                              const SizedBox(width: 8),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text(
-                                    'YOU',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      color: Colors.white54,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  Text(
-                                    '${controller.match.humanScore}',
-                                    style: const TextStyle(
-                                      fontSize: 22,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-
-                          // Status Center
-                          Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Text(
                                 'TARGET: ${controller.match.targetScore}',
@@ -618,7 +563,7 @@ class _GameScreenState extends State<GameScreen> {
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
-                              const SizedBox(height: 4),
+                              const SizedBox(width: 16),
                               Text(
                                 controller.statusMessage ?? '',
                                 style: const TextStyle(
@@ -629,35 +574,29 @@ class _GameScreenState extends State<GameScreen> {
                               ),
                             ],
                           ),
-
-                          // AI Stats
+                          const SizedBox(height: 12),
                           Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceAround,
                             children: [
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  const Text(
-                                    'HENDY',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      color: Colors.white54,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  Text(
-                                    '${controller.match.aiScore}',
-                                    style: const TextStyle(
-                                      fontSize: 22,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ],
+                              _MiniScore(
+                                name: 'YOU',
+                                score: controller.match.scores[0],
+                                isActive: game.currentPlayer == 0,
                               ),
-                              const SizedBox(width: 8),
-                              const CircleAvatar(
-                                radius: 18,
-                                backgroundImage: AssetImage('assets/hendy.png'),
+                              _MiniScore(
+                                name: 'HENDY 1',
+                                score: controller.match.scores[1],
+                                isActive: game.currentPlayer == 1,
+                              ),
+                              _MiniScore(
+                                name: 'HENDY 2',
+                                score: controller.match.scores[2],
+                                isActive: game.currentPlayer == 2,
+                              ),
+                              _MiniScore(
+                                name: 'HENDY 3',
+                                score: controller.match.scores[3],
+                                isActive: game.currentPlayer == 3,
                               ),
                             ],
                           ),
@@ -676,10 +615,10 @@ class _GameScreenState extends State<GameScreen> {
                   right: 32,
                 ),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
                     Text(
-                      'HENDY TILES: ${game.hands[1].length}',
+                      'HENDY 1: ${game.hands[1].length}',
                       style: const TextStyle(
                         fontSize: 10,
                         color: Colors.white54,
@@ -688,7 +627,16 @@ class _GameScreenState extends State<GameScreen> {
                       ),
                     ),
                     Text(
-                      'BONEYARD: ${game.boneyard.length}',
+                      'HENDY 2: ${game.hands[2].length}',
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: Colors.white54,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                    Text(
+                      'HENDY 3: ${game.hands[3].length}',
                       style: const TextStyle(
                         fontSize: 10,
                         color: Colors.white54,
@@ -753,12 +701,13 @@ class _GameScreenState extends State<GameScreen> {
                                   ? const Text(
                                       'Tap a tile to start',
                                       style: TextStyle(
-                                        fontSize:
-                                            18.0, // approx 15% larger than default
+                                        fontSize: 18.0,
                                         fontWeight: FontWeight.bold,
                                       ),
                                     )
-                                  : const Text('Waiting for Hendy...'))
+                                  : Text(
+                                      'Hendy ${game.currentPlayer} is starting...',
+                                    ))
                             : InteractiveViewer(
                                 boundaryMargin: const EdgeInsets.all(1000),
                                 minScale: 0.1,
@@ -852,10 +801,14 @@ class _GameScreenState extends State<GameScreen> {
                             color: Colors.black.withOpacity(0.7),
                             child: Center(
                               child: Container(
-                                margin: const EdgeInsets.symmetric(
-                                  horizontal: 24,
+                                constraints: const BoxConstraints(
+                                  maxWidth: 320,
                                 ),
-                                padding: const EdgeInsets.all(32),
+                                margin: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 24,
+                                ),
+                                padding: const EdgeInsets.all(24),
                                 decoration: BoxDecoration(
                                   color: const Color(0xFF1E1E1E),
                                   borderRadius: BorderRadius.circular(24),
@@ -877,84 +830,125 @@ class _GameScreenState extends State<GameScreen> {
                                     ),
                                   ],
                                 ),
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      controller.bottomOverlayMessage ??
-                                          'Game Over',
-                                      style: TextStyle(
-                                        fontSize: 28,
-                                        fontWeight: FontWeight.bold,
-                                        color:
-                                            controller.match.isMatchOver &&
-                                                controller.match.matchWinner !=
-                                                    0
-                                            ? Colors.red
-                                            : const Color(0xFF2BEE4B),
+                                child: SingleChildScrollView(
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        controller.bottomOverlayMessage ??
+                                            'Game Over',
+                                        style: TextStyle(
+                                          fontSize: 24,
+                                          fontWeight: FontWeight.bold,
+                                          color:
+                                              controller.match.isMatchOver &&
+                                                  controller
+                                                          .match
+                                                          .matchWinner !=
+                                                      0
+                                              ? Colors.red
+                                              : const Color(0xFF2BEE4B),
+                                        ),
+                                        textAlign: TextAlign.center,
                                       ),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                    const SizedBox(height: 24),
-                                    const Text(
-                                      'LIFETIME MATCH RECORD',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.white54,
-                                        fontWeight: FontWeight.bold,
-                                        letterSpacing: 2,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 12),
-                                    Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        _StatBox(
-                                          label: 'WINS',
-                                          value: controller.lifetimeMatchWins,
-                                          color: const Color(0xFF2BEE4B),
-                                        ),
-                                        const SizedBox(width: 16),
-                                        _StatBox(
-                                          label: 'LOSSES',
-                                          value: controller.lifetimeMatchLosses,
-                                          color: Colors.orange,
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 32),
-                                    SizedBox(
-                                      width: double.infinity,
-                                      child: ElevatedButton.icon(
-                                        icon: Icon(
-                                          controller.match.isMatchOver
-                                              ? Icons.replay
-                                              : Icons.play_arrow,
-                                        ),
-                                        label: Text(
-                                          controller.match.isMatchOver
-                                              ? 'START NEW MATCH'
-                                              : 'PLAY NEXT ROUND',
-                                        ),
-                                        onPressed: controller.restartGame,
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: const Color(
-                                            0xFF2BEE4B,
-                                          ),
-                                          foregroundColor: Colors.black,
-                                          padding: const EdgeInsets.symmetric(
-                                            vertical: 16,
-                                          ),
-                                          textStyle: const TextStyle(
-                                            inherit: false,
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.bold,
-                                          ),
+                                      const SizedBox(height: 16),
+                                      const Text(
+                                        'MATCH STANDINGS',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: Colors.white54,
+                                          fontWeight: FontWeight.bold,
+                                          letterSpacing: 2,
                                         ),
                                       ),
-                                    ),
-                                  ],
+                                      const SizedBox(height: 8),
+                                      Column(
+                                        children: [
+                                          _LeaderboardRow(
+                                            name: 'YOU',
+                                            score: controller.match.scores[0],
+                                          ),
+                                          _LeaderboardRow(
+                                            name: 'HENDY 1',
+                                            score: controller.match.scores[1],
+                                          ),
+                                          _LeaderboardRow(
+                                            name: 'HENDY 2',
+                                            score: controller.match.scores[2],
+                                          ),
+                                          _LeaderboardRow(
+                                            name: 'HENDY 3',
+                                            score: controller.match.scores[3],
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 16),
+                                      const Text(
+                                        'LIFETIME MATCH RECORD',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: Colors.white54,
+                                          fontWeight: FontWeight.bold,
+                                          letterSpacing: 2,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Expanded(
+                                            child: _StatBox(
+                                              label: 'WINS',
+                                              value:
+                                                  controller.lifetimeMatchWins,
+                                              color: const Color(0xFF2BEE4B),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: _StatBox(
+                                              label: 'LOSSES',
+                                              value: controller
+                                                  .lifetimeMatchLosses,
+                                              color: Colors.orange,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 24),
+                                      SizedBox(
+                                        width: double.infinity,
+                                        child: ElevatedButton.icon(
+                                          icon: Icon(
+                                            controller.match.isMatchOver
+                                                ? Icons.replay
+                                                : Icons.play_arrow,
+                                          ),
+                                          label: Text(
+                                            controller.match.isMatchOver
+                                                ? 'START NEW MATCH'
+                                                : 'PLAY NEXT ROUND',
+                                          ),
+                                          onPressed: controller.restartGame,
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: const Color(
+                                              0xFF2BEE4B,
+                                            ),
+                                            foregroundColor: Colors.black,
+                                            padding: const EdgeInsets.symmetric(
+                                              vertical: 16,
+                                            ),
+                                            textStyle: const TextStyle(
+                                              inherit: false,
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ),
@@ -1585,6 +1579,43 @@ class _TilePos {
   });
 }
 
+class _MiniScore extends StatelessWidget {
+  final String name;
+  final int score;
+  final bool isActive;
+
+  const _MiniScore({
+    super.key,
+    required this.name,
+    required this.score,
+    required this.isActive,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text(
+          name,
+          style: TextStyle(
+            fontSize: 10,
+            color: isActive ? const Color(0xFF2BEE4B) : Colors.white54,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        Text(
+          '$score',
+          style: TextStyle(
+            fontSize: 18,
+            color: isActive ? const Color(0xFF2BEE4B) : Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _StatBox extends StatelessWidget {
   final String label;
   final int value;
@@ -1599,7 +1630,7 @@ class _StatBox extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: Colors.black.withOpacity(0.3),
         borderRadius: BorderRadius.circular(16),
@@ -1611,18 +1642,52 @@ class _StatBox extends StatelessWidget {
           Text(
             label,
             style: TextStyle(
-              fontSize: 12,
+              fontSize: 10,
               color: color,
               fontWeight: FontWeight.bold,
               letterSpacing: 1.5,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           Text(
             '$value',
             style: const TextStyle(
-              fontSize: 32,
+              fontSize: 24,
               color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LeaderboardRow extends StatelessWidget {
+  final String name;
+  final int score;
+
+  const _LeaderboardRow({super.key, required this.name, required this.score});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            name,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          Text(
+            '$score',
+            style: const TextStyle(
+              color: Color(0xFF2BEE4B),
+              fontSize: 18,
               fontWeight: FontWeight.bold,
             ),
           ),
