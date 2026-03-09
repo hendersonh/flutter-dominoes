@@ -641,22 +641,42 @@ class _GameScreenState extends State<GameScreen> {
                                   : Text(
                                       '${playerNames[game.currentPlayer]} is starting...',
                                     ))
-                            : InteractiveViewer(
-                                boundaryMargin: const EdgeInsets.all(1000),
-                                minScale: 0.1,
-                                maxScale: 2.0,
-                                child: LayoutBuilder(
-                                  builder: (context, constraints) {
-                                    return SnakingBoard(
-                                      board: game.board,
-                                      rootIndex: game.rootIndex,
-                                      maxWidth: constraints.maxWidth,
-                                      isSelectingSide:
-                                          controller.selectedTile != null,
-                                      onSelectSide: controller.confirmPlay,
-                                    );
-                                  },
-                                ),
+                            : Stack(
+                                children: [
+                                  // Curved Watermark
+                                  Center(
+                                    child: Opacity(
+                                      opacity: 0.1,
+                                      child: _CurvedText(
+                                        text: "HELP HENDY WIN",
+                                        style: GoogleFonts.outfit(
+                                          fontSize: 32,
+                                          fontWeight: FontWeight.w900,
+                                          color: Colors.white,
+                                          letterSpacing: 2,
+                                        ),
+                                        radius: 100,
+                                      ),
+                                    ),
+                                  ),
+                                  InteractiveViewer(
+                                    boundaryMargin: const EdgeInsets.all(1000),
+                                    minScale: 0.1,
+                                    maxScale: 2.0,
+                                    child: LayoutBuilder(
+                                      builder: (context, constraints) {
+                                        return SnakingBoard(
+                                          board: game.board,
+                                          rootIndex: game.rootIndex,
+                                          maxWidth: constraints.maxWidth,
+                                          isSelectingSide:
+                                              controller.selectedTile != null,
+                                          onSelectSide: controller.confirmPlay,
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                ],
                               ),
                       ),
 
@@ -1802,4 +1822,81 @@ class _GlassyProgressState extends State<_GlassyProgress>
       ),
     );
   }
+}
+
+class _CurvedText extends StatelessWidget {
+  final String text;
+  final TextStyle style;
+  final double radius;
+
+  const _CurvedText({
+    required this.text,
+    required this.style,
+    required this.radius,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      painter: _CurvedTextPainter(text: text, textStyle: style, radius: radius),
+    );
+  }
+}
+
+class _CurvedTextPainter extends CustomPainter {
+  final String text;
+  final TextStyle textStyle;
+  final double radius;
+
+  _CurvedTextPainter({
+    required this.text,
+    required this.textStyle,
+    required this.radius,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.translate(size.width / 2, size.height / 2);
+
+    final textPainter = TextPainter(textDirection: TextDirection.ltr);
+
+    // Calculate angles for each character
+    double totalAngle = 0;
+    final List<double> charAngles = [];
+    for (int i = 0; i < text.length; i++) {
+      textPainter.text = TextSpan(text: text[i], style: textStyle);
+      textPainter.layout();
+      double angle = textPainter.width / radius;
+      charAngles.add(angle);
+      totalAngle += angle;
+    }
+
+    double currentAngle = -totalAngle / 2;
+
+    for (int i = 0; i < text.length; i++) {
+      textPainter.text = TextSpan(text: text[i], style: textStyle);
+      textPainter.layout();
+
+      // Position character along the arc
+      final charAngle = charAngles[i];
+      final angle = currentAngle + charAngle / 2;
+
+      final x = radius * math.sin(angle);
+      final y = -radius * math.cos(angle);
+
+      canvas.save();
+      canvas.translate(x, y);
+      canvas.rotate(angle);
+      textPainter.paint(
+        canvas,
+        Offset(-textPainter.width / 2, -textPainter.height / 2),
+      );
+      canvas.restore();
+
+      currentAngle += charAngle;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
