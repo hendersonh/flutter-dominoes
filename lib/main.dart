@@ -2,10 +2,13 @@ import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'engine/dominoes_ai.dart';
+
+const List<String> playerNames = ['Hendy', 'Ed', 'Paul', 'Tim'];
 
 void main() {
   runApp(
@@ -26,14 +29,12 @@ class DominoesApp extends StatelessWidget {
       theme: ThemeData(
         brightness: Brightness.dark,
         primaryColor: const Color(0xFF2BEE4B),
-        scaffoldBackgroundColor: const Color(0xFF111827),
-        textTheme: GoogleFonts.beVietnamProTextTheme(
-          ThemeData.dark().textTheme,
-        ),
+        scaffoldBackgroundColor: const Color(0xFF0F172A),
+        textTheme: GoogleFonts.splineSansTextTheme(ThemeData.dark().textTheme),
         colorScheme: const ColorScheme.dark(
           primary: Color(0xFF2BEE4B),
           secondary: Color(0xFF2BEE4B),
-          surface: Color(0xFF1E1E1E),
+          surface: Color(0xFF0F172A),
         ),
       ),
       home: const GameScreen(),
@@ -47,7 +48,9 @@ class GameController extends ChangeNotifier {
   String? _statusMessage;
   String? _topOverlayMessage;
   String? _bottomOverlayMessage;
+  int? _knockingPlayerIndex;
   bool _showNextRoundButton = false;
+  bool _isFinishingRound = false;
 
   DominoTile? _selectedTile;
 
@@ -65,6 +68,7 @@ class GameController extends ChangeNotifier {
   String? get statusMessage => _statusMessage;
   String? get topOverlayMessage => _topOverlayMessage;
   String? get bottomOverlayMessage => _bottomOverlayMessage;
+  int? get knockingPlayerIndex => _knockingPlayerIndex;
   bool get showNextRoundButton => _showNextRoundButton;
   bool get isInitialized => _match.currentRound != null;
   DominoTile? get selectedTile => _selectedTile;
@@ -94,10 +98,13 @@ class GameController extends ChangeNotifier {
   }
 
   Future<void> _initMatch() async {
-    _match = MatchModel(targetScore: 120);
+    _match = MatchModel(targetScore: 100);
     _topOverlayMessage = null;
     _bottomOverlayMessage = null;
     _selectedTile = null;
+    _knockingPlayerIndex = null;
+    _isFinishingRound = false;
+    _showNextRoundButton = false;
     // Explicitly set a non-null placeholder if needed, but we handle it with isInitialized
     await _loadLifetimeStats();
     await _loadMatch();
@@ -111,6 +118,7 @@ class GameController extends ChangeNotifier {
     }
 
     _updateStatusMessage();
+    _sortPlayerHand();
     notifyListeners();
 
     // If it's AI's turn to start the restored match
@@ -122,9 +130,9 @@ class GameController extends ChangeNotifier {
   void _updateStatusMessage() {
     if (_match.isMatchOver) {
       if (_match.matchWinner == 0) {
-        _statusMessage = "MATCH OVER: You Win!";
+        _statusMessage = "MATCH OVER: ${playerNames[0]} Wins!";
       } else {
-        _statusMessage = "MATCH OVER: Player ${_match.matchWinner} Wins!";
+        _statusMessage = "MATCH OVER: ${playerNames[_match.matchWinner]} Wins!";
       }
       return;
     }
@@ -134,9 +142,9 @@ class GameController extends ChangeNotifier {
       if (_match.currentRound != null) {
         int winner = _match.currentRound!.winner;
         if (winner == 0) {
-          _bottomOverlayMessage = "Round Won!";
+          _bottomOverlayMessage = "${playerNames[0]} Wins Round!";
         } else if (winner != -1) {
-          _bottomOverlayMessage = "Player $winner Wins Round!";
+          _bottomOverlayMessage = "${playerNames[winner]} Wins Round!";
         } else {
           _bottomOverlayMessage = "Round Drawn!";
         }
@@ -147,8 +155,8 @@ class GameController extends ChangeNotifier {
     }
 
     _statusMessage = _match.currentRound!.currentPlayer == 0
-        ? "Your Turn"
-        : "Player ${_match.currentRound!.currentPlayer} Thinking...";
+        ? "${playerNames[0]}'s Turn"
+        : "${playerNames[_match.currentRound!.currentPlayer]} Thinking...";
   }
 
   Future<void> _saveMatch() async {
@@ -188,8 +196,12 @@ class GameController extends ChangeNotifier {
     _topOverlayMessage = null;
     _bottomOverlayMessage = null;
     _selectedTile = null;
+    _knockingPlayerIndex = null;
+    _isFinishingRound = false;
+    _showNextRoundButton = false;
     _match.startNewRound(_match.nextStarter, isFirstHand: false);
     _updateStatusMessage();
+    _sortPlayerHand();
     notifyListeners();
 
     if (_match.currentRound!.currentPlayer != 0) {
@@ -259,6 +271,7 @@ class GameController extends ChangeNotifier {
     if (game != null) {
       game!.applyAction(action);
       print("Player played $tile on $side. Board: ${game!.board}");
+      _sortPlayerHand();
 
       _checkGameState();
       notifyListeners();
@@ -287,54 +300,63 @@ class GameController extends ChangeNotifier {
 
   void _checkGameState() {
     if (game != null && game!.isGameOver) {
-      int roundWinner = _match.recordRoundResult();
-      _saveMatch(); // Persist scores!
-
-      if (_match.isMatchOver) {
-        if (!_matchStatsSaved) {
-          _matchStatsSaved = true;
-          if (_match.matchWinner == 0) {
-            _lifetimeMatchWins++;
-          } else {
-            _lifetimeMatchLosses++;
-          }
-          _saveLifetimeStats();
-        }
-      }
-
-      if (_match.isMatchOver) {
-        if (_match.matchWinner == 0) {
-          _bottomOverlayMessage = "MATCH OVER: You Win!";
-        } else if (_match.matchWinner != -1) {
-          _bottomOverlayMessage =
-              "MATCH OVER: Player ${_match.matchWinner} Wins!";
-        } else {
-          _bottomOverlayMessage = "MATCH OVER: Tie!";
-        }
-      } else {
-        if (roundWinner == 0) {
-          _bottomOverlayMessage = "Round Won!";
-        } else if (roundWinner != -1) {
-          _bottomOverlayMessage = "Player $roundWinner Wins Round!";
-        } else {
-          _bottomOverlayMessage = "Round Drawn!";
-        }
-      }
+      if (_isFinishingRound) return;
+      _isFinishingRound = true;
 
       _showNextRoundButton = false;
+      _knockingPlayerIndex = null;
+      _bottomOverlayMessage = "..game over";
       notifyListeners();
-      Future.delayed(const Duration(milliseconds: 1000), () {
+
+      Future.delayed(const Duration(milliseconds: 5000), () {
+        int roundWinner = _match.recordRoundResult();
+        _saveMatch(); // Persist scores!
+
+        if (_match.isMatchOver) {
+          if (!_matchStatsSaved) {
+            _matchStatsSaved = true;
+            if (_match.matchWinner == 0) {
+              _lifetimeMatchWins++;
+            } else {
+              _lifetimeMatchLosses++;
+            }
+            _saveLifetimeStats();
+          }
+        }
+
+        if (_match.isMatchOver) {
+          if (_match.matchWinner == 0) {
+            _bottomOverlayMessage = "MATCH OVER: ${playerNames[0]} Wins!";
+          } else if (_match.matchWinner != -1) {
+            _bottomOverlayMessage =
+                "MATCH OVER: ${playerNames[_match.matchWinner]} Wins!";
+          } else {
+            _bottomOverlayMessage = "MATCH OVER: Tie!";
+          }
+        } else {
+          if (roundWinner == 0) {
+            _bottomOverlayMessage = "${playerNames[0]} Wins Round!";
+          } else if (roundWinner != -1) {
+            _bottomOverlayMessage = "${playerNames[roundWinner]} Wins Round!";
+          } else {
+            _bottomOverlayMessage = "Round Drawn!";
+          }
+        }
+
         _showNextRoundButton = true;
+        _isFinishingRound = false;
         notifyListeners();
       });
     } else if (game != null) {
       if (game!.currentPlayer == 0) {
-        _topOverlayMessage = null; // Clear AI status when it's player's turn
+        _topOverlayMessage = null;
       }
       _bottomOverlayMessage = null;
+      _knockingPlayerIndex =
+          null; // Clear knock state on every valid state check
       _statusMessage = game!.currentPlayer == 0
-          ? "Your Turn"
-          : "Player ${game!.currentPlayer} Thinking...";
+          ? "${playerNames[0]}'s Turn"
+          : "${playerNames[game!.currentPlayer]} Thinking...";
       if (game!.currentPlayer == 0) {
         _handlePlayerAutoTurn();
       }
@@ -343,9 +365,12 @@ class GameController extends ChangeNotifier {
 
   void _handlePlayerAutoTurn() {
     if (game != null && !game!.canPlayerPlay(0)) {
-      _bottomOverlayMessage = "No moves. Passing...";
+      // Contextual Knock for Human
+      _knockingPlayerIndex = 0;
+      HapticFeedback.lightImpact();
       notifyListeners();
-      Future.delayed(const Duration(milliseconds: 1500), () {
+
+      Future.delayed(const Duration(milliseconds: 1000), () {
         if (game != null && !game!.isGameOver && game!.currentPlayer == 0) {
           passTurn();
         }
@@ -360,7 +385,7 @@ class GameController extends ChangeNotifier {
     }
     _isAiThinking = true;
     int cp = game!.currentPlayer;
-    _statusMessage = "Player $cp Thinking...";
+    _statusMessage = "${playerNames[cp]} Thinking...";
     notifyListeners();
 
     // Yield to the event loop so Flutter can render the human's/previous move
@@ -378,12 +403,10 @@ class GameController extends ChangeNotifier {
 
     print("AI Player $cp Action: $aiAction");
     if (aiAction is PassAction) {
-      // Show pass message clearly and give user time to read
-      _topOverlayMessage = "Player $cp passed turn";
+      // Contextual Knock for AI
+      _knockingPlayerIndex = cp;
       notifyListeners();
-      await Future.delayed(const Duration(milliseconds: 1500));
-    } else {
-      _topOverlayMessage = null;
+      await Future.delayed(const Duration(milliseconds: 1200));
     }
 
     if (game != null) {
@@ -413,6 +436,19 @@ class GameController extends ChangeNotifier {
       _bottomOverlayMessage = null;
       resetMatch();
     }
+  }
+
+  void _sortPlayerHand() {
+    if (game == null) return;
+    game!.hands[0].sort((a, b) {
+      int maxA = math.max(a.end1, a.end2);
+      int minA = math.min(a.end1, a.end2);
+      int maxB = math.max(b.end1, b.end2);
+      int minB = math.min(b.end1, b.end2);
+
+      if (maxA != maxB) return maxB.compareTo(maxA);
+      return minB.compareTo(minA);
+    });
   }
 }
 
@@ -519,178 +555,75 @@ class _GameScreenState extends State<GameScreen> {
         child: SafeArea(
           child: Column(
             children: [
-              // Glassmorphism Header
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16.0,
-                  vertical: 12.0,
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.3),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: Colors.white.withOpacity(0.1),
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.2),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                'TARGET: ${controller.match.targetScore}',
-                                style: const TextStyle(
-                                  fontSize: 10,
-                                  color: Colors.white54,
-                                  letterSpacing: 1.5,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              Text(
-                                controller.statusMessage ?? '',
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF2BEE4B),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceAround,
-                            children: [
-                              _MiniScore(
-                                name: 'YOU',
-                                score: controller.match.scores[0],
-                                isActive: game.currentPlayer == 0,
-                              ),
-                              _MiniScore(
-                                name: 'HENDY 1',
-                                score: controller.match.scores[1],
-                                isActive: game.currentPlayer == 1,
-                              ),
-                              _MiniScore(
-                                name: 'HENDY 2',
-                                score: controller.match.scores[2],
-                                isActive: game.currentPlayer == 2,
-                              ),
-                              _MiniScore(
-                                name: 'HENDY 3',
-                                score: controller.match.scores[3],
-                                isActive: game.currentPlayer == 3,
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
+              // Score Bar (Matched to image)
+              // Top Message
+              if (controller.statusMessage != null &&
+                  controller.statusMessage!.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8.0, bottom: 8.0),
+                  child: Text(
+                    controller.statusMessage!,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF2BEE4B),
                     ),
                   ),
                 ),
-              ),
-
-              // Auxiliary Stats
-              Padding(
-                padding: const EdgeInsets.only(
-                  bottom: 8.0,
-                  left: 32,
-                  right: 32,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    Text(
-                      'HENDY 1: ${game.hands[1].length}',
-                      style: const TextStyle(
-                        fontSize: 10,
-                        color: Colors.white54,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1.2,
-                      ),
-                    ),
-                    Text(
-                      'HENDY 2: ${game.hands[2].length}',
-                      style: const TextStyle(
-                        fontSize: 10,
-                        color: Colors.white54,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1.2,
-                      ),
-                    ),
-                    Text(
-                      'HENDY 3: ${game.hands[3].length}',
-                      style: const TextStyle(
-                        fontSize: 10,
-                        color: Colors.white54,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1.2,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
 
               // Game Board
               Expanded(
                 child: Container(
                   decoration: BoxDecoration(
-                    gradient: const RadialGradient(
-                      center: Alignment.center,
-                      radius: 1.0,
-                      colors: [Color(0xFF2E6F40), Color(0xFF113820)],
-                    ),
+                    color: const Color(0xFF2B5B32),
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: Colors.white.withOpacity(0.05)),
                   ),
-                  margin: const EdgeInsets.symmetric(horizontal: 16),
+                  margin: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
-                      // Center Text Decal
+                      Align(
+                        alignment: Alignment.bottomCenter,
+                        child: _EdgeScore(
+                          name: 'Hendy',
+                          tiles: game.hands[0].length,
+                          score: controller.match.scores[0],
+                          isActive: game.currentPlayer == 0,
+                          isKnocking: controller.knockingPlayerIndex == 0,
+                        ),
+                      ),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: _EdgeScore(
+                          name: 'Ed',
+                          tiles: game.hands[1].length,
+                          score: controller.match.scores[1],
+                          isActive: game.currentPlayer == 1,
+                          isKnocking: controller.knockingPlayerIndex == 1,
+                        ),
+                      ),
                       Align(
                         alignment: Alignment.topCenter,
-                        child: Padding(
-                          padding: const EdgeInsets.only(top: 60),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 48,
-                              vertical: 24,
-                            ),
-                            decoration: BoxDecoration(
-                              border: Border.all(
-                                color: Colors.white.withOpacity(0.08),
-                                width: 2,
-                              ),
-                              borderRadius: BorderRadius.circular(100),
-                            ),
-                            child: Text(
-                              'Can you beat Hendy?',
-                              style: TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.w900,
-                                color: Colors.white.withOpacity(0.12),
-                                letterSpacing: 2,
-                              ),
-                            ),
-                          ),
+                        child: _EdgeScore(
+                          name: 'Paul',
+                          tiles: game.hands[2].length,
+                          score: controller.match.scores[2],
+                          isActive: game.currentPlayer == 2,
+                          isKnocking: controller.knockingPlayerIndex == 2,
+                        ),
+                      ),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: _EdgeScore(
+                          name: 'Tim',
+                          tiles: game.hands[3].length,
+                          score: controller.match.scores[3],
+                          isActive: game.currentPlayer == 3,
+                          isKnocking: controller.knockingPlayerIndex == 3,
                         ),
                       ),
 
@@ -706,7 +639,7 @@ class _GameScreenState extends State<GameScreen> {
                                       ),
                                     )
                                   : Text(
-                                      'Hendy ${game.currentPlayer} is starting...',
+                                      '${playerNames[game.currentPlayer]} is starting...',
                                     ))
                             : InteractiveViewer(
                                 boundaryMargin: const EdgeInsets.all(1000),
@@ -739,12 +672,12 @@ class _GameScreenState extends State<GameScreen> {
                                 vertical: 8,
                               ),
                               decoration: BoxDecoration(
-                                color: Colors.black.withOpacity(0.6),
+                                color: Colors.black.withValues(alpha: 0.6),
                                 borderRadius: BorderRadius.circular(8),
                                 border: Border.all(
                                   color: const Color(
                                     0xFF2BEE4B,
-                                  ).withOpacity(0.5),
+                                  ).withValues(alpha: 0.5),
                                 ),
                               ),
                               child: Text(
@@ -760,9 +693,10 @@ class _GameScreenState extends State<GameScreen> {
                           ),
                         ),
 
-                      // Status Overlay (Bottom Center)
+                      // Status Overlay (Bottom Center) - For Wins/Losses only now
                       if (controller.bottomOverlayMessage != null &&
-                          !controller.showNextRoundButton)
+                          !controller.showNextRoundButton &&
+                          controller.bottomOverlayMessage != "..game over") ...[
                         Align(
                           alignment: Alignment.bottomCenter,
                           child: Padding(
@@ -773,12 +707,12 @@ class _GameScreenState extends State<GameScreen> {
                                 vertical: 8,
                               ),
                               decoration: BoxDecoration(
-                                color: Colors.black.withOpacity(0.6),
+                                color: Colors.black.withValues(alpha: 0.6),
                                 borderRadius: BorderRadius.circular(8),
                                 border: Border.all(
                                   color: const Color(
                                     0xFF2BEE4B,
-                                  ).withOpacity(0.5),
+                                  ).withValues(alpha: 0.5),
                                 ),
                               ),
                               child: Text(
@@ -793,16 +727,28 @@ class _GameScreenState extends State<GameScreen> {
                             ),
                           ),
                         ),
+                      ],
+
+                      // Premium Game Over Progress (Frosted Glass)
+                      if (controller.bottomOverlayMessage == "..game over" &&
+                          !controller.showNextRoundButton)
+                        const Align(
+                          alignment: Alignment.bottomCenter,
+                          child: _GlassyProgress(
+                            message: "ROUND COMPLETE",
+                            duration: Duration(seconds: 5),
+                          ),
+                        ),
 
                       // Game Over Modal (Idea B)
                       if (game.isGameOver && controller.showNextRoundButton)
                         Positioned.fill(
                           child: Container(
-                            color: Colors.black.withOpacity(0.7),
+                            color: Colors.black.withValues(alpha: 0.7),
                             child: Center(
                               child: Container(
                                 constraints: const BoxConstraints(
-                                  maxWidth: 320,
+                                  maxWidth: 360,
                                 ),
                                 margin: const EdgeInsets.symmetric(
                                   horizontal: 16,
@@ -819,12 +765,14 @@ class _GameScreenState extends State<GameScreen> {
                                               : Colors.red)
                                         : const Color(
                                             0xFF2BEE4B,
-                                          ).withOpacity(0.5),
+                                          ).withValues(alpha: 0.5),
                                     width: 2,
                                   ),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black.withOpacity(0.5),
+                                      color: Colors.black.withValues(
+                                        alpha: 0.5,
+                                      ),
                                       blurRadius: 20,
                                       offset: const Offset(0, 10),
                                     ),
@@ -850,37 +798,6 @@ class _GameScreenState extends State<GameScreen> {
                                               : const Color(0xFF2BEE4B),
                                         ),
                                         textAlign: TextAlign.center,
-                                      ),
-                                      const SizedBox(height: 16),
-                                      const Text(
-                                        'MATCH STANDINGS',
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          color: Colors.white54,
-                                          fontWeight: FontWeight.bold,
-                                          letterSpacing: 2,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Column(
-                                        children: [
-                                          _LeaderboardRow(
-                                            name: 'YOU',
-                                            score: controller.match.scores[0],
-                                          ),
-                                          _LeaderboardRow(
-                                            name: 'HENDY 1',
-                                            score: controller.match.scores[1],
-                                          ),
-                                          _LeaderboardRow(
-                                            name: 'HENDY 2',
-                                            score: controller.match.scores[2],
-                                          ),
-                                          _LeaderboardRow(
-                                            name: 'HENDY 3',
-                                            score: controller.match.scores[3],
-                                          ),
-                                        ],
                                       ),
                                       const SizedBox(height: 16),
                                       const Text(
@@ -1017,44 +934,63 @@ class _GameScreenState extends State<GameScreen> {
                         horizontal: 16,
                         vertical: 8,
                       ),
-                      child: Row(
-                        children: game.hands[0].asMap().entries.map((entry) {
-                          final index = entry.key;
-                          final tile = entry.value;
-                          final isPlayable =
-                              !game.isGameOver &&
-                              game.currentPlayer == 0 &&
-                              (game.board.isEmpty ||
-                                  tile.contains(game.leftEnd!) ||
-                                  tile.contains(game.rightEnd!));
+                      child: ImageFiltered(
+                        imageFilter: controller.knockingPlayerIndex == 0
+                            ? ImageFilter.blur(sigmaX: 5, sigmaY: 5)
+                            : ImageFilter.blur(sigmaX: 0, sigmaY: 0),
+                        child: AnimatedOpacity(
+                          duration: const Duration(milliseconds: 300),
+                          opacity: controller.knockingPlayerIndex == 0
+                              ? 0.3
+                              : 1.0,
+                          child: Row(
+                            children: game.hands[0].asMap().entries.map((
+                              entry,
+                            ) {
+                              final index = entry.key;
+                              final tile = entry.value;
+                              final isPlayable =
+                                  !game.isGameOver &&
+                                  game.currentPlayer == 0 &&
+                                  (game.board.isEmpty ||
+                                      tile.contains(game.leftEnd!) ||
+                                      tile.contains(game.rightEnd!));
 
-                          return Padding(
-                            padding: EdgeInsets.only(right: 12.0 * tileScale),
-                            child: GestureDetector(
-                              onTap: game.isGameOver || !isPlayable
-                                  ? null
-                                  : () => controller.selectTile(tile),
-                              child: Opacity(
-                                opacity:
-                                    game.isGameOver ||
-                                        game.currentPlayer != 0 ||
-                                        isPlayable
-                                    ? 1.0
-                                    : 0.4,
-                                child: Hero(
-                                  tag: 'tile-$index',
-                                  child: DominoTileWidget(
-                                    tile: tile,
-                                    isVertical: true,
-                                    isHighlight: isPlayable,
-                                    isSelected: controller.selectedTile == tile,
-                                    scale: tileScale,
+                              return Padding(
+                                padding: EdgeInsets.only(
+                                  right: 12.0 * tileScale,
+                                ),
+                                child: GestureDetector(
+                                  onTap:
+                                      game.isGameOver ||
+                                          !isPlayable ||
+                                          controller.knockingPlayerIndex == 0
+                                      ? null
+                                      : () => controller.selectTile(tile),
+                                  child: Opacity(
+                                    opacity:
+                                        game.isGameOver ||
+                                            game.currentPlayer != 0 ||
+                                            isPlayable
+                                        ? 1.0
+                                        : 0.4,
+                                    child: Hero(
+                                      tag: 'tile-$index',
+                                      child: DominoTileWidget(
+                                        tile: tile,
+                                        isVertical: true,
+                                        isHighlight: isPlayable,
+                                        isSelected:
+                                            controller.selectedTile == tile,
+                                        scale: tileScale,
+                                      ),
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ),
-                          );
-                        }).toList(),
+                              );
+                            }).toList(),
+                          ),
+                        ),
                       ),
                     ),
                   );
@@ -1103,7 +1039,7 @@ class DominoTileWidget extends StatelessWidget {
                 ? Border.all(color: const Color(0xFF2BEE4B), width: 4 * scale)
                 : isHighlight
                 ? Border.all(
-                    color: const Color(0xFF2BEE4B).withOpacity(0.5),
+                    color: const Color(0xFF2BEE4B).withValues(alpha: 0.5),
                     width: 2 * scale,
                   )
                 : Border.all(
@@ -1114,14 +1050,14 @@ class DominoTileWidget extends StatelessWidget {
             boxShadow: isSelected
                 ? [
                     BoxShadow(
-                      color: const Color(0xFF2BEE4B).withOpacity(0.6),
+                      color: const Color(0xFF2BEE4B).withValues(alpha: 0.6),
                       blurRadius: 12 * scale,
                       spreadRadius: 2 * scale,
                     ),
                   ]
                 : [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.4),
+                      color: Colors.black.withValues(alpha: 0.4),
                       blurRadius: 6 * scale,
                       offset: Offset(1 * scale, 3 * scale),
                     ),
@@ -1168,12 +1104,12 @@ class DominoTileWidget extends StatelessWidget {
                 colors: [Color(0xFFFBBF24), Color(0xFFB45309)],
               ),
               border: Border.all(
-                color: Colors.white.withOpacity(0.3),
+                color: Colors.white.withValues(alpha: 0.3),
                 width: 1 * scale,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.6),
+                  color: Colors.black.withValues(alpha: 0.6),
                   blurRadius: 3 * scale,
                   offset: Offset(0, 1 * scale),
                 ),
@@ -1193,6 +1129,30 @@ class _Pips extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Color baseColor;
+    switch (count) {
+      case 1:
+        baseColor = const Color(0xFF3B82F6);
+        break; // Blue
+      case 2:
+        baseColor = const Color(0xFF10B981);
+        break; // Green
+      case 3:
+        baseColor = const Color(0xFFEF4444);
+        break; // Red
+      case 4:
+        baseColor = const Color(0xFFF59E0B);
+        break; // Amber
+      case 5:
+        baseColor = const Color(0xFF8B5CF6);
+        break; // Purple
+      case 6:
+        baseColor = const Color(0xFF06B6D4);
+        break; // Teal
+      default:
+        baseColor = const Color(0xFF374151); // Dark Gray for 0/Default
+    }
+
     return AspectRatio(
       aspectRatio: 1,
       child: GridView.builder(
@@ -1254,16 +1214,24 @@ class _Pips extends StatelessWidget {
                   margin: EdgeInsets.all(4 * scale),
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    gradient: const RadialGradient(
-                      center: Alignment(-0.2, -0.2),
+                    gradient: RadialGradient(
+                      center: const Alignment(-0.2, -0.2),
                       radius: 0.8,
-                      colors: [Color(0xFF374151), Color(0xFF111827)],
+                      colors: [
+                        baseColor.withValues(alpha: 0.8), // Lighter top-left
+                        baseColor, // Actual color
+                      ],
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.white.withOpacity(0.2),
+                        color: Colors.white.withValues(alpha: 0.2),
                         blurRadius: 1 * scale,
                         offset: Offset(0, 1 * scale),
+                      ),
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.2),
+                        blurRadius: 1 * scale,
+                        offset: Offset(0, -1 * scale),
                       ),
                     ],
                   ),
@@ -1511,11 +1479,11 @@ class SnakingBoard extends StatelessWidget {
                         (positions[0]!.isVertical ? vHeight : hHeight) +
                         (40 * scale),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF2BEE4B).withOpacity(0.4),
+                      color: const Color(0xFF2BEE4B).withValues(alpha: 0.4),
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF2BEE4B).withOpacity(0.6),
+                          color: const Color(0xFF2BEE4B).withValues(alpha: 0.6),
                           blurRadius: 20 * scale,
                           spreadRadius: 5 * scale,
                         ),
@@ -1547,11 +1515,11 @@ class SnakingBoard extends StatelessWidget {
                             : hHeight) +
                         (40 * scale),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF2BEE4B).withOpacity(0.4),
+                      color: const Color(0xFF2BEE4B).withValues(alpha: 0.4),
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF2BEE4B).withOpacity(0.6),
+                          color: const Color(0xFF2BEE4B).withValues(alpha: 0.6),
                           blurRadius: 20 * scale,
                           spreadRadius: 5 * scale,
                         ),
@@ -1579,39 +1547,97 @@ class _TilePos {
   });
 }
 
-class _MiniScore extends StatelessWidget {
+class _EdgeScore extends StatefulWidget {
   final String name;
+  final int tiles;
   final int score;
   final bool isActive;
+  final bool isKnocking;
 
-  const _MiniScore({
+  const _EdgeScore({
     super.key,
     required this.name,
+    required this.tiles,
     required this.score,
     required this.isActive,
+    this.isKnocking = false,
   });
 
   @override
+  State<_EdgeScore> createState() => _EdgeScoreState();
+}
+
+class _EdgeScoreState extends State<_EdgeScore>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+    _scaleAnimation = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.2), weight: 50),
+      TweenSequenceItem(tween: Tween(begin: 1.2, end: 1.0), weight: 50),
+    ]).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+  }
+
+  @override
+  void didUpdateWidget(_EdgeScore oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isKnocking && !oldWidget.isKnocking) {
+      _controller.repeat(count: 2);
+    } else if (!widget.isKnocking && oldWidget.isKnocking) {
+      _controller.stop();
+      _controller.reset();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Text(
-          name,
-          style: TextStyle(
-            fontSize: 10,
-            color: isActive ? const Color(0xFF2BEE4B) : Colors.white54,
-            fontWeight: FontWeight.bold,
-          ),
+    return ScaleTransition(
+      scale: _scaleAnimation,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              widget.name,
+              style: TextStyle(
+                fontSize: 14,
+                color: widget.isActive || widget.isKnocking
+                    ? const Color(0xFF2BEE4B)
+                    : Colors.white,
+                fontWeight: widget.isActive || widget.isKnocking
+                    ? FontWeight.bold
+                    : FontWeight.w400,
+              ),
+            ),
+            Text(
+              '${widget.tiles}/${widget.score}',
+              style: TextStyle(
+                fontSize: 14,
+                color: widget.isActive || widget.isKnocking
+                    ? const Color(0xFF2BEE4B)
+                    : Colors.white.withValues(alpha: 0.8),
+                fontWeight: widget.isActive || widget.isKnocking
+                    ? FontWeight.bold
+                    : FontWeight.w400,
+              ),
+            ),
+          ],
         ),
-        Text(
-          '$score',
-          style: TextStyle(
-            fontSize: 18,
-            color: isActive ? const Color(0xFF2BEE4B) : Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ],
+      ),
     );
   }
 }
@@ -1632,9 +1658,9 @@ class _StatBox extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.3),
+        color: Colors.black.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.3), width: 2),
+        border: Border.all(color: color.withValues(alpha: 0.3), width: 2),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -1663,35 +1689,116 @@ class _StatBox extends StatelessWidget {
   }
 }
 
-class _LeaderboardRow extends StatelessWidget {
-  final String name;
-  final int score;
+class _GlassyProgress extends StatefulWidget {
+  final String message;
+  final Duration duration;
 
-  const _LeaderboardRow({super.key, required this.name, required this.score});
+  const _GlassyProgress({
+    super.key,
+    required this.message,
+    required this.duration,
+  });
+
+  @override
+  State<_GlassyProgress> createState() => _GlassyProgressState();
+}
+
+class _GlassyProgressState extends State<_GlassyProgress>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(vsync: this, duration: widget.duration);
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            name,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
+      padding: const EdgeInsets.only(bottom: 24.0, left: 32, right: 32),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Container(
+            padding: const EdgeInsets.all(2), // For the glowing border effect
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: const Color(0xFF2BEE4B).withValues(alpha: 0.3),
+                width: 1.5,
+              ),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.white.withValues(alpha: 0.15),
+                  Colors.white.withOpacity(0.05),
+                ],
+              ),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 16.0,
+                    horizontal: 24,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.check_circle_outline,
+                        color: Color(0xFF2BEE4B),
+                        size: 20,
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        widget.message,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          letterSpacing: 2.0,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                AnimatedBuilder(
+                  animation: _controller,
+                  builder: (context, child) {
+                    return Container(
+                      height: 4,
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(2),
+                        child: LinearProgressIndicator(
+                          value: _controller.value,
+                          backgroundColor: Colors.white.withValues(alpha: 0.1),
+                          valueColor: const AlwaysStoppedAnimation<Color>(
+                            Color(0xFF2BEE4B),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 12),
+              ],
             ),
           ),
-          Text(
-            '$score',
-            style: const TextStyle(
-              color: Color(0xFF2BEE4B),
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

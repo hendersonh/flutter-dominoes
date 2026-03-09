@@ -331,8 +331,9 @@ class MCTSPlayer {
 
     bool assignTilesRec(int oppIndexIndex) {
       iterations++;
-      if (iterations > 5000)
-        return false; // Safety cutoff for pathological constraint graphs
+      if (iterations > 5000) {
+        return false;
+      } // Safety cutoff for pathological constraint graphs
 
       if (oppIndexIndex >= opponents.length) return true;
       int pIndex = opponents[oppIndexIndex];
@@ -389,8 +390,10 @@ class MCTSPlayer {
 
     MCTSNode rootNode = MCTSNode(player: (rootState.currentPlayer - 1 + 4) % 4);
     Stopwatch sw = Stopwatch()..start();
+    int iterations = 0;
 
     while (sw.elapsedMilliseconds < timeLimitMs) {
+      iterations++;
       // 1. Determinization
       GameModel state = determinize(rootState);
       MCTSNode node = rootNode;
@@ -483,8 +486,8 @@ class MCTSPlayer {
               }
             }
             // Max theoretical sum is around 63 * 3 = 189, though closer to 100 in practice.
-            // Normalize sumOpPips against a reasonable cap, say 150 points.
-            result = 0.6 + 0.4 * (sumOpPips / 150.0).clamp(0.0, 1.0);
+            // Normalize sumOpPips against a reasonable cap, say 100 points.
+            result = 0.6 + 0.4 * (sumOpPips / 100.0).clamp(0.0, 1.0);
           } else {
             // Loss: Heavily penalize having a large number of pips left in hand.
             // A score near 0.0 means terrible loss (many pips left).
@@ -510,6 +513,9 @@ class MCTSPlayer {
       }
     }
 
+    print(
+      "AI Player $playerId Iterations: $iterations | Best Action: $bestAction | Visits: $maxVisits",
+    );
     return bestAction;
   }
 }
@@ -541,7 +547,7 @@ class MatchModel {
   final int targetScore;
   GameModel? currentRound;
 
-  MatchModel({this.targetScore = 120});
+  MatchModel({this.targetScore = 100});
 
   bool get isMatchOver => scores.any((s) => s >= targetScore);
 
@@ -631,7 +637,7 @@ class MatchModel {
   }
 
   factory MatchModel.fromJson(Map<String, dynamic> json) {
-    final match = MatchModel(targetScore: json['targetScore'] ?? 120);
+    final match = MatchModel(targetScore: json['targetScore'] ?? 100);
     if (json['scores'] != null) {
       match.scores = List<int>.from(json['scores']);
     } else {
@@ -650,7 +656,7 @@ void main() async {
   print("=== Block Dominoes: 4-Player Match (IS-MCTS) ===");
   print("Target Score: 100 points");
 
-  MatchModel match = MatchModel(targetScore: 120);
+  MatchModel match = MatchModel(targetScore: 100);
 
   while (!match.isMatchOver) {
     print("\n==================================================");
