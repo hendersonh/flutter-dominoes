@@ -1024,9 +1024,19 @@ class _GameScreenState extends State<GameScreen> {
                         vertical: 8,
                       ),
                       child: Row(
-                        children: game.hands[0].asMap().entries.map((entry) {
-                          final index = entry.key;
-                          final tile = entry.value;
+                        children: () {
+                          final sortedHand = List<DominoTile>.from(game.hands[0]);
+                          sortedHand.sort((a, b) {
+                            int maxA = math.max(a.end1, a.end2);
+                            int maxB = math.max(b.end1, b.end2);
+                            if (maxA != maxB) return maxB.compareTo(maxA);
+                            int minA = math.min(a.end1, a.end2);
+                            int minB = math.min(b.end1, b.end2);
+                            return minB.compareTo(minA);
+                          });
+
+                          return sortedHand.asMap().entries.map((entry) {
+                            final tile = entry.value;
                           final isPlayable =
                               !game.isGameOver &&
                               game.currentPlayer == 0 &&
@@ -1048,7 +1058,7 @@ class _GameScreenState extends State<GameScreen> {
                                     ? 1.0
                                     : 0.4,
                                 child: Hero(
-                                  tag: 'tile-$index',
+                                  tag: 'player-tile-${tile.end1}-${tile.end2}',
                                   child: DominoTileWidget(
                                     tile: tile,
                                     isVertical: true,
@@ -1060,7 +1070,8 @@ class _GameScreenState extends State<GameScreen> {
                               ),
                             ),
                           );
-                        }).toList(),
+                        }).toList();
+                        }(),
                       ),
                     ),
                   );
@@ -1195,6 +1206,26 @@ class _Pips extends StatelessWidget {
   final int count;
   final bool isVertical;
   final double scale;
+
+  static Color getPipColor(int count) {
+    switch (count) {
+      case 1:
+        return const Color(0xFF60A5FA); // Light Blue
+      case 2:
+        return const Color(0xFF22C55E); // Green
+      case 3:
+        return const Color(0xFFEF4444); // Red
+      case 4:
+        return const Color(0xFF795548); // Brown
+      case 5:
+        return const Color(0xFF1E40AF); // Dark Blue
+      case 6:
+        return const Color(0xFFEAB308); // Yellow
+      default:
+        return const Color(0xFF374151);
+    }
+  }
+
   const _Pips(this.count, {this.isVertical = false, this.scale = 1.0});
 
   @override
@@ -1255,26 +1286,29 @@ class _Pips extends StatelessWidget {
               }
               break;
           }
-          return visible
-              ? Container(
-                  margin: EdgeInsets.all(4 * scale),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: const RadialGradient(
-                      center: Alignment(-0.2, -0.2),
-                      radius: 0.8,
-                      colors: [Color(0xFF374151), Color(0xFF111827)],
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.white.withOpacity(0.2),
-                        blurRadius: 1 * scale,
-                        offset: Offset(0, 1 * scale),
+            return visible
+                ? Container(
+                    margin: EdgeInsets.all(4 * scale),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: RadialGradient(
+                        center: const Alignment(-0.2, -0.2),
+                        radius: 0.8,
+                        colors: [
+                          getPipColor(count).withOpacity(0.8),
+                          getPipColor(count),
+                        ],
                       ),
-                    ],
-                  ),
-                )
-              : const SizedBox();
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.white.withOpacity(0.2),
+                          blurRadius: 1 * scale,
+                          offset: Offset(0, 1 * scale),
+                        ),
+                      ],
+                    ),
+                  )
+                : const SizedBox();
         },
       ),
     );
