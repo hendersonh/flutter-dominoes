@@ -720,28 +720,16 @@ class _GameScreenState extends State<GameScreen> {
                       Align(
                         alignment: Alignment.topCenter,
                         child: Padding(
-                          padding: const EdgeInsets.only(top: 60),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 48,
-                              vertical: 24,
+                          padding: const EdgeInsets.only(top: 100),
+                          child: _CurvedText(
+                            text: 'CAN YOU BEAT HENDY?',
+                            style: TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.white.withOpacity(0.08),
+                              letterSpacing: 4,
                             ),
-                            decoration: BoxDecoration(
-                              border: Border.all(
-                                color: Colors.white.withOpacity(0.08),
-                                width: 2,
-                              ),
-                              borderRadius: BorderRadius.circular(100),
-                            ),
-                            child: Text(
-                              'Can you beat Hendy?',
-                              style: TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.w900,
-                                color: Colors.white.withOpacity(0.12),
-                                letterSpacing: 2,
-                              ),
-                            ),
+                            radius: 180,
                           ),
                         ),
                       ),
@@ -1664,4 +1652,66 @@ class _StatBox extends StatelessWidget {
       ),
     );
   }
+}
+
+class _CurvedText extends StatelessWidget {
+  final String text;
+  final TextStyle style;
+  final double radius;
+
+  const _CurvedText({
+    required this.text,
+    required this.style,
+    required this.radius,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      painter: _CurvedTextPainter(text, style, radius),
+      size: Size(radius * 2, radius),
+    );
+  }
+}
+
+class _CurvedTextPainter extends CustomPainter {
+  final String text;
+  final TextStyle style;
+  final double radius;
+
+  _CurvedTextPainter(this.text, this.style, this.radius);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.translate(size.width / 2, size.height);
+
+    double totalWidth = 0;
+    final textPainters = <TextPainter>[];
+    for (int i = 0; i < text.length; i++) {
+      final tp = TextPainter(
+        text: TextSpan(text: text[i], style: style),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      textPainters.add(tp);
+      totalWidth += tp.width;
+    }
+
+    double currentAngle = -(totalWidth / radius) / 2;
+    for (int i = 0; i < text.length; i++) {
+      final tp = textPainters[i];
+      double charAngle = tp.width / radius;
+      double angle = currentAngle + charAngle / 2;
+
+      canvas.save();
+      canvas.translate(radius * math.sin(angle), -radius * math.cos(angle));
+      canvas.rotate(angle);
+      tp.paint(canvas, Offset(-tp.width / 2, -tp.height / 2));
+      canvas.restore();
+
+      currentAngle += charAngle;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
