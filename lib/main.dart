@@ -448,7 +448,9 @@ class GameScreen extends StatefulWidget {
 
 class _GameScreenState extends State<GameScreen> {
   final ScrollController _scrollController = ScrollController();
+  final TransformationController _transformationController = TransformationController();
   int _lastHandSize = 0;
+  GameModel? _lastGame;
 
   @override
   void initState() {
@@ -459,6 +461,7 @@ class _GameScreenState extends State<GameScreen> {
   @override
   void dispose() {
     _scrollController.dispose();
+    _transformationController.dispose();
     super.dispose();
   }
 
@@ -487,6 +490,14 @@ class _GameScreenState extends State<GameScreen> {
     }
 
     final game = controller.game!;
+
+    // Reset board zoom when a new game starts or board is cleared
+    if (_lastGame != game || game.board.isEmpty) {
+      if (_transformationController.value != Matrix4.identity()) {
+        _transformationController.value = Matrix4.identity();
+      }
+    }
+    _lastGame = game;
 
     // Detect if hand size increased
     if (game.hands[0].length > _lastHandSize) {
@@ -542,165 +553,7 @@ class _GameScreenState extends State<GameScreen> {
         child: SafeArea(
           child: Column(
             children: [
-              // Glassmorphism Header
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16.0,
-                  vertical: 12.0,
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.3),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: Colors.white.withOpacity(0.1),
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.2),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          // Human Stats
-                          Row(
-                            children: [
-                              const CircleAvatar(
-                                radius: 18,
-                                backgroundImage: AssetImage('assets/human.png'),
-                              ),
-                              const SizedBox(width: 8),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text(
-                                    'YOU',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      color: Colors.white54,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  Text(
-                                    '${controller.match.humanScore}',
-                                    style: const TextStyle(
-                                      fontSize: 22,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-
-                          // Status Center
-                          Column(
-                            children: [
-                              Text(
-                                'TARGET: ${controller.match.targetScore}',
-                                style: const TextStyle(
-                                  fontSize: 10,
-                                  color: Colors.white54,
-                                  letterSpacing: 1.5,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                controller.statusMessage ?? '',
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF2BEE4B),
-                                ),
-                              ),
-                            ],
-                          ),
-
-                          // AI Stats
-                          Row(
-                            children: [
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  const Text(
-                                    'HENDY',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      color: Colors.white54,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  Text(
-                                    '${controller.match.aiScore}',
-                                    style: const TextStyle(
-                                      fontSize: 22,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(width: 8),
-                              const CircleAvatar(
-                                radius: 18,
-                                backgroundImage: AssetImage('assets/hendy.png'),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-
-              // Auxiliary Stats
-              Padding(
-                padding: const EdgeInsets.only(
-                  bottom: 8.0,
-                  left: 32,
-                  right: 32,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'HENDY TILES: ${game.hands[1].length}',
-                      style: const TextStyle(
-                        fontSize: 10,
-                        color: Colors.white54,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1.2,
-                      ),
-                    ),
-                    Text(
-                      'BONEYARD: ${game.boneyard.length}',
-                      style: const TextStyle(
-                        fontSize: 10,
-                        color: Colors.white54,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1.2,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // Game Board
+              // Game Board - Maximum Efficiency Layout
               Expanded(
                 child: Container(
                   decoration: BoxDecoration(
@@ -712,361 +565,380 @@ class _GameScreenState extends State<GameScreen> {
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: Colors.white.withOpacity(0.05)),
                   ),
-                  margin: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      // Center Text Decal
-                      Align(
-                        alignment: Alignment.topCenter,
-                        child: Padding(
-                          padding: const EdgeInsets.only(top: 100),
-                          child: _CurvedText(
-                            text: 'CAN YOU BEAT HENDY?',
-                            style: TextStyle(
-                              fontSize: 28,
-                              fontWeight: FontWeight.w900,
-                              color: Colors.white.withOpacity(0.08),
-                              letterSpacing: 4,
-                            ),
-                            radius: 180,
-                          ),
-                        ),
-                      ),
-
-                      // Interactive Board Content
-                      Center(
-                        child: game.board.isEmpty
-                            ? (game.currentPlayer == 0
-                                  ? const Text(
-                                      'Tap a tile to start',
-                                      style: TextStyle(
-                                        fontSize:
-                                            18.0, // approx 15% larger than default
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    )
-                                  : const Text('Waiting for Hendy...'))
-                            : InteractiveViewer(
-                                boundaryMargin: const EdgeInsets.all(1000),
-                                minScale: 0.1,
-                                maxScale: 2.0,
-                                child: LayoutBuilder(
-                                  builder: (context, constraints) {
-                                    return SnakingBoard(
-                                      board: game.board,
-                                      rootIndex: game.rootIndex,
-                                      maxWidth: constraints.maxWidth,
-                                      isSelectingSide:
-                                          controller.selectedTile != null,
-                                      onSelectSide: controller.confirmPlay,
-                                    );
-                                  },
-                                ),
-                              ),
-                      ),
-
-                      // Status Overlay (Top Center)
-                      if (controller.topOverlayMessage != null)
+                  margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        // Center Text Decal
                         Align(
                           alignment: Alignment.topCenter,
                           child: Padding(
-                            padding: const EdgeInsets.only(top: 16.0),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 8,
+                            padding: const EdgeInsets.only(top: 140),
+                            child: _CurvedText(
+                              text: 'CAN YOU BEAT HENDY?',
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.w900,
+                                color: Colors.white.withOpacity(0.05),
+                                letterSpacing: 4,
                               ),
-                              decoration: BoxDecoration(
-                                color: Colors.black.withOpacity(0.6),
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                  color: const Color(
-                                    0xFF2BEE4B,
-                                  ).withOpacity(0.5),
-                                ),
-                              ),
-                              child: Text(
-                                controller.topOverlayMessage!,
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF2BEE4B),
-                                  letterSpacing: 1.2,
-                                ),
-                              ),
+                              radius: 160,
                             ),
                           ),
                         ),
-
-                      // Status Overlay (Bottom Center)
-                      if (controller.bottomOverlayMessage != null &&
-                          !controller.showNextRoundButton)
-                        Align(
-                          alignment: Alignment.bottomCenter,
-                          child: Padding(
-                            padding: const EdgeInsets.only(bottom: 16.0),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 8,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.black.withOpacity(0.6),
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                  color: const Color(
-                                    0xFF2BEE4B,
-                                  ).withOpacity(0.5),
-                                ),
-                              ),
-                              child: Text(
-                                controller.bottomOverlayMessage!,
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF2BEE4B),
-                                  letterSpacing: 1.2,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-
-                      // Game Over Modal (Idea B)
-                      if (game.isGameOver && controller.showNextRoundButton)
-                        Positioned.fill(
-                          child: Container(
-                            color: Colors.black.withOpacity(0.7),
-                            child: Center(
-                              child: Container(
-                                margin: const EdgeInsets.symmetric(
-                                  horizontal: 24,
-                                ),
-                                padding: const EdgeInsets.all(32),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF1E1E1E),
-                                  borderRadius: BorderRadius.circular(24),
-                                  border: Border.all(
-                                    color: controller.match.isMatchOver
-                                        ? (controller.match.matchWinner == 0
-                                              ? const Color(0xFF2BEE4B)
-                                              : Colors.red)
-                                        : const Color(
-                                            0xFF2BEE4B,
-                                          ).withOpacity(0.5),
-                                    width: 2,
+                        Center(
+                          child: game.board.isEmpty
+                              ? (game.currentPlayer == 0
+                                    ? const Text(
+                                        'Tap a tile in your hand to play',
+                                        style: TextStyle(
+                                          fontSize: 18.0,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white70,
+                                        ),
+                                      )
+                                    : const Text('Waiting for Hendy...'))
+                              : InteractiveViewer(
+                                  transformationController: _transformationController,
+                                  boundaryMargin: const EdgeInsets.all(1000),
+                                  minScale: 0.1,
+                                  maxScale: 2.0,
+                                  child: LayoutBuilder(
+                                    builder: (context, constraints) {
+                                      return SnakingBoard(
+                                        board: game.board,
+                                        rootIndex: game.rootIndex,
+                                        maxWidth: constraints.maxWidth,
+                                        isSelectingSide:
+                                            controller.selectedTile != null,
+                                        onSelectSide: controller.confirmPlay,
+                                      );
+                                    },
                                   ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.5),
-                                      blurRadius: 20,
-                                      offset: const Offset(0, 10),
+                                ),
+                        ),
+
+                        // Floating Score Hub (Top) - Compact Height
+                        Positioned(
+                          top: 8,
+                          left: 12,
+                          right: 12,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.35),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.05),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                // Match Target
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Text(
+                                      'TARGET ',
+                                      style: TextStyle(
+                                        fontSize: 8,
+                                        color: Colors.white38,
+                                        fontWeight: FontWeight.bold,
+                                        letterSpacing: 1.0,
+                                      ),
+                                    ),
+                                    Text(
+                                      '${controller.match.targetScore}',
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white70,
+                                      ),
                                     ),
                                   ],
                                 ),
-                                child: Column(
+
+                                // Integrated Status (Center)
+                                if (controller.statusMessage != null && controller.statusMessage!.isNotEmpty)
+                                  Flexible(
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                                      child: Text(
+                                        controller.statusMessage!.toUpperCase(),
+                                        style: TextStyle(
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.w900,
+                                          color: (controller.statusMessage!.contains('Your') || controller.statusMessage!.contains('You'))
+                                              ? const Color(0xFF2BEE4B)
+                                              : Colors.orangeAccent,
+                                          letterSpacing: 1.5,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
+                                  ),
+
+                                // Hendy Stats
+                                Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Text(
-                                      controller.bottomOverlayMessage ??
-                                          'Game Over',
-                                      style: TextStyle(
-                                        fontSize: 28,
+                                      '${controller.match.aiScore}',
+                                      style: const TextStyle(
+                                        fontSize: 14,
                                         fontWeight: FontWeight.bold,
-                                        color:
-                                            controller.match.isMatchOver &&
-                                                controller.match.matchWinner !=
-                                                    0
-                                            ? Colors.red
-                                            : const Color(0xFF2BEE4B),
-                                      ),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                    const SizedBox(height: 24),
-                                    const Text(
-                                      'LIFETIME MATCH RECORD',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.white54,
-                                        fontWeight: FontWeight.bold,
-                                        letterSpacing: 2,
+                                        color: Colors.orange,
                                       ),
                                     ),
-                                    const SizedBox(height: 12),
-                                    Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        _StatBox(
-                                          label: 'WINS',
-                                          value: controller.lifetimeMatchWins,
-                                          color: const Color(0xFF2BEE4B),
-                                        ),
-                                        const SizedBox(width: 16),
-                                        _StatBox(
-                                          label: 'LOSSES',
-                                          value: controller.lifetimeMatchLosses,
-                                          color: Colors.orange,
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 32),
-                                    SizedBox(
-                                      width: double.infinity,
-                                      child: ElevatedButton.icon(
-                                        icon: Icon(
-                                          controller.match.isMatchOver
-                                              ? Icons.replay
-                                              : Icons.play_arrow,
-                                        ),
-                                        label: Text(
-                                          controller.match.isMatchOver
-                                              ? 'START NEW MATCH'
-                                              : 'PLAY NEXT ROUND',
-                                        ),
-                                        onPressed: controller.restartGame,
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: const Color(
-                                            0xFF2BEE4B,
-                                          ),
-                                          foregroundColor: Colors.black,
-                                          padding: const EdgeInsets.symmetric(
-                                            vertical: 16,
-                                          ),
-                                          textStyle: const TextStyle(
-                                            inherit: false,
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ),
+                                    const SizedBox(width: 4),
+                                    const CircleAvatar(
+                                      radius: 12,
+                                      backgroundImage: AssetImage('assets/hendy.png'),
                                     ),
                                   ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+
+                        // Floating Game Stats (Bottom corners)
+                        Positioned(
+                          bottom: 12,
+                          left: 12,
+                          child: _FloatingStat(
+                            label: 'Hendy Tiles',
+                            value: '${game.hands[1].length}',
+                          ),
+                        ),
+                        Positioned(
+                          bottom: 12,
+                          right: 12,
+                          child: _FloatingStat(
+                            label: 'Boneyard',
+                            value: '${game.boneyard.length}',
+                          ),
+                        ),
+
+                        // Human Player Badge (Bottom Center)
+                        Positioned(
+                          bottom: 12,
+                          left: 0,
+                          right: 0,
+                          child: Center(
+                            child: _PlayerBadge(
+                              score: controller.match.humanScore,
+                              isTurn: !game.isGameOver && game.currentPlayer == 0,
+                            ),
+                          ),
+                        ),
+
+                        // Status Overlay (Top Center)
+                        if (controller.topOverlayMessage != null)
+                          Align(
+                            alignment: Alignment.topCenter,
+                            child: Padding(
+                              padding: const EdgeInsets.only(top: 16.0),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 8,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withOpacity(0.6),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: const Color(0xFF2BEE4B).withOpacity(0.5),
+                                  ),
+                                ),
+                                child: Text(
+                                  controller.topOverlayMessage!,
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF2BEE4B),
+                                    letterSpacing: 1.2,
+                                  ),
                                 ),
                               ),
                             ),
                           ),
-                        ),
-                    ],
+
+                        // Game Over Modal
+                        if (game.isGameOver && controller.showNextRoundButton)
+                          Positioned.fill(
+                            child: Container(
+                              color: Colors.black.withOpacity(0.7),
+                              child: Center(
+                                child: Container(
+                                  margin: const EdgeInsets.symmetric(horizontal: 24),
+                                  padding: const EdgeInsets.all(32),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF1E1E1E),
+                                    borderRadius: BorderRadius.circular(24),
+                                    border: Border.all(
+                                      color: controller.match.isMatchOver
+                                          ? (controller.match.matchWinner == 0
+                                                ? const Color(0xFF2BEE4B)
+                                                : Colors.red)
+                                          : const Color(0xFF2BEE4B).withOpacity(0.5),
+                                      width: 2,
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.5),
+                                        blurRadius: 20,
+                                        offset: const Offset(0, 10),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        controller.bottomOverlayMessage ?? 'Game Over',
+                                        style: TextStyle(
+                                          fontSize: 28,
+                                          fontWeight: FontWeight.bold,
+                                          color: controller.match.isMatchOver &&
+                                                  controller.match.matchWinner != 0
+                                              ? Colors.red
+                                              : const Color(0xFF2BEE4B),
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                      const SizedBox(height: 24),
+                                      const Text(
+                                        'LIFETIME MATCH RECORD',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.white54,
+                                          fontWeight: FontWeight.bold,
+                                          letterSpacing: 2,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 12),
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          _StatBox(
+                                            label: 'WINS',
+                                            value: controller.lifetimeMatchWins,
+                                            color: const Color(0xFF2BEE4B),
+                                          ),
+                                          const SizedBox(width: 16),
+                                          _StatBox(
+                                            label: 'LOSSES',
+                                            value: controller.lifetimeMatchLosses,
+                                            color: Colors.orange,
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 32),
+                                      SizedBox(
+                                        width: double.infinity,
+                                        child: ElevatedButton.icon(
+                                          icon: Icon(
+                                            controller.match.isMatchOver
+                                                ? Icons.replay
+                                                : Icons.play_arrow,
+                                          ),
+                                          label: Text(
+                                            controller.match.isMatchOver
+                                                ? 'START NEW MATCH'
+                                                : 'PLAY NEXT ROUND',
+                                          ),
+                                          onPressed: controller.restartGame,
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: const Color(0xFF2BEE4B),
+                                            foregroundColor: Colors.black,
+                                            padding: const EdgeInsets.symmetric(vertical: 16),
+                                            textStyle: const TextStyle(
+                                              inherit: false,
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
                 ),
               ),
 
-              // Control Area (Ends)
-              if (game.board.isNotEmpty &&
-                  controller.statusMessage == "Your Turn" &&
-                  controller.selectedTile == null)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [const Text('Tap a tile in your hand to play')],
-                  ),
-                ),
 
-              if (controller.selectedTile != null)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text(
-                        'Tap a ',
-                        style: TextStyle(color: Colors.white70),
-                      ),
-                      const Text(
-                        'glowing end',
-                        style: TextStyle(
-                          color: Color(0xFF2BEE4B),
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const Text(
-                        ' on the board to play',
-                        style: TextStyle(color: Colors.white70),
-                      ),
-                    ],
-                  ),
-                ),
-
-              // Player Hand (Vertical Rack)
+              // Player Hand
               Builder(
                 builder: (context) {
                   final screenWidth = MediaQuery.of(context).size.width;
-                  final availableWidth =
-                      screenWidth - 32; // 16 horizontal padding on each side
-                  // 7 tiles + 6 gaps (12px each). A normal tile is 50px wide.
-                  // We want to fit 7 tiles comfortably. Target max width = 7 * 50 + 6 * 12 = 422
-                  double tileScale = (availableWidth / 422).clamp(0.5, 1.0);
+                  final availableWidth = screenWidth - 32;
+                  double tileScale = (availableWidth / 464.2).clamp(0.5, 1.0);
 
                   return SizedBox(
-                    height:
-                        102 * tileScale +
-                        18, // Reclaims board space while fitting scaled tiles + padding
+                    height: 102 * tileScale + 18,
                     child: SingleChildScrollView(
                       controller: _scrollController,
                       scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       child: Row(
-                        children: () {
-                          final sortedHand = List<DominoTile>.from(game.hands[0]);
-                          sortedHand.sort((a, b) {
-                            int maxA = math.max(a.end1, a.end2);
-                            int maxB = math.max(b.end1, b.end2);
-                            if (maxA != maxB) return maxB.compareTo(maxA);
-                            int minA = math.min(a.end1, a.end2);
-                            int minB = math.min(b.end1, b.end2);
-                            return minB.compareTo(minA);
-                          });
+                        children: [
+                          ...() {
+                            final sortedHand = List<DominoTile>.from(game.hands[0]);
+                            sortedHand.sort((a, b) {
+                              int maxA = math.max(a.end1, a.end2);
+                              int maxB = math.max(b.end1, b.end2);
+                              if (maxA != maxB) return maxB.compareTo(maxA);
+                              return math.min(b.end1, b.end2).compareTo(math.min(a.end1, a.end2));
+                            });
 
-                          return sortedHand.asMap().entries.map((entry) {
-                            final tile = entry.value;
-                          final isPlayable =
-                              !game.isGameOver &&
-                              game.currentPlayer == 0 &&
-                              (game.board.isEmpty ||
-                                  tile.contains(game.leftEnd!) ||
-                                  tile.contains(game.rightEnd!));
+                            return sortedHand.map((tile) {
+                              final isPlayable = !game.isGameOver &&
+                                  game.currentPlayer == 0 &&
+                                  (game.board.isEmpty ||
+                                      tile.contains(game.leftEnd!) ||
+                                      tile.contains(game.rightEnd!));
 
-                          return Padding(
-                            padding: EdgeInsets.only(right: 12.0 * tileScale),
-                            child: GestureDetector(
-                              onTap: game.isGameOver || !isPlayable
-                                  ? null
-                                  : () => controller.selectTile(tile),
-                              child: Opacity(
-                                opacity:
-                                    game.isGameOver ||
-                                        game.currentPlayer != 0 ||
-                                        isPlayable
-                                    ? 1.0
-                                    : 0.4,
-                                child: Hero(
-                                  tag: 'player-tile-${tile.end1}-${tile.end2}',
-                                  child: DominoTileWidget(
-                                    tile: tile,
-                                    isVertical: true,
-                                    isHighlight: isPlayable,
-                                    isSelected: controller.selectedTile == tile,
-                                    scale: tileScale,
+                              return Padding(
+                                padding: EdgeInsets.only(right: 12.0 * tileScale),
+                                child: GestureDetector(
+                                  onTap: isPlayable ? () => controller.selectTile(tile) : null,
+                                  child: Opacity(
+                                    opacity: (isPlayable || game.currentPlayer != 0 || game.isGameOver) ? 1.0 : 0.4,
+                                    child: Hero(
+                                      tag: 'player-tile-${tile.end1}-${tile.end2}',
+                                      child: DominoTileWidget(
+                                        tile: tile,
+                                        isVertical: true,
+                                        isHighlight: isPlayable,
+                                        isSelected: controller.selectedTile == tile,
+                                        scale: tileScale,
+                                      ),
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ),
-                          );
-                        }).toList();
-                        }(),
+                              );
+                            });
+                          }()
+                        ],
                       ),
                     ),
                   );
                 },
               ),
-
-              // Bottom spacer
               const SizedBox(height: 16),
             ],
           ),
@@ -1100,8 +972,8 @@ class DominoTileWidget extends StatelessWidget {
       alignment: Alignment.center,
       children: [
         Container(
-          width: (isVertical ? 50 : 102) * scale,
-          height: (isVertical ? 102 : 50) * scale,
+          width: (isVertical ? 55 : 112.2) * scale,
+          height: (isVertical ? 112.2 : 55) * scale,
           decoration: BoxDecoration(
             color: const Color(0xFFFDFBF7),
             border: isSelected
@@ -1326,12 +1198,12 @@ class SnakingBoard extends StatelessWidget {
     // Configuration
     double scale = (maxWidth / 570.0).clamp(0.4, 1.0);
 
-    final double hWidth = 102.0 * scale;
-    final double hHeight = 50.0 * scale;
-    final double vWidth = 50.0 * scale;
-    final double vHeight = 102.0 * scale;
-    final double turnClearance = 30.0 * scale; // Margin from edges
-    final double rowSpacing = 76.5 * scale; // Half hHeight + Half vHeight
+    final double hWidth = 112.2 * scale;
+    final double hHeight = 55.0 * scale;
+    final double vWidth = 55.0 * scale;
+    final double vHeight = 112.2 * scale;
+    final double turnClearance = 33.0 * scale; // Margin from edges
+    final double rowSpacing = 84.1 * scale; // Half hHeight + Half vHeight
 
     Map<int, _TilePos> positions = {};
 
@@ -1527,25 +1399,25 @@ class SnakingBoard extends StatelessWidget {
             }),
             if (isSelectingSide && board.length > 1) ...[
               Positioned(
-                left: positions[0]!.offset.dx - minX - (20 * scale),
-                top: positions[0]!.offset.dy - minY - (20 * scale),
+                left: positions[0]!.offset.dx - minX - (22 * scale),
+                top: positions[0]!.offset.dy - minY - (22 * scale),
                 child: GestureDetector(
                   onTap: () => onSelectSide?.call('left'),
                   child: Container(
                     width:
                         (positions[0]!.isVertical ? vWidth : hWidth) +
-                        (40 * scale),
+                        (44 * scale),
                     height:
                         (positions[0]!.isVertical ? vHeight : hHeight) +
-                        (40 * scale),
+                        (44 * scale),
                     decoration: BoxDecoration(
                       color: const Color(0xFF2BEE4B).withOpacity(0.4),
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(22),
                       boxShadow: [
                         BoxShadow(
                           color: const Color(0xFF2BEE4B).withOpacity(0.6),
-                          blurRadius: 20 * scale,
-                          spreadRadius: 5 * scale,
+                          blurRadius: 22 * scale,
+                          spreadRadius: 6 * scale,
                         ),
                       ],
                     ),
@@ -1556,11 +1428,11 @@ class SnakingBoard extends StatelessWidget {
                 left:
                     positions[board.length - 1]!.offset.dx -
                     minX -
-                    (20 * scale),
+                    (22 * scale),
                 top:
                     positions[board.length - 1]!.offset.dy -
                     minY -
-                    (20 * scale),
+                    (22 * scale),
                 child: GestureDetector(
                   onTap: () => onSelectSide?.call('right'),
                   child: Container(
@@ -1568,20 +1440,20 @@ class SnakingBoard extends StatelessWidget {
                         (positions[board.length - 1]!.isVertical
                             ? vWidth
                             : hWidth) +
-                        (40 * scale),
+                        (44 * scale),
                     height:
                         (positions[board.length - 1]!.isVertical
                             ? vHeight
                             : hHeight) +
-                        (40 * scale),
+                        (44 * scale),
                     decoration: BoxDecoration(
                       color: const Color(0xFF2BEE4B).withOpacity(0.4),
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(22),
                       boxShadow: [
                         BoxShadow(
                           color: const Color(0xFF2BEE4B).withOpacity(0.6),
-                          blurRadius: 20 * scale,
-                          spreadRadius: 5 * scale,
+                          blurRadius: 22 * scale,
+                          spreadRadius: 6 * scale,
                         ),
                       ],
                     ),
@@ -1714,4 +1586,86 @@ class _CurvedTextPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _PlayerBadge extends StatelessWidget {
+  final int score;
+  final bool isTurn;
+
+  const _PlayerBadge({required this.score, required this.isTurn});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.6),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.white10,
+          width: 1,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const CircleAvatar(
+            radius: 10,
+            backgroundImage: AssetImage('assets/human.png'),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            '$score',
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FloatingStat extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _FloatingStat({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.white.withOpacity(0.1)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label.toUpperCase(),
+            style: const TextStyle(
+              fontSize: 8,
+              color: Colors.white54,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1.0,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 12,
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
