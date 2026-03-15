@@ -6,8 +6,11 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'engine/dominoes_ai.dart';
+import 'engine/sound_service.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await SoundService.instance.init();
   runApp(
     ChangeNotifierProvider(
       create: (_) => GameController(),
@@ -94,7 +97,7 @@ class GameController extends ChangeNotifier {
   }
 
   Future<void> _initMatch() async {
-    _match = MatchModel(targetScore: 150);
+    _match = MatchModel(targetScore: 50);
     _topOverlayMessage = null;
     _bottomOverlayMessage = null;
     _selectedTile = null;
@@ -258,6 +261,7 @@ class GameController extends ChangeNotifier {
     if (game != null) {
       game!.applyAction(action);
       print("Player played $tile on $side. Board: ${game!.board}");
+      SoundService.instance.playTilePlace();
 
       _checkGameState();
       notifyListeners();
@@ -277,6 +281,7 @@ class GameController extends ChangeNotifier {
       return;
 
     game!.applyAction(DrawAction());
+    SoundService.instance.playDrawTile();
     _checkGameState();
     notifyListeners();
   }
@@ -304,6 +309,12 @@ class GameController extends ChangeNotifier {
       _saveMatch(); // Persist scores!
 
       if (_match.isMatchOver) {
+        if (_match.matchWinner == 1) {
+          SoundService.instance.playHendyWin();
+        } else if (_match.matchWinner == 0) {
+          SoundService.instance.playHumanWin();
+        }
+        
         if (!_matchStatsSaved) {
           _matchStatsSaved = true;
           if (_match.matchWinner == 0) {
@@ -411,6 +422,11 @@ class GameController extends ChangeNotifier {
     if (game != null) {
       game!.applyAction(aiAction);
       print("Hendy played ${aiAction.toString()}");
+      if (aiAction is PlayAction) {
+        SoundService.instance.playTilePlace();
+      } else if (aiAction is DrawAction) {
+        SoundService.instance.playDrawTile();
+      }
     }
 
     _isAiThinking = false;
