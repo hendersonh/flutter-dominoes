@@ -97,7 +97,7 @@ class GameController extends ChangeNotifier {
   }
 
   Future<void> _initMatch() async {
-    _match = MatchModel(targetScore: 50);
+    _match = MatchModel(targetScore: 130);
     _topOverlayMessage = null;
     _bottomOverlayMessage = null;
     _selectedTile = null;
@@ -467,13 +467,12 @@ class GameScreen extends StatefulWidget {
 class _GameScreenState extends State<GameScreen> {
   final ScrollController _scrollController = ScrollController();
   final TransformationController _transformationController = TransformationController();
-  int _lastHandSize = 0;
+  List<DominoTile> _previousHand = [];
   GameModel? _lastGame;
 
   @override
   void initState() {
     super.initState();
-    // We'll use a post-frame callback or listener to detect hand changes
   }
 
   @override
@@ -483,17 +482,30 @@ class _GameScreenState extends State<GameScreen> {
     super.dispose();
   }
 
-  void _scrollToEnd() {
+  void _scrollToTile(int index, double scale) {
     if (_scrollController.hasClients) {
+      // Calculate offset based on tile width (55 * scale) + padding (12 * scale)
+      final double tileWidthWithPadding = 67.0 * scale;
+      final double offset = index * tileWidthWithPadding;
+
       Future.delayed(const Duration(milliseconds: 100), () {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
+        if (_scrollController.hasClients) {
+          final viewWidth = _scrollController.position.viewportDimension;
+          
+          // Target centering the tile or at least bringing it in
+          double targetOffset = offset - (viewWidth / 2) + (55 * scale / 2);
+          targetOffset = targetOffset.clamp(0.0, _scrollController.position.maxScrollExtent);
+
+          _scrollController.animateTo(
+            targetOffset,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+          );
+        }
       });
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -517,11 +529,27 @@ class _GameScreenState extends State<GameScreen> {
     }
     _lastGame = game;
 
-    // Detect if hand size increased
-    if (game.hands[0].length > _lastHandSize) {
-      _scrollToEnd();
+    final screenWidth = MediaQuery.of(context).size.width;
+    final availableWidth = screenWidth - 32;
+    double tileScale = (availableWidth / 464.2).clamp(0.5, 1.0);
+
+    // Detect if hand changed (specifically, if a new tile was added)
+    if (game.hands[0].length > _previousHand.length) {
+      final newTiles = game.hands[0].where((t) => !_previousHand.contains(t)).toList();
+      if (newTiles.isNotEmpty) {
+        final sortedHand = List<DominoTile>.from(game.hands[0]);
+        sortedHand.sort((a, b) {
+          int maxA = math.max(a.end1, a.end2);
+          int maxB = math.max(b.end1, b.end2);
+          if (maxA != maxB) return maxB.compareTo(maxA);
+          return math.min(b.end1, b.end2).compareTo(math.min(a.end1, a.end2));
+        });
+
+        int newIndex = sortedHand.indexOf(newTiles.first);
+        _scrollToTile(newIndex, tileScale);
+      }
     }
-    _lastHandSize = game.hands[0].length;
+    _previousHand = List.from(game.hands[0]);
 
     return Scaffold(
       appBar: AppBar(
@@ -763,26 +791,33 @@ class _GameScreenState extends State<GameScreen> {
                           Align(
                             alignment: Alignment.topCenter,
                             child: Padding(
-                              padding: const EdgeInsets.only(top: 16.0),
+                              padding: const EdgeInsets.only(top: 70.0),
                               child: Container(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 16,
-                                  vertical: 8,
+                                  vertical: 6,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: Colors.black.withOpacity(0.6),
-                                  borderRadius: BorderRadius.circular(8),
+                                  color: Colors.black.withOpacity(0.7),
+                                  borderRadius: BorderRadius.circular(20),
                                   border: Border.all(
-                                    color: const Color(0xFF2BEE4B).withOpacity(0.5),
+                                    color: const Color(0xFF2BEE4B).withOpacity(0.3),
                                   ),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.3),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 4),
+                                    ),
+                                  ],
                                 ),
                                 child: Text(
                                   controller.topOverlayMessage!,
                                   style: const TextStyle(
-                                    fontSize: 18,
+                                    fontSize: 14,
                                     fontWeight: FontWeight.bold,
                                     color: Color(0xFF2BEE4B),
-                                    letterSpacing: 1.2,
+                                    letterSpacing: 0.8,
                                   ),
                                 ),
                               ),
@@ -902,9 +937,6 @@ class _GameScreenState extends State<GameScreen> {
               // Player Hand
               Builder(
                 builder: (context) {
-                  final screenWidth = MediaQuery.of(context).size.width;
-                  final availableWidth = screenWidth - 32;
-                  double tileScale = (availableWidth / 464.2).clamp(0.5, 1.0);
 
                   return SizedBox(
                     height: 102 * tileScale + 18,

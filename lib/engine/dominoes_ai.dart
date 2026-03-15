@@ -541,7 +541,7 @@ class MatchModel {
   final int targetScore;
   GameModel? currentRound;
 
-  MatchModel({this.targetScore = 50});
+  MatchModel({this.targetScore = 130});
 
   bool get isMatchOver => humanScore >= targetScore || aiScore >= targetScore;
 
@@ -608,7 +608,7 @@ class MatchModel {
   }
 
   factory MatchModel.fromJson(Map<String, dynamic> json) {
-    final match = MatchModel(targetScore: json['targetScore'] ?? 50);
+    final match = MatchModel(targetScore: json['targetScore'] ?? 130);
     match.humanScore = json['humanScore'] ?? 0;
     match.aiScore = json['aiScore'] ?? 0;
     match.roundNumber = json['roundNumber'] ?? 1;
@@ -620,9 +620,9 @@ class MatchModel {
 /// Main function to simulate a Human vs AI Match
 void main() async {
   print("=== Draw Dominoes: Human vs AI Match (IS-MCTS) ===");
-  print("Target Score: 50 points");
+  print("Target Score: 130 points");
 
-  MatchModel match = MatchModel(targetScore: 50);
+  MatchModel match = MatchModel(targetScore: 130);
   int nextStarter = 0; // Human starts first round
 
   while (!match.isMatchOver) {
