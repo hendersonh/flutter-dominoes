@@ -9,6 +9,7 @@ class SoundService {
   final AudioPlayer _winPlayer = AudioPlayer();
   final AudioPlayer _humanWinPlayer = AudioPlayer();
   final AudioPlayer _aiRoundWinPlayer = AudioPlayer();
+  final AudioPlayer _humanRoundWinPlayer = AudioPlayer();
   bool _isInitialized = false;
 
   SoundService._internal();
@@ -36,6 +37,13 @@ class SoundService {
         await _aiRoundWinPlayer.stop();
       } catch (e) {
         debugPrint("SoundService: AI round win sound asset not found yet: $e");
+      }
+
+      try {
+        await _humanRoundWinPlayer.setSource(AssetSource('sounds/you_won_round.mp3'));
+        await _humanRoundWinPlayer.stop();
+      } catch (e) {
+        debugPrint("SoundService: Human round win sound asset not found yet: $e");
       }
       
       // Ensure they don't play on init (though setSource shouldn't play anyway)
@@ -98,6 +106,16 @@ class SoundService {
       debugPrint("SoundService: Error playing AI round win sound: $e");
     }
   }
+
+  Future<void> playHumanRoundWin() async {
+    try {
+      debugPrint("SoundService: Triggering Human round win sound...");
+      await _humanRoundWinPlayer.stop();
+      await _humanRoundWinPlayer.play(AssetSource('sounds/you_won_round.mp3'), volume: 1.0);
+    } catch (e) {
+      debugPrint("SoundService: Error playing Human round win sound: $e");
+    }
+  }
   
   void dispose() {
     _tilePlayer.dispose();
@@ -105,5 +123,6 @@ class SoundService {
     _winPlayer.dispose();
     _humanWinPlayer.dispose();
     _aiRoundWinPlayer.dispose();
+    _humanRoundWinPlayer.dispose();
   }
 }

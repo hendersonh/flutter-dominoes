@@ -337,6 +337,7 @@ class GameController extends ChangeNotifier {
       } else {
         if (roundWinner == 0) {
           _bottomOverlayMessage = "Round Won!";
+          SoundService.instance.playHumanRoundWin();
         } else if (roundWinner == 1) {
           _bottomOverlayMessage = "Round Lost!";
           SoundService.instance.playAiRoundWin();
