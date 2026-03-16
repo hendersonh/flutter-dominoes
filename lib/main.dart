@@ -200,6 +200,7 @@ class GameController extends ChangeNotifier {
   }
 
   void clearSelection() {
+    SoundService.instance.warmUp();
     if (_selectedTile != null) {
       _selectedTile = null;
       notifyListeners();
@@ -207,6 +208,7 @@ class GameController extends ChangeNotifier {
   }
 
   void selectTile(DominoTile tile) {
+    SoundService.instance.warmUp();
     if (game == null ||
         game!.isGameOver ||
         game!.currentPlayer != 0 ||
@@ -244,6 +246,7 @@ class GameController extends ChangeNotifier {
   }
 
   void confirmPlay(String side) {
+    SoundService.instance.warmUp();
     if (_selectedTile != null) {
       playTile(_selectedTile!, side);
       _selectedTile = null;
@@ -273,6 +276,7 @@ class GameController extends ChangeNotifier {
   }
 
   void drawFromBoneyard() {
+    SoundService.instance.warmUp();
     if (game == null ||
         game!.isGameOver ||
         game!.currentPlayer != 0 ||
@@ -287,6 +291,7 @@ class GameController extends ChangeNotifier {
   }
 
   void passTurn() {
+    SoundService.instance.warmUp();
     if (game == null ||
         game!.isGameOver ||
         game!.currentPlayer != 0 ||
@@ -444,6 +449,7 @@ class GameController extends ChangeNotifier {
   }
 
   void restartGame() {
+    SoundService.instance.warmUp();
     if (_match.isMatchOver) {
       resetMatch();
     } else if (game != null && game!.isGameOver) {
