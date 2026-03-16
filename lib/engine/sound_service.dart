@@ -132,12 +132,15 @@ class SoundService {
     }
   }
 
+  bool _isWarmedUp = false;
+
   /// Mobile browsers (and Chrome/Safari) block audio until a user interaction occurs.
   /// Calling this during a user gesture (like the first tap) "unlocks" all players.
   Future<void> warmUp() async {
+    if (_isWarmedUp) return;
     if (!_isInitialized) await init();
     try {
-      debugPrint("SoundService: Warming up all audio players...");
+      debugPrint("SoundService: Warming up all audio players (parallel)...");
       final players = [
         _tilePlayer,
         _drawPlayer,
@@ -147,9 +150,8 @@ class SoundService {
         _humanRoundWinPlayer,
       ];
 
-      for (var player in players) {
-        // Play a tiny bit of sound at volume 0 or very low to unlock the context
-        // for each player instance. Use a short wav file if possible.
+      // Fire all warm-up sounds in parallel to stay within the user gesture window
+      await Future.wait(players.map((player) async {
         try {
           await player.play(
             AssetSource('sounds/tile_place.wav'),
@@ -157,9 +159,11 @@ class SoundService {
           );
           await player.stop();
         } catch (e) {
-          debugPrint("SoundService: Player warm-up sub-task failed: $e");
+          debugPrint("SoundService: A player warm-up failed: $e");
         }
-      }
+      }));
+      
+      _isWarmedUp = true;
       debugPrint("SoundService: Audio context warm-up sequence complete.");
     } catch (e) {
       debugPrint("SoundService: Audio context warm-up failed: $e");
