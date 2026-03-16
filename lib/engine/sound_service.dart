@@ -20,13 +20,13 @@ class SoundService {
     try {
       // Pre-set sources to reduce latency on first play
       await _tilePlayer.setSource(AssetSource('sounds/tile_place.wav'));
-      await _drawPlayer.setSource(AssetSource('sounds/draw_tile.mp3'));
-      await _winPlayer.setSource(AssetSource('sounds/hendy_win.mp3'));
+      await _drawPlayer.setSource(AssetSource('sounds/draw_tile.wav'));
+      await _winPlayer.setSource(AssetSource('sounds/hendy_win.wav'));
 
-      // Note: human_win.mp3 will be loaded if it exists, otherwise it might throw
+      // Note: human_win.wav will be loaded if it exists, otherwise it might throw
       // but we catch it here to keep the service running.
       try {
-        await _humanWinPlayer.setSource(AssetSource('sounds/human_win.mp3'));
+        await _humanWinPlayer.setSource(AssetSource('sounds/human_win.wav'));
         await _humanWinPlayer.stop();
       } catch (e) {
         debugPrint("SoundService: Human win sound asset not found yet: $e");
@@ -34,7 +34,7 @@ class SoundService {
 
       try {
         await _aiRoundWinPlayer.setSource(
-          AssetSource('sounds/i_won_round.mp3'),
+          AssetSource('sounds/i_won_round.wav'),
         );
         await _aiRoundWinPlayer.stop();
       } catch (e) {
@@ -43,7 +43,7 @@ class SoundService {
 
       try {
         await _humanRoundWinPlayer.setSource(
-          AssetSource('sounds/you_won_round.mp3'),
+          AssetSource('sounds/you_won_round.wav'),
         );
         await _humanRoundWinPlayer.stop();
       } catch (e) {
@@ -77,7 +77,7 @@ class SoundService {
   Future<void> playDrawTile() async {
     try {
       await _drawPlayer.stop();
-      await _drawPlayer.play(AssetSource('sounds/draw_tile.mp3'), volume: 1.0);
+      await _drawPlayer.play(AssetSource('sounds/draw_tile.wav'), volume: 1.0);
     } catch (e) {
       debugPrint("SoundService: Error playing draw tile sound: $e");
     }
@@ -87,7 +87,7 @@ class SoundService {
     try {
       debugPrint("SoundService: Triggering Hendy win sound...");
       await _winPlayer.stop();
-      await _winPlayer.play(AssetSource('sounds/hendy_win.mp3'), volume: 1.0);
+      await _winPlayer.play(AssetSource('sounds/hendy_win.wav'), volume: 1.0);
     } catch (e) {
       debugPrint("SoundService: Error playing Hendy win sound: $e");
     }
@@ -98,7 +98,7 @@ class SoundService {
       debugPrint("SoundService: Triggering Human win sound...");
       await _humanWinPlayer.stop();
       await _humanWinPlayer.play(
-        AssetSource('sounds/human_win.mp3'),
+        AssetSource('sounds/human_win.wav'),
         volume: 1.0,
       );
     } catch (e) {
@@ -111,7 +111,7 @@ class SoundService {
       debugPrint("SoundService: Triggering AI round win sound...");
       await _aiRoundWinPlayer.stop();
       await _aiRoundWinPlayer.play(
-        AssetSource('sounds/i_won_round.mp3'),
+        AssetSource('sounds/i_won_round.wav'),
         volume: 1.0,
       );
     } catch (e) {
@@ -124,7 +124,7 @@ class SoundService {
       debugPrint("SoundService: Triggering Human round win sound...");
       await _humanRoundWinPlayer.stop();
       await _humanRoundWinPlayer.play(
-        AssetSource('sounds/you_won_round.mp3'),
+        AssetSource('sounds/you_won_round.wav'),
         volume: 1.0,
       );
     } catch (e) {
@@ -150,14 +150,15 @@ class SoundService {
         _humanRoundWinPlayer,
       ];
 
-      // Fire all warm-up sounds in parallel to stay within the user gesture window
+      // Fire all warm-up sounds in parallel to stay within the user gesture window.
+      // We do NOT call stop() immediately, as it triggers an AbortError on web.
       await Future.wait(players.map((player) async {
         try {
+          // Play a tiny bit of sound at volume 0.001 to unlock the context.
           await player.play(
             AssetSource('sounds/tile_place.wav'),
             volume: 0.001,
           );
-          await player.stop();
         } catch (e) {
           debugPrint("SoundService: A player warm-up failed: $e");
         }
