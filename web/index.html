@@ -88,27 +88,24 @@
       }
 
       // 2. HTML5 Audio Element Bypass (The "Blessing")
+      // We play a 0.1s silent WAV file. Standard audio tags are more trusted on Mobile than AudioContext.
       const silentWav = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
       const audio = new Audio();
       audio.src = silentWav;
       audio.setAttribute('playsinline', '');
-      
-      // We attempt UNMUTED play at near-zero volume.
-      // Many mobile browsers ONLY bless the session if the interaction results in unmuted audio.
-      audio.volume = 0.001; 
+      audio.setAttribute('muted', ''); // Start muted just in case, then unmute to play
       
       const playAttempt = audio.play();
       if (playAttempt !== undefined) {
         playAttempt.then(() => {
-          console.log('HTML5 Audio bypass successful (Unmuted) - Session Blessed');
+          console.log('HTML5 Audio bypass successful - Session Blessed');
           audio.pause();
           audio.remove();
         }).catch(e => {
-          console.warn('Unmuted bypass blocked, trying muted fallback...', e);
-          audio.muted = true;
-          audio.play().then(() => {
-            console.log('HTML5 Audio bypass successful (Muted) - Context partially unlocked');
-          }).catch(e2 => console.error('All HTML5 bypass attempts failed:', e2));
+          // If muted play failed (rare), try one unmuted play as last resort
+          console.warn('Muted bypass failed, trying unmuted...', e);
+          audio.muted = false;
+          audio.play().catch(e2 => console.error('All HTML5 bypass attempts failed:', e2));
         });
       }
     };

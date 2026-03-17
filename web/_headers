@@ -3,32 +3,19 @@
   Accept-Ranges: bytes
   X-Content-Type-Options: nosniff
 
-# Match audio files anywhere in the assets structure
-/**.mp3
+/*.mp3
   Content-Type: audio/mpeg
-  Cache-Control: public, max-age=31536000, immutable
+  Cache-Control: no-cache, no-store, must-revalidate
   Access-Control-Allow-Origin: *
   Accept-Ranges: bytes
-  Vary: Range
-  Cross-Origin-Resource-Policy: same-origin
 
-/**.wav
+/*.wav
   Content-Type: audio/wav
-  Cache-Control: public, max-age=31536000, immutable
+  Cache-Control: no-cache, no-store, must-revalidate
   Access-Control-Allow-Origin: *
   Accept-Ranges: bytes
-  Vary: Range
-  Cross-Origin-Resource-Policy: same-origin
 
-/**.mp4
-  Content-Type: video/mp4
-  Cache-Control: public, max-age=31536000, immutable
-  Access-Control-Allow-Origin: *
-  Accept-Ranges: bytes
-  Vary: Range
-  Cross-Origin-Resource-Policy: same-origin
-
-# Security headers for COOP/COEP
+# Security headers that help with WASM/Canvas in some mobile browsers
 /
   Cross-Origin-Opener-Policy: same-origin
   Cross-Origin-Embedder-Policy: credentials-less
