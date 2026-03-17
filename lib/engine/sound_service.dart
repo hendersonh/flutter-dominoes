@@ -129,9 +129,27 @@ class SoundService {
 
     if (kIsWeb) {
       try {
-        // Surgical Phase 3: Call the Master Audio Unlocker.
-        // This unblocks both the AudioContext and the HTML5 Audio session.
-        js.context.callMethod('masterAudioUnlock');
+        // JS Nudge: Force all audio contexts to resume via raw JavaScript.
+        // This is often the most effective way to unlock high-security browsers like Safari/S24 Chrome.
+        js.context.callMethod('eval', [
+          """
+          (function() {
+            var AudioContext = window.AudioContext || window.webkitAudioContext;
+            if (AudioContext) {
+              var unlock = function() {
+                var dummy = new AudioContext();
+                dummy.resume().then(function() {
+                  console.log('AudioContext resumed via JS nudge');
+                  dummy.close();
+                });
+                window.removeEventListener('click', unlock);
+                window.removeEventListener('touchstart', unlock);
+              };
+              unlock();
+            }
+          })();
+          """
+        ]);
       } catch (e) {
         debugPrint("SoundService: JS nudge failed: $e");
       }

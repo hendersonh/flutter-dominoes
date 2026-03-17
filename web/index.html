@@ -71,63 +71,40 @@
       });
     }
 
-    // Surgical Phase 3: Master Audio Unlocker (Samsung S24/Mobile Optimized)
-    window.masterAudioUnlock = function () {
-      console.log('Master Audio Unlocker triggered');
-
-      // 1. Web Audio API (AudioContext) Resume
-      const AudioContext = window.AudioContext || window.webkitAudioContext;
-      if (AudioContext) {
-        const context = new AudioContext();
-        if (context.state === 'suspended') {
-          context.resume().then(() => {
-            console.log('AudioContext resumed via Master Unlocker');
+    // Robust AudioContext Resume Script
+    (function() {
+      const resumeAudio = function() {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (AudioContext) {
+          const context = new AudioContext();
+          if (context.state === 'suspended') {
+            context.resume().then(() => {
+              console.log('Mobile AudioContext resumed');
+              context.close();
+            }).catch(e => console.error('Audio resume failed:', e));
+          } else {
             context.close();
-          });
+          }
         }
-      }
+      };
 
-      // 2. HTML5 Audio Element Bypass (The "Blessing")
-      // We play a 0.1s silent WAV file. Standard audio tags are more trusted on Mobile than AudioContext.
-      const silentWav = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
-      const audio = new Audio();
-      audio.src = silentWav;
-      audio.setAttribute('playsinline', '');
-      audio.setAttribute('muted', ''); // Start muted just in case, then unmute to play
-      
-      const playAttempt = audio.play();
-      if (playAttempt !== undefined) {
-        playAttempt.then(() => {
-          console.log('HTML5 Audio bypass successful - Session Blessed');
-          audio.pause();
-          audio.remove();
-        }).catch(e => {
-          // If muted play failed (rare), try one unmuted play as last resort
-          console.warn('Muted bypass failed, trying unmuted...', e);
-          audio.muted = false;
-          audio.play().catch(e2 => console.error('All HTML5 bypass attempts failed:', e2));
-        });
-      }
-    };
+      // Attempt resume on first interaction
+      const onceResume = function() {
+        resumeAudio();
+        window.removeEventListener('click', onceResume);
+        window.removeEventListener('touchstart', onceResume);
+      };
+      window.addEventListener('click', onceResume);
+      window.addEventListener('touchstart', onceResume);
 
-    // Global Interaction Capture for Initial "Blessing"
-    const initialUnlock = function () {
-      window.masterAudioUnlock();
-      window.removeEventListener('click', initialUnlock);
-      window.removeEventListener('touchstart', initialUnlock);
-      window.removeEventListener('touchend', initialUnlock);
-    };
-    window.addEventListener('click', initialUnlock);
-    window.addEventListener('touchstart', initialUnlock);
-    window.addEventListener('touchend', initialUnlock);
-
-    // Refresh audio on visibility change
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') {
-        console.log('Tab visible, nudging audio context...');
-        window.masterAudioUnlock();
-      }
-    });
+      // Attempt resume on return to tab (visibility change)
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+          console.log('Tab visible, attempting audio recovery...');
+          resumeAudio();
+        }
+      });
+    })();
   </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
