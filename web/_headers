@@ -5,9 +5,11 @@
 
 /*.mp3
   Content-Type: audio/mpeg
+  Cache-Control: no-cache, no-store, must-revalidate
 
 /*.wav
   Content-Type: audio/wav
+  Cache-Control: no-cache, no-store, must-revalidate
 
 # Security headers that help with WASM/Canvas in some mobile browsers
 /
