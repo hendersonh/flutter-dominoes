@@ -71,48 +71,45 @@
       });
     }
 
-    // Surgical Phase 4: Master Audio Unlocker (S24/Mobile Optimized)
+    // Surgical Phase 3: Master Audio Unlocker (Samsung S24/Mobile Optimized)
     window.masterAudioUnlock = function () {
       console.log('Master Audio Unlocker triggered');
 
-      // 1. Web Audio API (AudioContext) Persistent Resume
+      // 1. Web Audio API (AudioContext) Resume
       const AudioContext = window.AudioContext || window.webkitAudioContext;
       if (AudioContext) {
-        if (!window._masterAudioContext) {
-           window._masterAudioContext = new AudioContext();
-        }
-        if (window._masterAudioContext.state === 'suspended') {
-          window._masterAudioContext.resume().then(() => {
-            console.log('AudioContext resumed and held open');
+        const context = new AudioContext();
+        if (context.state === 'suspended') {
+          context.resume().then(() => {
+            console.log('AudioContext resumed via Master Unlocker');
+            context.close();
           });
         }
       }
 
-      // 2. HTML5 Audio Element "Session Blessing" (Looping Silence)
-      if (!window._masterAudioElement) {
-        const silentWav = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
-        const audio = new Audio();
-        audio.src = silentWav;
-        audio.setAttribute('playsinline', '');
-        audio.loop = true;
-        
-        // Unmuted play at near-zero volume to keep session active
-        audio.volume = 0.001; 
-        
-        const playAttempt = audio.play();
-        if (playAttempt !== undefined) {
-          playAttempt.then(() => {
-            console.log('HTML5 Session Blessed - Looping silence active');
-            window._masterAudioElement = audio;
-          }).catch(e => {
-            console.warn('Unmuted blessing blocked, falling back to muted...', e);
-            audio.muted = true;
-            audio.play().then(() => {
-              console.log('HTML5 Session Blessed (Muted)');
-              window._masterAudioElement = audio;
-            });
-          });
-        }
+      // 2. HTML5 Audio Element Bypass (The "Blessing")
+      const silentWav = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
+      const audio = new Audio();
+      audio.src = silentWav;
+      audio.setAttribute('playsinline', '');
+      
+      // We attempt UNMUTED play at near-zero volume.
+      // Many mobile browsers ONLY bless the session if the interaction results in unmuted audio.
+      audio.volume = 0.001; 
+      
+      const playAttempt = audio.play();
+      if (playAttempt !== undefined) {
+        playAttempt.then(() => {
+          console.log('HTML5 Audio bypass successful (Unmuted) - Session Blessed');
+          audio.pause();
+          audio.remove();
+        }).catch(e => {
+          console.warn('Unmuted bypass blocked, trying muted fallback...', e);
+          audio.muted = true;
+          audio.play().then(() => {
+            console.log('HTML5 Audio bypass successful (Muted) - Context partially unlocked');
+          }).catch(e2 => console.error('All HTML5 bypass attempts failed:', e2));
+        });
       }
     };
 

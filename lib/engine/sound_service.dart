@@ -125,42 +125,70 @@ class SoundService {
   void warmUp() {
     if (_isWarmedUp) return;
     
-    debugPrint("SoundService: Phase 4 Surgical warmup triggered...");
+    debugPrint("SoundService: Synchronous warm-up triggered...");
 
     if (kIsWeb) {
       try {
-        // Surgical Phase 4: Direct JS Nudge
+        // Surgical Phase 3: Call the Master Audio Unlocker.
+        // This unblocks both the AudioContext and the HTML5 Audio session.
         js.context.callMethod('masterAudioUnlock');
       } catch (e) {
         debugPrint("SoundService: JS nudge failed: $e");
       }
     }
 
-    // Surgical Phase 4: NO AWAIT, NO INIT DELAY.
-    // Fire off a direct URL play immediately to claim the user gesture.
-    // We use the confirmed build path to bypass manifest latency.
-    _tilePlayer.play(
-      UrlSource('assets/assets/sounds/tile_place.wav'), 
-      volume: 0.001
-    ).catchError((e) => debugPrint("SoundService: Gesture claim failed: $e"));
-    
-    _isWarmedUp = true; 
-
-    // If not initialized, continue in background
     if (!_isInitialized) {
-      init();
+      // If not initialized, try to init and THEN warm up, but fire off one sync play NOW if possible.
+      init().then((_) => _doWarmUpPlayback());
+    } else {
+      _doWarmUpPlayback();
     }
+    
+    // Optimistically set to true to allow UI to advance. 
+    // Manual recovery icon in AppBar handles edge cases.
+    _isWarmedUp = true; 
   }
 
   /// Explicitly resumes the audio context. Useful for visibility recovery.
   void resume() {
     if (kIsWeb) {
       try {
-        js.context.callMethod('masterAudioUnlock');
+        js.context.callMethod('eval', [
+          """
+          (function() {
+            var AudioContext = window.AudioContext || window.webkitAudioContext;
+            if (AudioContext) {
+              var c = new AudioContext();
+              c.resume().then(function() { c.close(); });
+            }
+          })();
+          """
+        ]);
       } catch (e) {
         debugPrint("SoundService: Resume nudge failed: $e");
       }
     }
+  }
+
+  void _doWarmUpPlayback() {
+    final players = [
+      _tilePlayer,
+      _drawPlayer,
+      _winPlayer,
+      _humanWinPlayer,
+      _aiRoundWinPlayer,
+      _humanRoundWinPlayer,
+    ];
+
+    // Fire all warm-up sounds synchronously in the eyes of the browser.
+    // We don't await because that breaks the gesture window on some mobile browsers.
+    for (var player in players) {
+      player.play(AssetSource('sounds/tile_place.wav'), volume: 0.001).catchError((e) {
+        debugPrint("SoundService: Play warm-up failed for a player: $e");
+      });
+    }
+
+    debugPrint("SoundService: Warm-up sequence initiated.");
   }
 
   void dispose() {
