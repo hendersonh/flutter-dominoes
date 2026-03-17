@@ -947,6 +947,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
           Positioned.fill(
             child: GestureDetector(
               onTap: controller.triggerAudioWarmup,
+              behavior: HitTestBehavior.opaque,
               child: Container(
                 color: Colors.black.withAlpha(242),
                 child: Center(
@@ -1516,7 +1517,6 @@ class _StatBox extends StatelessWidget {
   final int value;
   final Color color;
   const _StatBox({
-    super.key,
     required this.label,
     required this.value,
     required this.color,
