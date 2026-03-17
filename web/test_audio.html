@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>S24 Audio Sanity Check</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #121212; color: white; }
+        button { padding: 20px 40px; font-size: 20px; cursor: pointer; background: #2196F3; border: none; color: white; border-radius: 8px; margin: 10px; }
+        #status { margin-top: 20px; font-size: 16px; color: #aaa; }
+    </style>
+</head>
+<body>
+    <h1>S24 Audio Test</h1>
+    <p>This is a non-Flutter test to isolate the issue.</p>
+    
+    <button onclick="playTest('wav')">Play WAV (Tile Place)</button>
+    <button onclick="playTest('mp3')">Play MP3 (Hendy Win)</button>
+    
+    <div id="status">Status: Ready</div>
+
+    <script>
+        function log(msg) {
+            console.log(msg);
+            document.getElementById('status').innerText = 'Status: ' + msg;
+        }
+
+        function playTest(type) {
+            const url = type === 'wav' 
+                ? 'assets/assets/sounds/tile_place.wav' 
+                : 'assets/assets/sounds/hendy_win.mp3';
+            
+            log('Attempting to play ' + type + '...');
+            
+            const audio = new Audio(url);
+            audio.playsInline = true;
+            
+            audio.play()
+                .then(() => log('Success! Playing ' + type))
+                .catch(e => {
+                    log('Error playing ' + type + ': ' + e.message);
+                    console.error(e);
+                });
+        }
+    </script>
+</body>
+</html>
