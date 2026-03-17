@@ -1,7 +1,5 @@
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
-// ignore: avoid_web_libraries_in_flutter
-import 'dart:js' as js;
 
 class SoundService {
   static final SoundService instance = SoundService._internal();
@@ -13,9 +11,6 @@ class SoundService {
   final AudioPlayer _aiRoundWinPlayer = AudioPlayer();
   final AudioPlayer _humanRoundWinPlayer = AudioPlayer();
   bool _isInitialized = false;
-  bool _isWarmedUp = false;
-
-  bool get isWarmedUp => _isWarmedUp;
 
   SoundService._internal();
 
@@ -28,6 +23,8 @@ class SoundService {
       await _drawPlayer.setSource(AssetSource('sounds/draw_tile.wav'));
       await _winPlayer.setSource(AssetSource('sounds/hendy_win.wav'));
 
+      // Note: human_win.wav will be loaded if it exists, otherwise it might throw
+      // but we catch it here to keep the service running.
       try {
         await _humanWinPlayer.setSource(AssetSource('sounds/human_win.wav'));
         await _humanWinPlayer.stop();
@@ -36,19 +33,26 @@ class SoundService {
       }
 
       try {
-        await _aiRoundWinPlayer.setSource(AssetSource('sounds/i_won_round.wav'));
+        await _aiRoundWinPlayer.setSource(
+          AssetSource('sounds/i_won_round.wav'),
+        );
         await _aiRoundWinPlayer.stop();
       } catch (e) {
         debugPrint("SoundService: AI round win sound asset not found yet: $e");
       }
 
       try {
-        await _humanRoundWinPlayer.setSource(AssetSource('sounds/you_won_round.wav'));
+        await _humanRoundWinPlayer.setSource(
+          AssetSource('sounds/you_won_round.wav'),
+        );
         await _humanRoundWinPlayer.stop();
       } catch (e) {
-        debugPrint("SoundService: Human round win sound asset not found yet: $e");
+        debugPrint(
+          "SoundService: Human round win sound asset not found yet: $e",
+        );
       }
 
+      // Ensure they don't play on init (though setSource shouldn't play anyway)
       await _tilePlayer.stop();
       await _drawPlayer.stop();
       await _winPlayer.stop();
@@ -62,7 +66,7 @@ class SoundService {
 
   Future<void> playTilePlace() async {
     try {
-      if (!_isWarmedUp && kIsWeb) warmUp();
+      // Seek to beginning and play on the dedicated player
       await _tilePlayer.stop();
       await _tilePlayer.play(AssetSource('sounds/tile_place.wav'), volume: 1.0);
     } catch (e) {
@@ -72,7 +76,6 @@ class SoundService {
 
   Future<void> playDrawTile() async {
     try {
-      if (!_isWarmedUp && kIsWeb) warmUp();
       await _drawPlayer.stop();
       await _drawPlayer.play(AssetSource('sounds/draw_tile.wav'), volume: 1.0);
     } catch (e) {
@@ -82,7 +85,7 @@ class SoundService {
 
   Future<void> playHendyWin() async {
     try {
-      if (!_isWarmedUp && kIsWeb) warmUp();
+      debugPrint("SoundService: Triggering Hendy win sound...");
       await _winPlayer.stop();
       await _winPlayer.play(AssetSource('sounds/hendy_win.wav'), volume: 1.0);
     } catch (e) {
@@ -92,9 +95,12 @@ class SoundService {
 
   Future<void> playHumanWin() async {
     try {
-      if (!_isWarmedUp && kIsWeb) warmUp();
+      debugPrint("SoundService: Triggering Human win sound...");
       await _humanWinPlayer.stop();
-      await _humanWinPlayer.play(AssetSource('sounds/human_win.wav'), volume: 1.0);
+      await _humanWinPlayer.play(
+        AssetSource('sounds/human_win.wav'),
+        volume: 1.0,
+      );
     } catch (e) {
       debugPrint("SoundService: Error playing Human win sound: $e");
     }
@@ -102,9 +108,12 @@ class SoundService {
 
   Future<void> playAiRoundWin() async {
     try {
-      if (!_isWarmedUp && kIsWeb) warmUp();
+      debugPrint("SoundService: Triggering AI round win sound...");
       await _aiRoundWinPlayer.stop();
-      await _aiRoundWinPlayer.play(AssetSource('sounds/i_won_round.wav'), volume: 1.0);
+      await _aiRoundWinPlayer.play(
+        AssetSource('sounds/i_won_round.wav'),
+        volume: 1.0,
+      );
     } catch (e) {
       debugPrint("SoundService: Error playing AI round win sound: $e");
     }
@@ -112,101 +121,54 @@ class SoundService {
 
   Future<void> playHumanRoundWin() async {
     try {
-      if (!_isWarmedUp && kIsWeb) warmUp();
+      debugPrint("SoundService: Triggering Human round win sound...");
       await _humanRoundWinPlayer.stop();
-      await _humanRoundWinPlayer.play(AssetSource('sounds/you_won_round.wav'), volume: 1.0);
+      await _humanRoundWinPlayer.play(
+        AssetSource('sounds/you_won_round.wav'),
+        volume: 1.0,
+      );
     } catch (e) {
       debugPrint("SoundService: Error playing Human round win sound: $e");
     }
   }
 
-  /// Synchronously attempts to unlock the AudioContext and warm up players.
-  /// This must be called from a user gesture (tap/click).
-  void warmUp() {
+  bool _isWarmedUp = false;
+
+  /// Mobile browsers (and Chrome/Safari) block audio until a user interaction occurs.
+  /// Calling this during a user gesture (like the first tap) "unlocks" all players.
+  Future<void> warmUp() async {
     if (_isWarmedUp) return;
-    
-    debugPrint("SoundService: Synchronous warm-up triggered...");
+    if (!_isInitialized) await init();
+    try {
+      debugPrint("SoundService: Warming up all audio players (parallel)...");
+      final players = [
+        _tilePlayer,
+        _drawPlayer,
+        _winPlayer,
+        _humanWinPlayer,
+        _aiRoundWinPlayer,
+        _humanRoundWinPlayer,
+      ];
 
-    if (kIsWeb) {
-      try {
-        // JS Nudge: Force all audio contexts to resume via raw JavaScript.
-        // This is often the most effective way to unlock high-security browsers like Safari/S24 Chrome.
-        js.context.callMethod('eval', [
-          """
-          (function() {
-            var AudioContext = window.AudioContext || window.webkitAudioContext;
-            if (AudioContext) {
-              var unlock = function() {
-                var dummy = new AudioContext();
-                dummy.resume().then(function() {
-                  console.log('AudioContext resumed via JS nudge');
-                  dummy.close();
-                });
-                window.removeEventListener('click', unlock);
-                window.removeEventListener('touchstart', unlock);
-              };
-              unlock();
-            }
-          })();
-          """
-        ]);
-      } catch (e) {
-        debugPrint("SoundService: JS nudge failed: $e");
-      }
+      // Fire all warm-up sounds in parallel to stay within the user gesture window.
+      // We do NOT call stop() immediately, as it triggers an AbortError on web.
+      await Future.wait(players.map((player) async {
+        try {
+          // Play a tiny bit of sound at volume 0.001 to unlock the context.
+          await player.play(
+            AssetSource('sounds/tile_place.wav'),
+            volume: 0.001,
+          );
+        } catch (e) {
+          debugPrint("SoundService: A player warm-up failed: $e");
+        }
+      }));
+      
+      _isWarmedUp = true;
+      debugPrint("SoundService: Audio context warm-up sequence complete.");
+    } catch (e) {
+      debugPrint("SoundService: Audio context warm-up failed: $e");
     }
-
-    if (!_isInitialized) {
-      // If not initialized, try to init and THEN warm up, but fire off one sync play NOW if possible.
-      init().then((_) => _doWarmUpPlayback());
-    } else {
-      _doWarmUpPlayback();
-    }
-    
-    // Optimistically set to true to allow UI to advance. 
-    // Manual recovery icon in AppBar handles edge cases.
-    _isWarmedUp = true; 
-  }
-
-  /// Explicitly resumes the audio context. Useful for visibility recovery.
-  void resume() {
-    if (kIsWeb) {
-      try {
-        js.context.callMethod('eval', [
-          """
-          (function() {
-            var AudioContext = window.AudioContext || window.webkitAudioContext;
-            if (AudioContext) {
-              var c = new AudioContext();
-              c.resume().then(function() { c.close(); });
-            }
-          })();
-          """
-        ]);
-      } catch (e) {
-        debugPrint("SoundService: Resume nudge failed: $e");
-      }
-    }
-  }
-
-  void _doWarmUpPlayback() {
-    final players = [
-      _tilePlayer,
-      _drawPlayer,
-      _winPlayer,
-      _humanWinPlayer,
-      _aiRoundWinPlayer,
-      _humanRoundWinPlayer,
-    ];
-
-    // Fire all warm-up sounds synchronously in the eyes of the browser.
-    // We don't await because that breaks the gesture window on some mobile browsers.
-    for (var player in players) {
-      player.play(AssetSource('sounds/tile_place.wav'), volume: 0.001).catchError((e) {
-        debugPrint("SoundService: Play warm-up failed for a player: $e");
-      });
-    }
-
-    debugPrint("SoundService: Warm-up sequence initiated.");
   }
 
   void dispose() {

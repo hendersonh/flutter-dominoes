@@ -70,41 +70,6 @@
         window.location.reload();
       });
     }
-
-    // Robust AudioContext Resume Script
-    (function() {
-      const resumeAudio = function() {
-        const AudioContext = window.AudioContext || window.webkitAudioContext;
-        if (AudioContext) {
-          const context = new AudioContext();
-          if (context.state === 'suspended') {
-            context.resume().then(() => {
-              console.log('Mobile AudioContext resumed');
-              context.close();
-            }).catch(e => console.error('Audio resume failed:', e));
-          } else {
-            context.close();
-          }
-        }
-      };
-
-      // Attempt resume on first interaction
-      const onceResume = function() {
-        resumeAudio();
-        window.removeEventListener('click', onceResume);
-        window.removeEventListener('touchstart', onceResume);
-      };
-      window.addEventListener('click', onceResume);
-      window.addEventListener('touchstart', onceResume);
-
-      // Attempt resume on return to tab (visibility change)
-      document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible') {
-          console.log('Tab visible, attempting audio recovery...');
-          resumeAudio();
-        }
-      });
-    })();
   </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
