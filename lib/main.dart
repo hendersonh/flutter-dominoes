@@ -1,12 +1,12 @@
 import 'dart:convert';
 import 'dart:math' as math;
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'engine/dominoes_ai.dart';
 import 'engine/sound_service.dart';
+import 'package:flutter/foundation.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -73,6 +73,12 @@ class GameController extends ChangeNotifier {
   DominoTile? get selectedTile => _selectedTile;
   int get lifetimeMatchWins => _lifetimeMatchWins;
   int get lifetimeMatchLosses => _lifetimeMatchLosses;
+  bool get isWarmedUp => SoundService.instance.isWarmedUp;
+
+  void triggerAudioWarmup() {
+    SoundService.instance.warmUp();
+    notifyListeners();
+  }
 
   static const String _kMatchKey = 'dominoes_match_data';
 
@@ -281,8 +287,9 @@ class GameController extends ChangeNotifier {
         game!.isGameOver ||
         game!.currentPlayer != 0 ||
         _isAiThinking ||
-        game!.boneyard.isEmpty)
+        game!.boneyard.isEmpty) {
       return;
+    }
 
     game!.applyAction(DrawAction());
     SoundService.instance.playDrawTile();
@@ -296,8 +303,9 @@ class GameController extends ChangeNotifier {
         game!.isGameOver ||
         game!.currentPlayer != 0 ||
         _isAiThinking ||
-        game!.boneyard.isNotEmpty)
+        game!.boneyard.isNotEmpty) {
       return;
+    }
 
     game!.applyAction(PassAction());
     _checkGameState();
@@ -470,7 +478,7 @@ class GameScreen extends StatefulWidget {
   State<GameScreen> createState() => _GameScreenState();
 }
 
-class _GameScreenState extends State<GameScreen> {
+class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
   final ScrollController _scrollController = ScrollController();
   final TransformationController _transformationController = TransformationController();
   List<DominoTile> _previousHand = [];
@@ -480,13 +488,23 @@ class _GameScreenState extends State<GameScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _scrollController.dispose();
     _transformationController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      debugPrint("Game resumed, nudging SoundService...");
+      SoundService.instance.resume();
+    }
   }
 
   void _scrollToTile(int index, double scale) {
@@ -559,445 +577,316 @@ class _GameScreenState extends State<GameScreen> {
     }
     _previousHand = List.from(game.hands[0]);
 
-    return Scaffold(
-      appBar: AppBar(
-        centerTitle: true,
-        title: const Text('HendyChallenge Dominoes'),
-        actions: [
-          IconButton(
-            tooltip: 'Restart Round',
-            icon: const Icon(Icons.refresh),
-            onPressed: controller.restartGame,
-          ),
-          IconButton(
-            tooltip: 'Reset Match (Clear Scores)',
-            icon: const Icon(Icons.delete_forever),
-            onPressed: () {
-              showDialog(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text('Reset Match?'),
-                  content: const Text(
-                    'This will clear all scores and start a fresh match from zero.',
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('CANCEL'),
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        controller.resetMatch();
-                        Navigator.pop(context);
-                      },
-                      child: const Text(
-                        'RESET',
-                        style: TextStyle(color: Colors.red),
-                      ),
-                    ),
-                  ],
+    // Platform detection for mobile-specific features
+    final bool isMobile = kIsWeb && 
+        (defaultTargetPlatform == TargetPlatform.iOS || 
+         defaultTargetPlatform == TargetPlatform.android);
+
+    return Stack(
+      children: [
+        Scaffold(
+          appBar: AppBar(
+            centerTitle: true,
+            title: const Text('HendyChallenge Dominoes'),
+            actions: [
+              // Sound Status Indicator / Manual Unlock
+              IconButton(
+                tooltip: controller.isWarmedUp ? 'Sound Enabled' : 'Sound Blocked (Tap to Enable)',
+                icon: Icon(
+                  controller.isWarmedUp ? Icons.volume_up : Icons.volume_off,
+                  color: controller.isWarmedUp ? const Color(0xFF2BEE4B) : Colors.orange,
                 ),
-              );
-            },
-          ),
-        ],
-      ),
-      body: GestureDetector(
-        onTap: controller.clearSelection,
-        child: SafeArea(
-          child: Column(
-            children: [
-              // Game Board - Maximum Efficiency Layout
-              Expanded(
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: const RadialGradient(
-                      center: Alignment.center,
-                      radius: 1.0,
-                      colors: [Color(0xFF2E6F40), Color(0xFF113820)],
+                onPressed: controller.triggerAudioWarmup,
+              ),
+              IconButton(
+                tooltip: 'Restart Round',
+                icon: const Icon(Icons.refresh),
+                onPressed: controller.restartGame,
+              ),
+              IconButton(
+                tooltip: 'Reset Match (Clear Scores)',
+                icon: const Icon(Icons.delete_forever),
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('Reset Match?'),
+                      content: const Text(
+                        'This will clear all scores and start a fresh match from zero.',
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('CANCEL'),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            controller.resetMatch();
+                            Navigator.pop(context);
+                          },
+                          child: const Text(
+                            'RESET',
+                            style: TextStyle(color: Colors.red),
+                          ),
+                        ),
+                      ],
                     ),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.white.withOpacity(0.05)),
-                  ),
-                  margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(16),
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        // Center Text Decal
-                        Align(
-                          alignment: Alignment.topCenter,
-                          child: Padding(
-                            padding: const EdgeInsets.only(top: 140),
-                            child: _CurvedText(
-                              text: 'CAN YOU BEAT HENDY?',
-                              style: TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.w900,
-                                color: Colors.white.withOpacity(0.05),
-                                letterSpacing: 4,
-                              ),
-                              radius: 160,
-                            ),
-                          ),
+                  );
+                },
+              ),
+            ],
+          ),
+          body: GestureDetector(
+            onTap: controller.clearSelection,
+            child: SafeArea(
+              child: Column(
+                children: [
+                  // Game Board AREA
+                  Expanded(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: const RadialGradient(
+                          center: Alignment.center,
+                          radius: 1.0,
+                          colors: [Color(0xFF2E6F40), Color(0xFF113820)],
                         ),
-                        Center(
-                          child: game.board.isEmpty
-                              ? (game.currentPlayer == 0
-                                    ? const Text(
-                                        'Tap a tile in your hand to play',
-                                        style: TextStyle(
-                                          fontSize: 18.0,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.white70,
-                                        ),
-                                      )
-                                    : const Text('Waiting for Hendy...'))
-                              : InteractiveViewer(
-                                  transformationController: _transformationController,
-                                  boundaryMargin: const EdgeInsets.all(1000),
-                                  minScale: 0.1,
-                                  maxScale: 2.0,
-                                  child: LayoutBuilder(
-                                    builder: (context, constraints) {
-                                      return SnakingBoard(
-                                        board: game.board,
-                                        rootIndex: game.rootIndex,
-                                        maxWidth: constraints.maxWidth,
-                                        isSelectingSide:
-                                            controller.selectedTile != null,
-                                        onSelectSide: controller.confirmPlay,
-                                      );
-                                    },
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.white.withAlpha(13)),
+                      ),
+                      margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            // Center Text Decal
+                            Align(
+                              alignment: Alignment.topCenter,
+                              child: Padding(
+                                padding: const EdgeInsets.only(top: 140),
+                                child: _CurvedText(
+                                  text: 'CAN YOU BEAT HENDY?',
+                                  style: TextStyle(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.w900,
+                                    color: Colors.white.withAlpha(13),
+                                    letterSpacing: 4,
                                   ),
-                                ),
-                        ),
-
-                        // Floating Score Hub (Top) - Compact Height
-                        Positioned(
-                          top: 8,
-                          left: 12,
-                          right: 12,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.35),
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(
-                                color: Colors.white.withOpacity(0.05),
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                // Match Target
-                                Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const Text(
-                                      'TARGET ',
-                                      style: TextStyle(
-                                        fontSize: 8,
-                                        color: Colors.white38,
-                                        fontWeight: FontWeight.bold,
-                                        letterSpacing: 1.0,
-                                      ),
-                                    ),
-                                    Text(
-                                      '${controller.match.targetScore}',
-                                      style: const TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.white70,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-
-                                // Integrated Status (Center)
-                                if (controller.statusMessage != null && controller.statusMessage!.isNotEmpty)
-                                  Flexible(
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                                      child: Text(
-                                        controller.statusMessage!.toUpperCase(),
-                                        style: TextStyle(
-                                          fontSize: 9,
-                                          fontWeight: FontWeight.w900,
-                                          color: (controller.statusMessage!.contains('Your') || controller.statusMessage!.contains('You'))
-                                              ? const Color(0xFF2BEE4B)
-                                              : Colors.orangeAccent,
-                                          letterSpacing: 1.5,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                        textAlign: TextAlign.center,
-                                      ),
-                                    ),
-                                  ),
-
-                                // Hendy Stats
-                                Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      '${controller.match.aiScore}',
-                                      style: const TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.orange,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 4),
-                                    const CircleAvatar(
-                                      radius: 12,
-                                      backgroundImage: AssetImage('assets/hendy.png'),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-
-                        // Floating Game Stats (Bottom corners)
-                        Positioned(
-                          bottom: 12,
-                          left: 12,
-                          child: _FloatingStat(
-                            label: 'Hendy Tiles',
-                            value: '${game.hands[1].length}',
-                          ),
-                        ),
-                        Positioned(
-                          bottom: 12,
-                          right: 12,
-                          child: _FloatingStat(
-                            label: 'Boneyard',
-                            value: '${game.boneyard.length}',
-                          ),
-                        ),
-
-                        // Human Player Badge (Bottom Center)
-                        Positioned(
-                          bottom: 12,
-                          left: 0,
-                          right: 0,
-                          child: Center(
-                            child: _PlayerBadge(
-                              score: controller.match.humanScore,
-                              isTurn: !game.isGameOver && game.currentPlayer == 0,
-                            ),
-                          ),
-                        ),
-
-                        // Status Overlay (Top Center)
-                        if (controller.topOverlayMessage != null)
-                          Align(
-                            alignment: Alignment.topCenter,
-                            child: Padding(
-                              padding: const EdgeInsets.only(top: 70.0),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 6,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withOpacity(0.7),
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(
-                                    color: const Color(0xFF2BEE4B).withOpacity(0.3),
-                                  ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.3),
-                                      blurRadius: 8,
-                                      offset: const Offset(0, 4),
-                                    ),
-                                  ],
-                                ),
-                                child: Text(
-                                  controller.topOverlayMessage!,
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFF2BEE4B),
-                                    letterSpacing: 0.8,
-                                  ),
+                                  radius: 160,
                                 ),
                               ),
                             ),
-                          ),
-
-                        // Game Over Modal
-                        if (game.isGameOver && controller.showNextRoundButton && !_isGameOverOverlayHidden)
-                          Positioned.fill(
-                            child: GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  _isGameOverOverlayHidden = true;
-                                });
-                              },
-                              child: Container(
-                                color: Colors.black.withOpacity(0.7),
-                                child: Center(
-                                  child: GestureDetector(
-                                    onTap: () {}, // Prevent tap through to board
-                                    child: Container(
-                                      margin: const EdgeInsets.symmetric(horizontal: 24),
-                                      padding: const EdgeInsets.all(32),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFF1E1E1E),
-                                        borderRadius: BorderRadius.circular(24),
-                                        border: Border.all(
-                                          color: controller.match.isMatchOver
-                                              ? (controller.match.matchWinner == 0
-                                                    ? const Color(0xFF2BEE4B)
-                                                    : Colors.red)
-                                              : const Color(0xFF2BEE4B).withOpacity(0.5),
-                                          width: 2,
-                                        ),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: Colors.black.withOpacity(0.5),
-                                            blurRadius: 20,
-                                            offset: const Offset(0, 10),
-                                          ),
-                                        ],
-                                      ),
-                                      child: Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Text(
-                                            controller.bottomOverlayMessage ?? 'Game Over',
+                            Center(
+                              child: game.board.isEmpty
+                                  ? (game.currentPlayer == 0
+                                        ? const Text(
+                                            'Tap a tile in your hand to play',
                                             style: TextStyle(
-                                              fontSize: 28,
+                                              fontSize: 18.0,
                                               fontWeight: FontWeight.bold,
-                                              color: controller.match.isMatchOver &&
-                                                      controller.match.matchWinner != 0
-                                                  ? Colors.red
-                                                  : const Color(0xFF2BEE4B),
+                                              color: Colors.white70,
                                             ),
+                                          )
+                                        : const Text('Waiting for Hendy...'))
+                                  : InteractiveViewer(
+                                      transformationController: _transformationController,
+                                      boundaryMargin: const EdgeInsets.all(1000),
+                                      minScale: 0.1,
+                                      maxScale: 2.0,
+                                      child: LayoutBuilder(
+                                        builder: (context, constraints) {
+                                          return SnakingBoard(
+                                            board: game.board,
+                                            rootIndex: game.rootIndex,
+                                            maxWidth: constraints.maxWidth,
+                                            isSelectingSide:
+                                                controller.selectedTile != null,
+                                            onSelectSide: controller.confirmPlay,
+                                          );
+                                        },
+                                      ),
+                                    ),
+                            ),
+
+                            // Floating Score Hub (Top)
+                            Positioned(
+                              top: 8,
+                              left: 12,
+                              right: 12,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withAlpha(89),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: Colors.white.withAlpha(13)),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Text('TARGET ', style: TextStyle(fontSize: 8, color: Colors.white38, fontWeight: FontWeight.bold, letterSpacing: 1.0)),
+                                        Text('${controller.match.targetScore}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white70)),
+                                      ],
+                                    ),
+                                    if (controller.statusMessage != null && controller.statusMessage!.isNotEmpty)
+                                      Flexible(
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                                          child: Text(
+                                            controller.statusMessage!.toUpperCase(),
+                                            style: TextStyle(
+                                              fontSize: 9,
+                                              fontWeight: FontWeight.w900,
+                                              color: (controller.statusMessage!.contains('Your') || controller.statusMessage!.contains('You'))
+                                                  ? const Color(0xFF2BEE4B)
+                                                  : Colors.orangeAccent,
+                                              letterSpacing: 1.5,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
                                             textAlign: TextAlign.center,
                                           ),
-                                          const SizedBox(height: 24),
-                                          const Text(
-                                            'LIFETIME MATCH RECORD',
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              color: Colors.white54,
-                                              fontWeight: FontWeight.bold,
-                                              letterSpacing: 2,
+                                        ),
+                                      ),
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text('${controller.match.aiScore}', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.orange)),
+                                        const SizedBox(width: 4),
+                                        const CircleAvatar(radius: 12, backgroundImage: AssetImage('assets/hendy.png')),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+
+                            // Floating Stats (Bottom)
+                            Positioned(bottom: 12, left: 12, child: _FloatingStat(label: 'Hendy Tiles', value: '${game.hands[1].length}')),
+                            Positioned(bottom: 12, right: 12, child: _FloatingStat(label: 'Boneyard', value: '${game.boneyard.length}')),
+                            Positioned(bottom: 12, left: 0, right: 0, child: Center(child: _PlayerBadge(score: controller.match.humanScore, isTurn: !game.isGameOver && game.currentPlayer == 0))),
+
+                            // Status Overlay
+                            if (controller.topOverlayMessage != null)
+                              Align(
+                                alignment: Alignment.topCenter,
+                                child: Padding(
+                                  padding: const EdgeInsets.only(top: 70.0),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                                    decoration: BoxDecoration(
+                                    color: Colors.black.withAlpha(178),
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(color: const Color(0xFF2BEE4B).withAlpha(77)),
+                                    ),
+                                    child: Text(controller.topOverlayMessage!, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF2BEE4B), letterSpacing: 0.8)),
+                                  ),
+                                ),
+                              ),
+
+                            // Game Over Modal
+                            if (game.isGameOver && controller.showNextRoundButton && !_isGameOverOverlayHidden)
+                              Positioned.fill(
+                                child: GestureDetector(
+                                  onTap: () {
+                                    setState(() { _isGameOverOverlayHidden = true; });
+                                  },
+                                  child: Container(
+                                    color: Colors.black.withOpacity(0.7),
+                                    child: Center(
+                                      child: GestureDetector(
+                                        onTap: () {},
+                                        child: Container(
+                                          margin: const EdgeInsets.symmetric(horizontal: 24),
+                                          padding: const EdgeInsets.all(32),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFF1E1E1E),
+                                            borderRadius: BorderRadius.circular(24),
+                                            border: Border.all(
+                                              color: controller.match.isMatchOver
+                                                  ? (controller.match.matchWinner == 0 ? const Color(0xFF2BEE4B) : Colors.red)
+                                                  : const Color(0xFF2BEE4B).withAlpha(128),
+                                              width: 2,
                                             ),
                                           ),
-                                          const SizedBox(height: 12),
-                                          Row(
-                                            mainAxisAlignment: MainAxisAlignment.center,
+                                          child: Column(
+                                            mainAxisSize: MainAxisSize.min,
                                             children: [
-                                              _StatBox(
-                                                label: 'WINS',
-                                                value: controller.lifetimeMatchWins,
-                                                color: const Color(0xFF2BEE4B),
+                                              Text(
+                                                controller.bottomOverlayMessage ?? 'Game Over',
+                                                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: controller.match.isMatchOver && controller.match.matchWinner != 0 ? Colors.red : const Color(0xFF2BEE4B)),
+                                                textAlign: TextAlign.center,
                                               ),
-                                              const SizedBox(width: 16),
-                                              _StatBox(
-                                                label: 'LOSSES',
-                                                value: controller.lifetimeMatchLosses,
-                                                color: Colors.orange,
+                                              const SizedBox(height: 24),
+                                              Row(
+                                                mainAxisAlignment: MainAxisAlignment.center,
+                                                children: [
+                                                  _StatBox(label: 'WINS', value: controller.lifetimeMatchWins, color: const Color(0xFF2BEE4B)),
+                                                  const SizedBox(width: 16),
+                                                  _StatBox(label: 'LOSSES', value: controller.lifetimeMatchLosses, color: Colors.orange),
+                                                ],
+                                              ),
+                                              const SizedBox(height: 24),
+                                              TextButton.icon(
+                                                icon: const Icon(Icons.remove_red_eye, size: 16),
+                                                label: const Text('VIEW BOARD'),
+                                                onPressed: () { setState(() { _isGameOverOverlayHidden = true; }); },
+                                                style: TextButton.styleFrom(foregroundColor: Colors.white70),
+                                              ),
+                                              const SizedBox(height: 16),
+                                              SizedBox(
+                                                width: double.infinity,
+                                                child: ElevatedButton.icon(
+                                                  icon: Icon(controller.match.isMatchOver ? Icons.replay : Icons.play_arrow),
+                                                  label: Text(controller.match.isMatchOver ? 'START NEW MATCH' : 'PLAY NEXT ROUND'),
+                                                  onPressed: controller.restartGame,
+                                                  style: ElevatedButton.styleFrom(
+                                                    backgroundColor: const Color(0xFF2BEE4B),
+                                                    foregroundColor: Colors.black,
+                                                    padding: const EdgeInsets.symmetric(vertical: 16),
+                                                    textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                                  ),
+                                                ),
                                               ),
                                             ],
                                           ),
-                                          const SizedBox(height: 24),
-                                          TextButton.icon(
-                                            icon: const Icon(Icons.remove_red_eye, size: 16),
-                                            label: const Text('VIEW BOARD'),
-                                            onPressed: () {
-                                              setState(() {
-                                                _isGameOverOverlayHidden = true;
-                                              });
-                                            },
-                                            style: TextButton.styleFrom(
-                                              foregroundColor: Colors.white70,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 16),
-                                          SizedBox(
-                                            width: double.infinity,
-                                            child: ElevatedButton.icon(
-                                              icon: Icon(
-                                                controller.match.isMatchOver
-                                                    ? Icons.replay
-                                                    : Icons.play_arrow,
-                                              ),
-                                              label: Text(
-                                                controller.match.isMatchOver
-                                                    ? 'START NEW MATCH'
-                                                    : 'PLAY NEXT ROUND',
-                                              ),
-                                              onPressed: controller.restartGame,
-                                              style: ElevatedButton.styleFrom(
-                                                backgroundColor: const Color(0xFF2BEE4B),
-                                                foregroundColor: Colors.black,
-                                                padding: const EdgeInsets.symmetric(vertical: 16),
-                                                textStyle: const TextStyle(
-                                                  inherit: false,
-                                                  fontSize: 18,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        ],
+                                        ),
                                       ),
                                     ),
                                   ),
                                 ),
                               ),
-                            ),
-                          ),
-                        
-                        // Show Summary Button (when hidden)
-                        if (game.isGameOver && controller.showNextRoundButton && _isGameOverOverlayHidden)
-                          Positioned(
-                            bottom: 80,
-                            left: 0,
-                            right: 0,
-                            child: Center(
-                              child: ElevatedButton.icon(
-                                icon: const Icon(Icons.leaderboard),
-                                label: const Text('SHOW SUMMARY'),
-                                onPressed: () {
-                                  setState(() {
-                                    _isGameOverOverlayHidden = false;
-                                  });
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.black87,
-                                  foregroundColor: const Color(0xFF2BEE4B),
-                                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                                  side: const BorderSide(color: Color(0xFF2BEE4B), width: 1),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(30),
+
+                            // Show Summary Button
+                            if (game.isGameOver && controller.showNextRoundButton && _isGameOverOverlayHidden)
+                              Positioned(
+                                bottom: 80,
+                                left: 0,
+                                right: 0,
+                                child: Center(
+                                  child: ElevatedButton.icon(
+                                    icon: const Icon(Icons.leaderboard),
+                                    label: const Text('SHOW SUMMARY'),
+                                    onPressed: () { setState(() { _isGameOverOverlayHidden = false; }); },
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.black87,
+                                      foregroundColor: const Color(0xFF2BEE4B),
+                                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                      side: const BorderSide(color: Color(0xFF2BEE4B), width: 1),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                          ),
-                      ],
+                          ],
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ),
 
-
-              // Player Hand
-              Builder(
-                builder: (context) {
-
-                  return SizedBox(
+                  // Player Hand Area
+                  SizedBox(
                     height: 102 * tileScale + 18,
                     child: SingleChildScrollView(
                       controller: _scrollController,
@@ -1045,14 +934,48 @@ class _GameScreenState extends State<GameScreen> {
                         ],
                       ),
                     ),
-                  );
-                },
+                  ),
+                  const SizedBox(height: 16),
+                ],
               ),
-              const SizedBox(height: 16),
-            ],
+            ),
           ),
         ),
-      ),
+
+        // Mobile-only "Tap to Start" overlay
+        if (isMobile && !controller.isWarmedUp)
+          Positioned.fill(
+            child: GestureDetector(
+              onTap: controller.triggerAudioWarmup,
+              child: Container(
+                color: Colors.black.withAlpha(242),
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.touch_app, size: 80, color: Color(0xFF2BEE4B)),
+                      const SizedBox(height: 24),
+                      Text(
+                        'TAP TO START',
+                        style: GoogleFonts.beVietnamPro(
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          letterSpacing: 2.0,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'This enables game sounds',
+                        style: GoogleFonts.beVietnamPro(fontSize: 16, color: Colors.white70),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }
@@ -1089,7 +1012,7 @@ class DominoTileWidget extends StatelessWidget {
                 ? Border.all(color: const Color(0xFF2BEE4B), width: 4 * scale)
                 : isHighlight
                 ? Border.all(
-                    color: const Color(0xFF2BEE4B).withOpacity(0.5),
+                    color: const Color(0xFF2BEE4B).withAlpha(128),
                     width: 2 * scale,
                   )
                 : Border.all(
@@ -1100,7 +1023,7 @@ class DominoTileWidget extends StatelessWidget {
             boxShadow: isSelected
                 ? [
                     BoxShadow(
-                      color: const Color(0xFF2BEE4B).withOpacity(0.6),
+                      color: const Color(0xFF2BEE4B).withAlpha(153),
                       blurRadius: 12 * scale,
                       spreadRadius: 2 * scale,
                     ),
@@ -1154,12 +1077,12 @@ class DominoTileWidget extends StatelessWidget {
                 colors: [Color(0xFFFBBF24), Color(0xFFB45309)],
               ),
               border: Border.all(
-                color: Colors.white.withOpacity(0.3),
+                color: Colors.white.withAlpha(77),
                 width: 1 * scale,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.6),
+                  color: Colors.black.withAlpha(153),
                   blurRadius: 3 * scale,
                   offset: Offset(0, 1 * scale),
                 ),
@@ -1264,13 +1187,13 @@ class _Pips extends StatelessWidget {
                         center: const Alignment(-0.2, -0.2),
                         radius: 0.8,
                         colors: [
-                          getPipColor(count).withOpacity(0.8),
+                          getPipColor(count).withAlpha(204),
                           getPipColor(count),
                         ],
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.white.withOpacity(0.2),
+                          color: Colors.white.withAlpha(51),
                           blurRadius: 1 * scale,
                           offset: Offset(0, 1 * scale),
                         ),
@@ -1524,7 +1447,7 @@ class SnakingBoard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(22),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF2BEE4B).withOpacity(0.6),
+                          color: const Color(0xFF2BEE4B).withAlpha(153),
                           blurRadius: 22 * scale,
                           spreadRadius: 6 * scale,
                         ),
@@ -1560,7 +1483,7 @@ class SnakingBoard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(22),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF2BEE4B).withOpacity(0.6),
+                          color: const Color(0xFF2BEE4B).withAlpha(153),
                           blurRadius: 22 * scale,
                           spreadRadius: 6 * scale,
                         ),
@@ -1604,9 +1527,9 @@ class _StatBox extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.3),
+        color: Colors.black.withAlpha(77),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.3), width: 2),
+        border: Border.all(color: color.withAlpha(77), width: 2),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -1708,7 +1631,7 @@ class _PlayerBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.6),
+        color: Colors.black.withAlpha(153),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: Colors.white10,
@@ -1748,9 +1671,9 @@ class _FloatingStat extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.5),
+        color: Colors.black.withAlpha(128),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
+        border: Border.all(color: Colors.white.withAlpha(26)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
