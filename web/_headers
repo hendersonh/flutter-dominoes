@@ -6,14 +6,10 @@
 /*.mp3
   Content-Type: audio/mpeg
   Cache-Control: no-cache, no-store, must-revalidate
-  Access-Control-Allow-Origin: *
-  Accept-Ranges: bytes
 
 /*.wav
   Content-Type: audio/wav
   Cache-Control: no-cache, no-store, must-revalidate
-  Access-Control-Allow-Origin: *
-  Accept-Ranges: bytes
 
 # Security headers that help with WASM/Canvas in some mobile browsers
 /
