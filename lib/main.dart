@@ -837,7 +837,7 @@ class _GameScreenState extends State<GameScreen> {
                               icon: const Icon(
                                 Icons.update_rounded,
                                 size: 24,
-                                color: Colors.white30,
+                                color: Colors.white70,
                               ),
                               tooltip: 'Check for Updates',
                               onPressed: () => controller.forceRefresh(),
