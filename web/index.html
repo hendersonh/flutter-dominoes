@@ -82,9 +82,7 @@
           // 3. Update local state and perform a clean hard-refresh
           localStorage.setItem('app_version', serverVersion);
           
-          // Append a unique reload parameter to bypass any intermediate ISP/Browser disk caches
-          const cleanUrl = window.location.origin + window.location.pathname + '?rel=' + Date.now();
-          window.location.replace(cleanUrl);
+          await performHardReload();
         } else if (!localVersion) {
           // Initialize version tracking on first visit
           localStorage.setItem('app_version', serverVersion);
@@ -106,6 +104,47 @@
         checkForUpdates();
       }
     });
+    // Global function to trigger update from Dart
+    window.forceAppUpdate = async function() {
+      console.log('Manual update triggered from App UI...');
+      await nukeCacheAndReload(null); // Force nuke without version check
+    };
+
+    /**
+     * Nukes all service workers, clears caches, and reloads
+     */
+    async function nukeCacheAndReload(newVersion) {
+      console.log('Force-evicting PWA assets...');
+      
+      // 1. Unregister ALL service workers
+      if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        for (const registration of registrations) {
+          await registration.unregister();
+        }
+      }
+
+      // 2. Clear ALL browser caches
+      if ('caches' in window) {
+        const cacheKeys = await caches.keys();
+        for (const key of cacheKeys) {
+          await caches.delete(key);
+        }
+      }
+
+      if (newVersion) {
+        localStorage.setItem('app_version', newVersion);
+      }
+      
+      await performHardReload();
+    }
+
+    async function performHardReload() {
+      // Append a unique reload parameter to bypass any intermediate ISP/Browser disk caches
+      // This is the strongest way to break through persistent browser disk caches
+      const cleanUrl = window.location.origin + window.location.pathname + '?v=' + Date.now();
+      window.location.replace(cleanUrl);
+    }
   </script>
 
 
