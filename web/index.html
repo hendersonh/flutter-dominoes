@@ -68,9 +68,39 @@
         if (refreshing) return;
         refreshing = true;
         window.location.reload();
-      });
     }
   </script>
+
+  <!-- Audio Unlock Bypass: Ensures synchronous user activation for mobile browsers -->
+  <audio id="audio-unlock" style="display:none;" preload="auto">
+    <source src="data:audio/wav;base64,UklGRigAAABXQVZFRm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAA==" type="audio/wav">
+  </audio>
+
+  <script>
+    (function () {
+      // One-time synchronous unlock on the very first interaction
+      const unlock = function () {
+        const audio = document.getElementById('audio-unlock');
+        if (audio) {
+          audio.play().then(() => {
+            console.log("Audio: System unlocked via synchronous capture.");
+            audio.pause();
+          }).catch(e => console.error("Audio: Sync unlock failed:", e));
+        }
+
+        // Global flag for Dart to check if needed
+        window.isAudioUnlocked = true;
+
+        // cleanup
+        window.removeEventListener('touchstart', unlock, true);
+        window.removeEventListener('mousedown', unlock, true);
+      };
+
+      window.addEventListener('touchstart', unlock, { capture: true, once: true });
+      window.addEventListener('mousedown', unlock, { capture: true, once: true });
+    })();
+  </script>
+
   <script src="flutter_bootstrap.js" async></script>
 </body>
 

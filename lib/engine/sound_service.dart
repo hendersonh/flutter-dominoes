@@ -140,29 +140,14 @@ class SoundService {
     if (_isWarmedUp) return;
     if (!_isInitialized) await init();
     try {
-      debugPrint("SoundService: Warming up all audio players (parallel)...");
-      final players = [
-        _tilePlayer,
-        _drawPlayer,
-        _winPlayer,
-        _humanWinPlayer,
-        _aiRoundWinPlayer,
-        _humanRoundWinPlayer,
-      ];
-
-      // Fire all warm-up sounds in parallel to stay within the user gesture window.
-      // We do NOT call stop() immediately, as it triggers an AbortError on web.
-      await Future.wait(players.map((player) async {
-        try {
-          // Play a tiny bit of sound at volume 0.001 to unlock the context.
-          await player.play(
-            AssetSource('sounds/tile_place.wav'),
-            volume: 0.001,
-          );
-        } catch (e) {
-          debugPrint("SoundService: A player warm-up failed: $e");
-        }
-      }));
+      debugPrint("SoundService: Warming up audio context...");
+      
+      // We play a single sound to "bless" the AudioContext from the Dart side too.
+      // This works in coordination with the index.html "Capture" unlocker.
+      await _tilePlayer.play(
+        AssetSource('sounds/tile_place.wav'),
+        volume: 0.001,
+      );
       
       _isWarmedUp = true;
       debugPrint("SoundService: Audio context warm-up sequence complete.");
