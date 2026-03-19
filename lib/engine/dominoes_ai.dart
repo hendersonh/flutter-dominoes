@@ -607,8 +607,8 @@ class MatchModel {
     };
   }
 
-  factory MatchModel.fromJson(Map<String, dynamic> json) {
-    final match = MatchModel(targetScore: json['targetScore'] ?? 130);
+  factory MatchModel.fromJson(Map<String, dynamic> json, {int? overrideTargetScore}) {
+    final match = MatchModel(targetScore: overrideTargetScore ?? json['targetScore'] ?? 120);
     match.humanScore = json['humanScore'] ?? 0;
     match.aiScore = json['aiScore'] ?? 0;
     match.roundNumber = json['roundNumber'] ?? 1;

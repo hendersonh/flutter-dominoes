@@ -185,7 +185,7 @@ class GameController extends ChangeNotifier {
       final matchJson = prefs.getString(_kMatchKey);
       if (matchJson != null) {
         final Map<String, dynamic> data = jsonDecode(matchJson);
-        _match = MatchModel.fromJson(data);
+        _match = MatchModel.fromJson(data, overrideTargetScore: 120);
         print("Game Loaded: $matchJson");
       }
     } catch (e) {
