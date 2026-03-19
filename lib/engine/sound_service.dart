@@ -1,167 +1,21 @@
-import 'package:audioplayers/audioplayers.dart';
-import 'package:flutter/foundation.dart';
+import 'sound_service_unsupported.dart'
+    if (dart.library.html) 'sound_service_web.dart';
 
-class SoundService {
-  static final SoundService instance = SoundService._internal();
+abstract class SoundService {
+  static SoundService? _instance;
 
-  final AudioPlayer _tilePlayer = AudioPlayer();
-  final AudioPlayer _drawPlayer = AudioPlayer();
-  final AudioPlayer _winPlayer = AudioPlayer();
-  final AudioPlayer _humanWinPlayer = AudioPlayer();
-  final AudioPlayer _aiRoundWinPlayer = AudioPlayer();
-  final AudioPlayer _humanRoundWinPlayer = AudioPlayer();
-  bool _isInitialized = false;
-
-  SoundService._internal();
-
-  Future<void> init() async {
-    if (_isInitialized) return;
-
-    try {
-      // Pre-set sources to reduce latency on first play
-      await _tilePlayer.setSource(AssetSource('sounds/tile_place.wav'));
-      await _drawPlayer.setSource(AssetSource('sounds/draw_tile.wav'));
-      await _winPlayer.setSource(AssetSource('sounds/hendy_win.wav'));
-
-      // Note: human_win.wav will be loaded if it exists, otherwise it might throw
-      // but we catch it here to keep the service running.
-      try {
-        await _humanWinPlayer.setSource(AssetSource('sounds/human_win.wav'));
-        await _humanWinPlayer.stop();
-      } catch (e) {
-        debugPrint("SoundService: Human win sound asset not found yet: $e");
-      }
-
-      try {
-        await _aiRoundWinPlayer.setSource(
-          AssetSource('sounds/i_won_round.wav'),
-        );
-        await _aiRoundWinPlayer.stop();
-      } catch (e) {
-        debugPrint("SoundService: AI round win sound asset not found yet: $e");
-      }
-
-      try {
-        await _humanRoundWinPlayer.setSource(
-          AssetSource('sounds/you_won_round.wav'),
-        );
-        await _humanRoundWinPlayer.stop();
-      } catch (e) {
-        debugPrint(
-          "SoundService: Human round win sound asset not found yet: $e",
-        );
-      }
-
-      // Ensure they don't play on init (though setSource shouldn't play anyway)
-      await _tilePlayer.stop();
-      await _drawPlayer.stop();
-      await _winPlayer.stop();
-
-      _isInitialized = true;
-      debugPrint("SoundService: Optimized sound assets ready.");
-    } catch (e) {
-      debugPrint("SoundService: Error initializing sound assets: $e");
-    }
+  static SoundService get instance {
+    _instance ??= getSoundService();
+    return _instance!;
   }
 
-  Future<void> playTilePlace() async {
-    try {
-      // Seek to beginning and play on the dedicated player
-      await _tilePlayer.stop();
-      await _tilePlayer.play(AssetSource('sounds/tile_place.wav'), volume: 1.0);
-    } catch (e) {
-      debugPrint("SoundService: Error playing tile place sound: $e");
-    }
-  }
-
-  Future<void> playDrawTile() async {
-    try {
-      await _drawPlayer.stop();
-      await _drawPlayer.play(AssetSource('sounds/draw_tile.wav'), volume: 1.0);
-    } catch (e) {
-      debugPrint("SoundService: Error playing draw tile sound: $e");
-    }
-  }
-
-  Future<void> playHendyWin() async {
-    try {
-      debugPrint("SoundService: Triggering Hendy win sound...");
-      await _winPlayer.stop();
-      await _winPlayer.play(AssetSource('sounds/hendy_win.wav'), volume: 1.0);
-    } catch (e) {
-      debugPrint("SoundService: Error playing Hendy win sound: $e");
-    }
-  }
-
-  Future<void> playHumanWin() async {
-    try {
-      debugPrint("SoundService: Triggering Human win sound...");
-      await _humanWinPlayer.stop();
-      await _humanWinPlayer.play(
-        AssetSource('sounds/human_win.wav'),
-        volume: 1.0,
-      );
-    } catch (e) {
-      debugPrint("SoundService: Error playing Human win sound: $e");
-    }
-  }
-
-  Future<void> playAiRoundWin() async {
-    try {
-      debugPrint("SoundService: Triggering AI round win sound...");
-      await _aiRoundWinPlayer.stop();
-      await _aiRoundWinPlayer.play(
-        AssetSource('sounds/i_won_round.wav'),
-        volume: 1.0,
-      );
-    } catch (e) {
-      debugPrint("SoundService: Error playing AI round win sound: $e");
-    }
-  }
-
-  Future<void> playHumanRoundWin() async {
-    try {
-      debugPrint("SoundService: Triggering Human round win sound...");
-      await _humanRoundWinPlayer.stop();
-      await _humanRoundWinPlayer.play(
-        AssetSource('sounds/you_won_round.wav'),
-        volume: 1.0,
-      );
-    } catch (e) {
-      debugPrint("SoundService: Error playing Human round win sound: $e");
-    }
-  }
-
-  bool _isWarmedUp = false;
-
-  /// Mobile browsers (and Chrome/Safari) block audio until a user interaction occurs.
-  /// Calling this during a user gesture (like the first tap) "unlocks" all players.
-  Future<void> warmUp() async {
-    if (_isWarmedUp) return;
-    if (!_isInitialized) await init();
-    try {
-      debugPrint("SoundService: Warming up audio context...");
-      
-      // We play a single sound to "bless" the AudioContext from the Dart side too.
-      // This works in coordination with the index.html "Capture" unlocker.
-      await _tilePlayer.play(
-        AssetSource('sounds/tile_place.wav'),
-        volume: 0.001,
-      );
-      
-      _isWarmedUp = true;
-      debugPrint("SoundService: Audio context warm-up sequence complete.");
-    } catch (e) {
-      debugPrint("SoundService: Audio context warm-up failed: $e");
-    }
-  }
-
-  void dispose() {
-    _tilePlayer.dispose();
-    _drawPlayer.dispose();
-    _winPlayer.dispose();
-    _humanWinPlayer.dispose();
-    _aiRoundWinPlayer.dispose();
-    _humanRoundWinPlayer.dispose();
-  }
+  Future<void> init();
+  Future<void> playTilePlace();
+  Future<void> playDrawTile();
+  Future<void> playHendyWin();
+  Future<void> playHumanWin();
+  Future<void> playAiRoundWin();
+  Future<void> playHumanRoundWin();
+  Future<void> warmUp();
+  void dispose();
 }
