@@ -140,10 +140,16 @@
     }
 
     async function performHardReload() {
-      // Append a unique reload parameter to bypass any intermediate ISP/Browser disk caches
-      // This is the strongest way to break through persistent browser disk caches
+      // Force a timestamp-based URL to break through any cache
       const cleanUrl = window.location.origin + window.location.pathname + '?v=' + Date.now();
-      window.location.replace(cleanUrl);
+      
+      console.log('Reloading to: ' + cleanUrl);
+      
+      // We use a small delay here to ensure the browser has actually finished 
+      // the cache-delete and unregister operations before we request the new page.
+      setTimeout(() => {
+        window.location.href = cleanUrl;
+      }, 500); 
     }
   </script>
 
