@@ -819,7 +819,9 @@ class _GameScreenState extends State<GameScreen> {
 
                         // Round End Combo Animation
                         if (game.isGameOver && !controller.showNextRoundButton)
-                          RoundEndAnimationOverlay(controller: controller),
+                          Positioned.fill(
+                            child: RoundEndAnimationOverlay(controller: controller),
+                          ),
 
                         // Status Overlay (Top Center)
                         if (controller.topOverlayMessage != null)
@@ -1909,7 +1911,8 @@ class _RoundEndAnimationOverlayState extends State<RoundEndAnimationOverlay>
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, child) {
-        return Positioned.fill(
+        return GestureDetector(
+          onTap: () {}, // Prevent taps reaching board during animation
           child: Container(
             color: Colors.black.withOpacity(_backdropOpacity.value * 0.75),
             child: Column(
