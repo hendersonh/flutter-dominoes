@@ -44,30 +44,43 @@
     * https://docs.flutter.dev/platform-integration/web/initialization
   -->
   <script>
-    // Automatic update logic for Service Worker
+    // Aggressive Automatic Update Logic
     if ('serviceWorker' in navigator) {
+      function forceUpdate(reg) {
+        console.log('Update found! Forcing service worker eviction...');
+        reg.unregister().then(() => {
+          // Clear all web caches to ensure no stale files persist
+          if ('caches' in window) {
+            caches.keys().then(function(names) {
+              for (let name of names) caches.delete(name);
+            });
+          }
+          // Hard reload the page to fetch fresh Cloudflare assets
+          window.location.reload(true);
+        });
+      }
+
       window.addEventListener('load', function () {
         navigator.serviceWorker.getRegistration().then(function (reg) {
           if (reg) {
             reg.addEventListener('updatefound', () => {
               const newWorker = reg.installing;
               newWorker.addEventListener('statechange', () => {
+                // If a new worker installed and there's already an active one controlling the page
                 if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                  // New version available! Telling service worker to skip waiting...
-                  newWorker.postMessage({ command: 'skipWaiting' });
+                  forceUpdate(reg);
                 }
               });
             });
+
+            // Poll for updates when the user brings the app back to the foreground
+            document.addEventListener('visibilitychange', () => {
+              if (document.visibilityState === 'visible') {
+                reg.update();
+              }
+            });
           }
         });
-      });
-
-      // Reload the page once the new service worker takes control
-      let refreshing = false;
-      navigator.serviceWorker.addEventListener('controllerchange', () => {
-        if (refreshing) return;
-        refreshing = true;
-        window.location.reload();
       });
     }
   </script>

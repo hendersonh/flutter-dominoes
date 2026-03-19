@@ -13,3 +13,13 @@
 /
   Cross-Origin-Opener-Policy: same-origin
   Cross-Origin-Embedder-Policy: credentials-less
+
+# Never cache the service worker, index.html, and dart bootstrap
+/index.html
+  Cache-Control: no-cache, no-store, must-revalidate
+/flutter_service_worker.js
+  Cache-Control: no-cache, no-store, must-revalidate
+/main.dart.js
+  Cache-Control: no-cache, no-store, must-revalidate
+/*.js
+  Cache-Control: no-cache, no-store, must-revalidate
