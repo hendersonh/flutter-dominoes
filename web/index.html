@@ -104,11 +104,6 @@
         checkForUpdates();
       }
     });
-    // Global function to trigger update from Dart
-    window.forceAppUpdate = async function() {
-      console.log('Manual update triggered from App UI...');
-      await nukeCacheAndReload(null); // Force nuke without version check
-    };
 
     /**
      * Nukes all service workers, clears caches, and reloads

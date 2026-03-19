@@ -7,7 +7,6 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'engine/dominoes_ai.dart';
 import 'engine/sound_service.dart';
-import 'engine/platform_helper.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -68,9 +67,6 @@ class GameController extends ChangeNotifier {
     _initMatch();
   }
 
-  void forceRefresh() {
-    PlatformHelper.forceReload();
-  }
 
   MatchModel get match => _match;
   GameModel? get game => _match.currentRound;
@@ -828,22 +824,7 @@ class _GameScreenState extends State<GameScreen> {
                             child: RoundEndAnimationOverlay(controller: controller),
                           ),
 
-                        // App Controls (Top Right)
-                        Positioned(
-                          top: 12,
-                          right: 12,
-                          child: SafeArea(
-                            child: IconButton(
-                              icon: const Icon(
-                                Icons.update_rounded,
-                                size: 24,
-                                color: Colors.white70,
-                              ),
-                              tooltip: 'Check for Updates',
-                              onPressed: () => controller.forceRefresh(),
-                            ),
-                          ),
-                        ),
+                        // App UI Layers
 
                         // Status Overlay (Top Center)
                         if (controller.topOverlayMessage != null)
