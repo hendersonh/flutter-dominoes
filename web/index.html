@@ -44,45 +44,68 @@
     * https://docs.flutter.dev/platform-integration/web/initialization
   -->
   <script>
-    // Aggressive Automatic Update Logic
-    if ('serviceWorker' in navigator) {
-      function forceUpdate(reg) {
-        console.log('Update found! Forcing service worker eviction...');
-        reg.unregister().then(() => {
-          // Clear all web caches to ensure no stale files persist
+    // Versioned Heartbeat - Force-evicts stale PWAs on new deployments
+    async function checkForUpdates() {
+      if (!navigator.onLine) return; 
+
+      try {
+        // Fetch the microscopic version file with a cache-buster
+        const response = await fetch('version.json?t=' + Date.now(), { 
+          cache: 'no-store',
+          headers: { 'Cache-Control': 'no-cache' }
+        });
+        if (!response.ok) return;
+        
+        const data = await response.json();
+        const serverVersion = data.v;
+        const localVersion = localStorage.getItem('app_version');
+
+        if (localVersion && serverVersion !== localVersion) {
+          console.log('Update detected Application Version: ' + serverVersion);
+          
+          // 1. Unregister ALL service workers
+          if ('serviceWorker' in navigator) {
+            const registrations = await navigator.serviceWorker.getRegistrations();
+            for (const registration of registrations) {
+              await registration.unregister();
+            }
+          }
+
+          // 2. Clear ALL browser caches
           if ('caches' in window) {
-            caches.keys().then(function(names) {
-              for (let name of names) caches.delete(name);
-            });
+            const cacheKeys = await caches.keys();
+            for (const key of cacheKeys) {
+              await caches.delete(key);
+            }
           }
-          // Hard reload the page to fetch fresh Cloudflare assets
-          window.location.reload(true);
-        });
+
+          // 3. Update local state and perform a clean hard-refresh
+          localStorage.setItem('app_version', serverVersion);
+          
+          // Append a unique reload parameter to bypass any intermediate ISP/Browser disk caches
+          const cleanUrl = window.location.origin + window.location.pathname + '?rel=' + Date.now();
+          window.location.replace(cleanUrl);
+        } else if (!localVersion) {
+          // Initialize version tracking on first visit
+          localStorage.setItem('app_version', serverVersion);
+        }
+      } catch (err) {
+        console.warn('Update check bypassed:', err);
       }
-
-      window.addEventListener('load', function () {
-        navigator.serviceWorker.getRegistration().then(function (reg) {
-          if (reg) {
-            reg.addEventListener('updatefound', () => {
-              const newWorker = reg.installing;
-              newWorker.addEventListener('statechange', () => {
-                // If a new worker installed and there's already an active one controlling the page
-                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                  forceUpdate(reg);
-                }
-              });
-            });
-
-            // Poll for updates when the user brings the app back to the foreground
-            document.addEventListener('visibilitychange', () => {
-              if (document.visibilityState === 'visible') {
-                reg.update();
-              }
-            });
-          }
-        });
-      });
     }
+
+    // Run check on initial load
+    window.addEventListener('load', () => {
+      // Small delay to let the initial rendering finish
+      setTimeout(checkForUpdates, 1000);
+    });
+    
+    // Run check when user returns to the app (crucial for "Always On" mobile tabs)
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        checkForUpdates();
+      }
+    });
   </script>
 
 
