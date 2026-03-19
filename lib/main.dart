@@ -25,7 +25,7 @@ class DominoesApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'HendyChallenge Dominoes',
+      title: 'HendyDrawDom',
       theme: ThemeData(
         brightness: Brightness.dark,
         primaryColor: const Color(0xFF2BEE4B),
