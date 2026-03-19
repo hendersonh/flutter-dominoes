@@ -58,6 +58,11 @@ class GameController extends ChangeNotifier {
   int _lifetimeMatchLosses = 0;
   bool _matchStatsSaved = false;
 
+  int? _lastRoundPoints;
+  int? _lastRoundWinner;
+  List<DominoTile>? _lastRoundHumanHand;
+  List<DominoTile>? _lastRoundAiHand;
+
   GameController() {
     _initMatch();
   }
@@ -73,6 +78,11 @@ class GameController extends ChangeNotifier {
   DominoTile? get selectedTile => _selectedTile;
   int get lifetimeMatchWins => _lifetimeMatchWins;
   int get lifetimeMatchLosses => _lifetimeMatchLosses;
+
+  int? get lastRoundPoints => _lastRoundPoints;
+  int? get lastRoundWinner => _lastRoundWinner;
+  List<DominoTile>? get lastRoundHumanHand => _lastRoundHumanHand;
+  List<DominoTile>? get lastRoundAiHand => _lastRoundAiHand;
 
   static const String _kMatchKey = 'dominoes_match_data';
 
@@ -190,6 +200,10 @@ class GameController extends ChangeNotifier {
     _topOverlayMessage = null;
     _bottomOverlayMessage = null;
     _selectedTile = null;
+    _lastRoundPoints = null;
+    _lastRoundWinner = null;
+    _lastRoundHumanHand = null;
+    _lastRoundAiHand = null;
     _match.startNewRound(_match.nextStarter);
     _updateStatusMessage();
     notifyListeners();
@@ -310,7 +324,16 @@ class GameController extends ChangeNotifier {
 
   void _checkGameState() {
     if (game != null && game!.isGameOver) {
+      // Capture round result data BEFORE recording it in the match (which updates pips/hands)
+      final int p0Remaining = game!.hands[0].fold(0, (sum, t) => sum + t.score);
+      final int p1Remaining = game!.hands[1].fold(0, (sum, t) => sum + t.score);
+      
+      _lastRoundPoints = (p1Remaining - p0Remaining).abs();
+      _lastRoundHumanHand = List.from(game!.hands[0]);
+      _lastRoundAiHand = List.from(game!.hands[1]);
+
       int roundWinner = _match.recordRoundResult();
+      _lastRoundWinner = roundWinner;
       _saveMatch(); // Persist scores!
 
       if (_match.isMatchOver) {
@@ -793,6 +816,10 @@ class _GameScreenState extends State<GameScreen> {
                             ),
                           ),
                         ),
+
+                        // Round End Combo Animation
+                        if (game.isGameOver && !controller.showNextRoundButton)
+                          RoundEndAnimationOverlay(controller: controller),
 
                         // Status Overlay (Top Center)
                         if (controller.topOverlayMessage != null)
@@ -1775,6 +1802,198 @@ class _FloatingStat extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class RoundEndAnimationOverlay extends StatefulWidget {
+  final GameController controller;
+
+  const RoundEndAnimationOverlay({super.key, required this.controller});
+
+  @override
+  State<RoundEndAnimationOverlay> createState() => _RoundEndAnimationOverlayState();
+}
+
+class _RoundEndAnimationOverlayState extends State<RoundEndAnimationOverlay>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _backdropOpacity;
+  late Animation<double> _textScale;
+  late Animation<double> _pointsOpacity;
+  late Animation<Offset> _pointsOffset;
+  late Animation<double> _handOpacity;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 2000));
+
+    _backdropOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.0, 0.2, curve: Curves.easeOut),
+      ),
+    );
+
+    _textScale = Tween<double>(begin: 0.5, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.1, 0.4, curve: Curves.elasticOut),
+      ),
+    );
+
+    _handOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.3, 0.6, curve: Curves.easeIn),
+      ),
+    );
+
+    _pointsOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.6, 0.8, curve: Curves.easeIn),
+      ),
+    );
+
+    _pointsOffset =
+        Tween<Offset>(begin: const Offset(0, 20), end: Offset.zero).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.6, 1.0, curve: Curves.easeOut),
+      ),
+    );
+
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = widget.controller;
+    final winner = c.lastRoundWinner;
+    final points = c.lastRoundPoints ?? 0;
+    
+    // Determine which tiles to show
+    List<Widget> humanTiles = (c.lastRoundHumanHand ?? []).map((t) => 
+      Padding(
+        padding: const EdgeInsets.all(2.0),
+        child: DominoTileWidget(tile: t, scale: 0.5, isVertical: true),
+      )
+    ).toList();
+    
+    List<Widget> aiTiles = (c.lastRoundAiHand ?? []).map((t) => 
+      Padding(
+        padding: const EdgeInsets.all(2.0),
+        child: DominoTileWidget(tile: t, scale: 0.5, isVertical: true),
+      )
+    ).toList();
+
+    String resultText = "ROUND DRAWN";
+    Color resultColor = Colors.white70;
+    if (winner == 0) {
+      resultText = "ROUND WON!";
+      resultColor = const Color(0xFF2BEE4B);
+    } else if (winner == 1) {
+      resultText = "ROUND LOST";
+      resultColor = Colors.orangeAccent;
+    }
+
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return Positioned.fill(
+          child: Container(
+            color: Colors.black.withOpacity(_backdropOpacity.value * 0.75),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Result Title
+                Transform.scale(
+                  scale: _textScale.value,
+                  child: Text(
+                    resultText,
+                    style: TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.w900,
+                      color: resultColor,
+                      letterSpacing: 2.0,
+                      shadows: [
+                        Shadow(color: resultColor.withOpacity(0.5), blurRadius: 20),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 32),
+                
+                // Hand Reveal Area
+                Opacity(
+                  opacity: _handOpacity.value,
+                  child: Column(
+                    children: [
+                      if (c.lastRoundAiHand != null && c.lastRoundAiHand!.isNotEmpty) ...[
+                        const Text(
+                          "HENDY'S TILES",
+                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white38, letterSpacing: 1.2),
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(alignment: WrapAlignment.center, children: aiTiles),
+                        const SizedBox(height: 24),
+                      ],
+                      if (c.lastRoundHumanHand != null && c.lastRoundHumanHand!.isNotEmpty && (winner != 0 || c.lastRoundAiHand!.isEmpty)) ...[
+                         const Text(
+                          "YOUR TILES",
+                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white38, letterSpacing: 1.2),
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(alignment: WrapAlignment.center, children: humanTiles),
+                        const SizedBox(height: 24),
+                      ],
+                    ],
+                  ),
+                ),
+                
+                // Points Pop
+                if (points > 0)
+                  Opacity(
+                    opacity: _pointsOpacity.value,
+                    child: Transform.translate(
+                      offset: _pointsOffset.value,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: resultColor.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(30),
+                          border: Border.all(color: resultColor.withOpacity(0.5), width: 2),
+                        ),
+                        child: Text(
+                          "+$points POINTS",
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: resultColor,
+                          ),
+                        ),
+                      ),
+                    ),
+                  )
+                else if (winner == -1)
+                  Opacity(
+                    opacity: _pointsOpacity.value,
+                    child: const Text("0 POINTS", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white54)),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
