@@ -145,16 +145,25 @@
       
       console.log('Reloading to: ' + cleanUrl);
       
-      // We use a small delay here to ensure the browser has actually finished 
-      // the cache-delete and unregister operations before we request the new page.
+      // We use a longer delay (1000ms) here to ensure the browser has fully 
+      // finalized the service worker removal and cache deletion before 
+      // the new request begins.
       setTimeout(() => {
         window.location.href = cleanUrl;
-      }, 500); 
+      }, 1000); 
     }
   </script>
 
 
-  <script src="flutter_bootstrap.js" async></script>
+  <script>
+    // Dynamically load the bootstrap with a timestamp to bypass disk cache entirely
+    (function() {
+      var script = document.createElement('script');
+      script.src = "flutter_bootstrap.js?v=" + Date.now();
+      script.async = true;
+      document.body.appendChild(script);
+    })();
+  </script>
 </body>
 
 </html>
