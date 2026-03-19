@@ -541,7 +541,7 @@ class MatchModel {
   final int targetScore;
   GameModel? currentRound;
 
-  MatchModel({this.targetScore = 130});
+  MatchModel({this.targetScore = 120});
 
   bool get isMatchOver => humanScore >= targetScore || aiScore >= targetScore;
 

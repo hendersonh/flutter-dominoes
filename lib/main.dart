@@ -112,7 +112,7 @@ class GameController extends ChangeNotifier {
   }
 
   Future<void> _initMatch() async {
-    _match = MatchModel(targetScore: 130);
+    _match = MatchModel(targetScore: 120);
     _topOverlayMessage = null;
     _bottomOverlayMessage = null;
     _selectedTile = null;
