@@ -38,6 +38,7 @@ class WebSoundService implements SoundService {
 
   void _playSound(html.AudioElement? player) {
     if (player != null) {
+      player.volume = 1.0;
       player.currentTime = 0;
       player.play().catchError((e) {
         debugPrint("WebSoundService: Play failed: $e");
