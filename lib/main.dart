@@ -112,7 +112,7 @@ class GameController extends ChangeNotifier {
   }
 
   Future<void> _initMatch() async {
-    _match = MatchModel(targetScore: 140);
+    _match = MatchModel(targetScore: 120);
     _topOverlayMessage = null;
     _bottomOverlayMessage = null;
     _selectedTile = null;
@@ -185,7 +185,7 @@ class GameController extends ChangeNotifier {
       final matchJson = prefs.getString(_kMatchKey);
       if (matchJson != null) {
         final Map<String, dynamic> data = jsonDecode(matchJson);
-        _match = MatchModel.fromJson(data, overrideTargetScore: 140);
+        _match = MatchModel.fromJson(data, overrideTargetScore: 120);
         print("Game Loaded: $matchJson");
       }
     } catch (e) {
