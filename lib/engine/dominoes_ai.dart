@@ -392,14 +392,24 @@ class MCTSPlayer {
     return detState;
   }
 
-  Action getBestAction(GameModel rootState, {int timeLimitMs = 1500}) {
+  Future<Action> getBestAction(GameModel rootState, {int timeLimitMs = 1500}) async {
     List<Action> rootLegalActions = rootState.getLegalActions(playerId);
+    if (rootLegalActions.isEmpty) return PassAction(); // Should not happen but safety first
     if (rootLegalActions.length == 1) return rootLegalActions[0];
 
     MCTSNode rootNode = MCTSNode(player: 1 - playerId);
     Stopwatch sw = Stopwatch()..start();
+    int iterations = 0;
+    const int maxIterations = 50000; // Safety cap
 
-    while (sw.elapsedMilliseconds < timeLimitMs) {
+    while (sw.elapsedMilliseconds < timeLimitMs && iterations < maxIterations) {
+      iterations++;
+      
+      // Yield to event loop every 100 iterations on web to prevent UI blocking
+      if (_kIsWeb && iterations % 100 == 0) {
+        await Future.delayed(Duration.zero);
+      }
+
       // 1. Determinization
       GameModel state = determinize(rootState);
       MCTSNode node = rootNode;
@@ -513,21 +523,23 @@ class MCTSPlayer {
   }
 }
 
-const bool _kIsWeb = identical(0, 0.0);
+const bool _kIsWeb = bool.fromEnvironment('dart.library.js_interop');
 
-/// Wrapper for Isolate computation to prevent UI freezing
 Future<Action> getBestActionAsync(
   GameModel state,
   int playerId,
   int timeLimitMs,
 ) async {
+  // Use the yielding async loop for all web platforms (JS and WASM)
+  // to ensure the UI remains responsive and avoid Isolate issues on web.
   if (_kIsWeb) {
     MCTSPlayer ai = MCTSPlayer(playerId);
-    return ai.getBestAction(state, timeLimitMs: timeLimitMs);
+    return await ai.getBestAction(state, timeLimitMs: timeLimitMs);
   } else {
-    return await Isolate.run(() {
+    // On native platforms, offload to a separate Isolate to keep the UI thread free.
+    return await Isolate.run(() async {
       MCTSPlayer ai = MCTSPlayer(playerId);
-      return ai.getBestAction(state, timeLimitMs: timeLimitMs);
+      return await ai.getBestAction(state, timeLimitMs: timeLimitMs);
     });
   }
 }

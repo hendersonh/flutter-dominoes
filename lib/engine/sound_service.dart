@@ -1,5 +1,5 @@
 import 'sound_service_unsupported.dart'
-    if (dart.library.html) 'sound_service_web.dart';
+    if (dart.library.js_interop) 'sound_service_web.dart';
 
 abstract class SoundService {
   static SoundService? _instance;

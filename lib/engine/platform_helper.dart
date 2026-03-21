@@ -1,6 +1,7 @@
 
 import 'platform_helper_unsupported.dart'
-    if (dart.library.html) 'platform_helper_web.dart';
+    if (dart.library.js_interop) 'platform_helper_web.dart';
+
 
 abstract class PlatformHelper {
 

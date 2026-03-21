@@ -1,97 +1,119 @@
-import 'dart:html' as html;
+import 'dart:js_interop';
 import 'package:flutter/foundation.dart';
+import 'package:web/web.dart' as web;
 import 'sound_service.dart';
 
 class WebSoundService implements SoundService {
-  html.AudioElement? _tilePlayer;
-  html.AudioElement? _drawPlayer;
-  html.AudioElement? _winPlayer;
-  html.AudioElement? _humanWinPlayer;
-  html.AudioElement? _aiRoundWinPlayer;
-  html.AudioElement? _humanRoundWinPlayer;
+  late web.AudioContext _context;
+  final Map<String, web.AudioBuffer> _buffers = {};
   bool _isInitialized = false;
-
-  html.AudioElement _createPlayer(String src) {
-    final player = html.AudioElement(src)..preload = 'auto';
-    html.document.body?.append(player);
-    return player;
-  }
+  bool _isUnlocked = false;
 
   @override
   Future<void> init() async {
     if (_isInitialized) return;
 
     try {
-      _tilePlayer = _createPlayer('assets/sounds/tile_place.wav');
-      _drawPlayer = _createPlayer('assets/sounds/draw_tile.wav');
-      _winPlayer = _createPlayer('assets/sounds/hendy_win.wav');
-      _humanWinPlayer = _createPlayer('assets/sounds/human_win.wav');
-      _aiRoundWinPlayer = _createPlayer('assets/sounds/i_won_round.wav');
-      _humanRoundWinPlayer = _createPlayer('assets/sounds/you_won_round.wav');
+      _context = web.AudioContext();
+      _setupUnlockListener();
+
+      // Pre-load all sound assets
+      await Future.wait([
+        _loadBuffer('tile_place', 'assets/sounds/tile_place.wav'),
+        _loadBuffer('draw_tile', 'assets/sounds/draw_tile.wav'),
+        _loadBuffer('hendy_win', 'assets/sounds/hendy_win.wav'),
+        _loadBuffer('human_win', 'assets/sounds/human_win.wav'),
+        _loadBuffer('ai_round_win', 'assets/sounds/i_won_round.wav'),
+        _loadBuffer('human_round_win', 'assets/sounds/you_won_round.wav'),
+      ]);
 
       _isInitialized = true;
-      debugPrint("WebSoundService: HTML5 Audio assets initialized.");
+      debugPrint("WebSoundService: AudioContext and buffers initialized.");
     } catch (e) {
-      debugPrint("WebSoundService: Error initializing sound assets: $e");
+      debugPrint("WebSoundService: Error initializing audio: $e");
     }
   }
 
-  void _playSound(html.AudioElement? player) {
-    if (player != null) {
-      player.volume = 1.0;
-      player.currentTime = 0;
-      player.play().catchError((e) {
-        debugPrint("WebSoundService: Play failed: $e");
-      });
+  Future<void> _loadBuffer(String key, String url) async {
+    try {
+      final response = await web.window.fetch(url.toJS).toDart;
+      final arrayBuffer = await response.arrayBuffer().toDart;
+      final audioBuffer = await _context.decodeAudioData(arrayBuffer).toDart;
+      _buffers[key] = audioBuffer;
+    } catch (e) {
+      debugPrint("WebSoundService: Failed to load $url: $e");
+    }
+  }
+
+  void _setupUnlockListener() {
+    final unlockHandler = (web.Event e) {
+      _attemptUnlock();
+    }.toJS;
+
+    web.window.addEventListener('touchstart', unlockHandler);
+    web.window.addEventListener('mousedown', unlockHandler);
+    web.window.addEventListener('keydown', unlockHandler);
+  }
+
+  void _attemptUnlock() async {
+    if (_isUnlocked) return;
+
+    if (_context.state == 'suspended') {
+      await _context.resume().toDart;
+    }
+
+    if (_context.state == 'running') {
+      _isUnlocked = true;
+      debugPrint("WebSoundService: Audio Context Unlocked!");
+    }
+  }
+
+  void _playSound(String key) {
+    if (!_isInitialized) return;
+    final buffer = _buffers[key];
+    if (buffer == null) return;
+
+    try {
+      // Create a one-time use source node
+      final source = _context.createBufferSource();
+      source.buffer = buffer;
+      source.connect(_context.destination);
+      source.start();
+    } catch (e) {
+      debugPrint("WebSoundService: Playback failed for $key: $e");
     }
   }
 
   @override
-  Future<void> playTilePlace() async => _playSound(_tilePlayer);
+  Future<void> playTilePlace() async => _playSound('tile_place');
 
   @override
-  Future<void> playDrawTile() async => _playSound(_drawPlayer);
+  Future<void> playDrawTile() async => _playSound('draw_tile');
 
   @override
-  Future<void> playHendyWin() async => _playSound(_winPlayer);
+  Future<void> playHendyWin() async => _playSound('hendy_win');
 
   @override
-  Future<void> playHumanWin() async => _playSound(_humanWinPlayer);
+  Future<void> playHumanWin() async => _playSound('human_win');
 
   @override
-  Future<void> playAiRoundWin() async => _playSound(_aiRoundWinPlayer);
+  Future<void> playAiRoundWin() async => _playSound('ai_round_win');
 
   @override
-  Future<void> playHumanRoundWin() async => _playSound(_humanRoundWinPlayer);
-
-  bool _isWarmedUp = false;
+  Future<void> playHumanRoundWin() async => _playSound('human_round_win');
 
   @override
   Future<void> warmUp() async {
-    if (_isWarmedUp) return;
     if (!_isInitialized) await init();
-    
-    try {
-      debugPrint("WebSoundService: Warming up HTML5 Audio...");
-      if (_tilePlayer != null) {
-        _tilePlayer!.volume = 0.001;
-        _tilePlayer!.play().catchError((e) => null);
-      }
-      _isWarmedUp = true;
-    } catch (e) {
-      debugPrint("WebSoundService: Warmup failed: $e");
-    }
+    _attemptUnlock();
   }
 
   @override
   void dispose() {
-    _tilePlayer?.remove();
-    _drawPlayer?.remove();
-    _winPlayer?.remove();
-    _humanWinPlayer?.remove();
-    _aiRoundWinPlayer?.remove();
-    _humanRoundWinPlayer?.remove();
+    _context.close();
+    _buffers.clear();
   }
 }
 
 SoundService getSoundService() => WebSoundService();
+

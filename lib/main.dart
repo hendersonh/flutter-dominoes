@@ -326,61 +326,72 @@ class GameController extends ChangeNotifier {
   void _checkGameState() {
     if (game != null && game!.isGameOver) {
       // Capture round result data BEFORE recording it in the match (which updates pips/hands)
-      final int p0Remaining = game!.hands[0].fold(0, (sum, t) => sum + t.score);
-      final int p1Remaining = game!.hands[1].fold(0, (sum, t) => sum + t.score);
-      
-      _lastRoundPoints = (p1Remaining - p0Remaining).abs();
-      _lastRoundHumanHand = List.from(game!.hands[0]);
-      _lastRoundAiHand = List.from(game!.hands[1]);
-
-      int roundWinner = _match.recordRoundResult();
-      _lastRoundWinner = roundWinner;
-      _saveMatch(); // Persist scores!
-
-      if (_match.isMatchOver) {
-        if (_match.matchWinner == 1) {
-          SoundService.instance.playHendyWin();
-        } else if (_match.matchWinner == 0) {
-          SoundService.instance.playHumanWin();
-        }
+      try {
+        final int p0Remaining = game!.hands[0].fold(0, (sum, t) => sum + t.score);
+        final int p1Remaining = game!.hands[1].fold(0, (sum, t) => sum + t.score);
         
-        if (!_matchStatsSaved) {
-          _matchStatsSaved = true;
-          if (_match.matchWinner == 0) {
-            _lifetimeMatchWins++;
-          } else if (_match.matchWinner == 1) {
-            _lifetimeMatchLosses++;
+        _lastRoundPoints = (p1Remaining - p0Remaining).abs();
+        _lastRoundHumanHand = List.from(game!.hands[0]);
+        _lastRoundAiHand = List.from(game!.hands[1]);
+
+        int roundWinner = _match.recordRoundResult();
+        _lastRoundWinner = roundWinner;
+        _saveMatch(); // Persist scores!
+
+        if (_match.isMatchOver) {
+          _topOverlayMessage = null;
+          if (_match.matchWinner == 1) {
+            SoundService.instance.playHendyWin();
+          } else if (_match.matchWinner == 0) {
+            SoundService.instance.playHumanWin();
           }
-          _saveLifetimeStats();
+          
+          if (!_matchStatsSaved) {
+            _matchStatsSaved = true;
+            if (_match.matchWinner == 0) {
+              _lifetimeMatchWins++;
+            } else if (_match.matchWinner == 1) {
+              _lifetimeMatchLosses++;
+            }
+            _saveLifetimeStats();
+          }
         }
-      }
 
-      if (_match.isMatchOver) {
-        if (_match.matchWinner == 0) {
-          _bottomOverlayMessage = "MATCH OVER: You Win!";
-        } else if (_match.matchWinner == 1) {
-          _bottomOverlayMessage = "MATCH OVER: Hendy Wins!";
+        if (_match.isMatchOver) {
+          if (_match.matchWinner == 0) {
+            _bottomOverlayMessage = "MATCH OVER: You Win!";
+          } else if (_match.matchWinner == 1) {
+            _bottomOverlayMessage = "MATCH OVER: Hendy Wins!";
+          } else {
+            _bottomOverlayMessage = "MATCH OVER: Tie!";
+          }
         } else {
-          _bottomOverlayMessage = "MATCH OVER: Tie!";
+          if (roundWinner == 0) {
+            _bottomOverlayMessage = "Round Won!";
+            SoundService.instance.playHumanRoundWin();
+          } else if (roundWinner == 1) {
+            _bottomOverlayMessage = "Round Lost!";
+            SoundService.instance.playAiRoundWin();
+          } else {
+            _bottomOverlayMessage = "Round Drawn!";
+          }
         }
-      } else {
-        if (roundWinner == 0) {
-          _bottomOverlayMessage = "Round Won!";
-          SoundService.instance.playHumanRoundWin();
-        } else if (roundWinner == 1) {
-          _bottomOverlayMessage = "Round Lost!";
-          SoundService.instance.playAiRoundWin();
-        } else {
-          _bottomOverlayMessage = "Round Drawn!";
-        }
-      }
 
-      _showNextRoundButton = false;
-      notifyListeners();
-      Future.delayed(const Duration(milliseconds: 2500), () {
-        _showNextRoundButton = true;
+        _showNextRoundButton = false;
+        _updateStatusMessage(); // Clear turn specific status
         notifyListeners();
-      });
+        
+        Future.delayed(const Duration(milliseconds: 2500), () {
+          _showNextRoundButton = true;
+          notifyListeners();
+        });
+      } catch (e) {
+        debugPrint("Error in _checkGameState: $e");
+        // Ensure UI stays interactive even if sounds/save fail
+        _showNextRoundButton = true;
+        _isAiThinking = false;
+        notifyListeners();
+      }
     } else if (game != null) {
       if (game!.currentPlayer == 0) {
         _topOverlayMessage = null; // Clear AI status when it's player's turn
@@ -422,53 +433,57 @@ class GameController extends ChangeNotifier {
       _isAiThinking = false;
       return;
     }
-    _isAiThinking = true;
-    _statusMessage = "Hendy Thinking...";
-    notifyListeners();
+    try {
+      _isAiThinking = true;
+      _statusMessage = "Hendy Thinking...";
+      notifyListeners();
 
-    // Yield to the event loop so Flutter can render the human's move
-    // BEFORE the heavy synchronous AI computation starts and blocks the web thread.
-    await Future.delayed(const Duration(milliseconds: 50));
+      // Yield to the event loop so Flutter can render the human's move
+      // BEFORE the heavy synchronous AI computation starts and blocks the web thread.
+      await Future.delayed(const Duration(milliseconds: 50));
 
-    final stopwatch = Stopwatch()..start();
+      final stopwatch = Stopwatch()..start();
 
-    // Give the AI exactly 2 seconds to think to ensure high quality moves without locking the game
-    final aiAction = await getBestActionAsync(game!, 1, 2000);
+      // Give the AI exactly 2 seconds to think to ensure high quality moves without locking the game
+      final aiAction = await getBestActionAsync(game!, 1, 2000);
 
-    final elapsed = stopwatch.elapsedMilliseconds;
-    if (elapsed < 1500) {
-      await Future.delayed(Duration(milliseconds: 1500 - elapsed));
-    }
-
-    print("AI Action: $aiAction");
-    if (aiAction is DrawAction) {
-      _topOverlayMessage = "Hendy is drawing tiles";
-    } else if (aiAction is PassAction) {
-      _topOverlayMessage = "AI no moves... passing turn";
-    } else {
-      _topOverlayMessage = null;
-    }
-    notifyListeners();
-
-    if (game != null) {
-      game!.applyAction(aiAction);
-      print("Hendy played ${aiAction.toString()}");
-      if (aiAction is PlayAction) {
-        SoundService.instance.playTilePlace();
-      } else if (aiAction is DrawAction) {
-        SoundService.instance.playDrawTile();
+      final elapsed = stopwatch.elapsedMilliseconds;
+      if (elapsed < 1500) {
+        await Future.delayed(Duration(milliseconds: 1500 - elapsed));
       }
-    }
 
-    _isAiThinking = false;
-    _checkGameState();
-    notifyListeners();
+      print("AI Action: $aiAction");
+      if (aiAction is DrawAction) {
+        _topOverlayMessage = "Hendy is drawing tiles";
+      } else if (aiAction is PassAction) {
+        _topOverlayMessage = "AI no moves... passing turn";
+      } else {
+        _topOverlayMessage = null;
+      }
+      notifyListeners();
 
-    // If AI just drew a tile, it might need to take another step immediately.
-    // However, MCTS determinization already considers the draw action.
-    // If the currentPlayer is still 1, it means the AI needs to move again.
-    if (game != null && !game!.isGameOver && game!.currentPlayer == 1) {
-      _runAiTurn();
+      if (game != null) {
+        game!.applyAction(aiAction);
+        print("Hendy played ${aiAction.toString()}");
+        if (aiAction is PlayAction) {
+          SoundService.instance.playTilePlace();
+        } else if (aiAction is DrawAction) {
+          SoundService.instance.playDrawTile();
+        }
+      }
+    } catch (e) {
+      debugPrint("Error in _runAiTurn: $e");
+    } finally {
+      _isAiThinking = false;
+      _checkGameState();
+      notifyListeners();
+
+      // If AI just drew a tile, it might need to take another step immediately.
+      // However, MCTS determinization already considers the draw action.
+      // If the currentPlayer is still 1, it means the AI needs to move again.
+      if (game != null && !game!.isGameOver && game!.currentPlayer == 1) {
+        _runAiTurn();
+      }
     }
   }
 
@@ -788,33 +803,36 @@ class _GameScreenState extends State<GameScreen> {
                         ),
 
                         // Floating Game Stats (Bottom corners)
+                        // Boneyard (Bottom Left)
                         Positioned(
                           bottom: 12,
                           left: 12,
-                          child: _FloatingStat(
-                            label: 'Hendy Tiles',
-                            value: '${game.hands[1].length}',
-                          ),
-                        ),
-                        Positioned(
-                          bottom: 12,
-                          right: 12,
                           child: _FloatingStat(
                             label: 'Boneyard',
                             value: '${game.boneyard.length}',
                           ),
                         ),
 
-                        // Human Player Badge (Bottom Center)
+                        // Hendy Tiles (Bottom Center)
                         Positioned(
                           bottom: 12,
                           left: 0,
                           right: 0,
                           child: Center(
-                            child: _PlayerBadge(
-                              score: controller.match.humanScore,
-                              isTurn: !game.isGameOver && game.currentPlayer == 0,
+                            child: _FloatingStat(
+                              label: 'Hendy Tiles',
+                              value: '${game.hands[1].length}',
                             ),
+                          ),
+                        ),
+
+                        // Human Player Badge (Bottom Right)
+                        Positioned(
+                          bottom: 12,
+                          right: 12,
+                          child: _PlayerBadge(
+                            score: controller.match.humanScore,
+                            isTurn: !game.isGameOver && game.currentPlayer == 0,
                           ),
                         ),
 
