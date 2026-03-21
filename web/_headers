@@ -1,30 +1,17 @@
+# Global headers
 /*
   Access-Control-Allow-Origin: *
-  Accept-Ranges: bytes
   X-Content-Type-Options: nosniff
-
-/*.mp3
-  Content-Type: audio/mpeg
-
-/*.wav
-  Content-Type: audio/wav
-/*
-  Access-Control-Allow-Origin: *
-  Accept-Ranges: bytes
-  X-Content-Type-Options: nosniff
-
-/*.mp3
-  Content-Type: audio/mpeg
-
-/*.wav
-  Content-Type: audio/wav
-
-# Security headers that help with WASM/Canvas in some mobile browsers
-/
   Cross-Origin-Opener-Policy: same-origin
   Cross-Origin-Embedder-Policy: credentials-less
 
-# Never cache the service worker, index.html, version.json, and manifest.json
+# Specific Audio MIME Types
+/assets/assets/sounds/*.wav
+  Content-Type: audio/wav
+/assets/assets/sounds/*.mp4
+  Content-Type: audio/mp4
+
+# PWA Cache Management
 /index.html
   Cache-Control: no-cache, no-store, must-revalidate
 /version.json
@@ -36,6 +23,4 @@
 /main.dart.js
   Cache-Control: no-cache, no-store, must-revalidate
 /flutter_bootstrap.js
-  Cache-Control: no-cache, no-store, must-revalidate
-/*.js
   Cache-Control: no-cache, no-store, must-revalidate
