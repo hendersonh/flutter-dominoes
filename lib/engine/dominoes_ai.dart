@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'dart:isolate';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 /// Represents a single Domino tile.
 class DominoTile {
@@ -520,7 +521,6 @@ class MCTSPlayer {
   }
 }
 
-const bool _kIsWeb = identical(0, 0.0);
 
 /// Wrapper for Isolate computation to prevent UI freezing
 Future<Action> getBestActionAsync(
@@ -528,7 +528,7 @@ Future<Action> getBestActionAsync(
   int playerId,
   int timeLimitMs,
 ) async {
-  if (_kIsWeb) {
+  if (kIsWeb) {
     MCTSPlayer ai = MCTSPlayer(playerId);
     return ai.getBestAction(state, timeLimitMs: timeLimitMs);
   } else {
