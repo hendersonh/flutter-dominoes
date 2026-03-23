@@ -119,8 +119,7 @@ class GameController extends ChangeNotifier {
       await prefs.setInt('lifetime_match_losses', _lifetimeMatchLosses);
       await prefs.setString('lifetime_dish_counts', jsonEncode(_lifetimeDishCounts));
     } catch (e) {
-      debugPrint("Error saving lifetime stats: $e");
-    }
+          }
   }
 
   Future<void> _initMatch() async {
@@ -545,6 +544,11 @@ class GameScreen extends StatefulWidget {
 class _GameScreenState extends State<GameScreen> {
   final ScrollController _scrollController = ScrollController();
   int _lastHandSize = 0;
+  double _edYOffset = 0;
+  double _timYOffset = 0;
+  Size? _lastBoardSize;
+  List<Rect>? _lastTileRects;
+  Size _containerSize = Size.zero;
 
   @override
   void initState() {
@@ -568,6 +572,75 @@ class _GameScreenState extends State<GameScreen> {
         );
       });
     }
+  }
+
+  void _handleBoardLayoutCalculated(Size boardSize, List<Rect> tileRects) {
+    _lastBoardSize = boardSize;
+    _lastTileRects = tileRects;
+    _updateHudOffsets();
+  }
+
+  void _updateHudOffsets() {
+    if (_lastBoardSize == null ||
+        _lastTileRects == null ||
+        _containerSize == Size.zero ||
+        !mounted) return;
+
+    final boardOffset = Offset(
+      (_containerSize.width - _lastBoardSize!.width) / 2,
+      (_containerSize.height - _lastBoardSize!.height) / 2,
+    );
+
+    final globalTiles =
+        _lastTileRects!.map((r) => r.shift(boardOffset)).toList();
+
+    // HUD size estimates: 72x80
+    setState(() {
+      _edYOffset = _findMinimalOffset(
+        hudRect: Rect.fromLTWH(16, _containerSize.height / 2 - 40, 72, 80),
+        tiles: globalTiles,
+        containerHeight: _containerSize.height,
+      );
+
+      _timYOffset = _findMinimalOffset(
+        hudRect: Rect.fromLTWH(
+          _containerSize.width - 16 - 72,
+          _containerSize.height / 2 - 40,
+          72,
+          80,
+        ),
+        tiles: globalTiles,
+        containerHeight: _containerSize.height,
+      );
+    });
+  }
+
+  double _findMinimalOffset({
+    required Rect hudRect,
+    required List<Rect> tiles,
+    required double containerHeight,
+  }) {
+    // Outward search: 0, 5, -5, 10, -10...
+    for (double dy = 0; dy < containerHeight / 2; dy += 5) {
+      if (_isClear(hudRect.shift(Offset(0, dy)), tiles, containerHeight)) {
+        return dy;
+      }
+      if (dy == 0) continue;
+      if (_isClear(hudRect.shift(Offset(0, -dy)), tiles, containerHeight)) {
+        return -dy;
+      }
+    }
+    return 0;
+  }
+
+  bool _isClear(Rect hud, List<Rect> tiles, double containerHeight) {
+    // Keep away from screen edges and existing top/bottom HUDs (approx 80px high)
+    if (hud.top < 80 || hud.bottom > containerHeight - 80) return false;
+
+    for (final tile in tiles) {
+      if (hud.overlaps(tile.inflate(8))) return false; // 8px buffer
+    }
+    return true;
   }
 
   @override
@@ -622,8 +695,11 @@ class _GameScreenState extends State<GameScreen> {
                     horizontal: 16,
                     vertical: 0,
                   ),
-                  child: Stack(
-                    fit: StackFit.expand,
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      _containerSize = Size(constraints.maxWidth, constraints.maxHeight);
+                      return Stack(
+                        fit: StackFit.expand,
                     children: [
                       // Match Controls Overlay (Top Right)
                       Positioned(
@@ -691,8 +767,11 @@ class _GameScreenState extends State<GameScreen> {
                           isKnocking: controller.knockingPlayerIndex == 0,
                         ),
                       ),
-                      Align(
-                        alignment: Alignment.centerLeft,
+                      AnimatedPositioned(
+                        duration: const Duration(milliseconds: 500),
+                        curve: Curves.easeOutCubic,
+                        left: 16,
+                        top: _containerSize.height / 2 - 40 + _edYOffset,
                         child: _EdgeScore(
                           name: 'Ed',
                           tiles: game.hands[1].length,
@@ -713,8 +792,11 @@ class _GameScreenState extends State<GameScreen> {
                           isThinking: game.currentPlayer == 2,
                         ),
                       ),
-                      Align(
-                        alignment: Alignment.centerRight,
+                      AnimatedPositioned(
+                        duration: const Duration(milliseconds: 500),
+                        curve: Curves.easeOutCubic,
+                        right: 16,
+                        top: _containerSize.height / 2 - 40 + _timYOffset,
                         child: _EdgeScore(
                           name: 'Tim',
                           tiles: game.hands[3].length,
@@ -770,6 +852,8 @@ class _GameScreenState extends State<GameScreen> {
                                           isSelectingSide:
                                               controller.selectedTile != null,
                                           onSelectSide: controller.confirmPlay,
+                                          onLayoutCalculated:
+                                              _handleBoardLayoutCalculated,
                                         );
                                       },
                                     ),
@@ -907,40 +991,49 @@ class _GameScreenState extends State<GameScreen> {
                                         ),
                                         textAlign: TextAlign.center,
                                       ),
-                                      const SizedBox(height: 16),
-                                      const Text(
-                                        'LIFETIME MATCH RECORD',
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          color: Colors.white54,
-                                          fontWeight: FontWeight.bold,
-                                          letterSpacing: 2,
+                                      if (controller.scoringMode != ScoringMode.sixLove) ...[
+                                        const SizedBox(height: 16),
+                                        const Text(
+                                          'LIFETIME MATCH RECORD',
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            color: Colors.white54,
+                                            fontWeight: FontWeight.bold,
+                                            letterSpacing: 2,
+                                          ),
                                         ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          Expanded(
-                                            child: _StatBox(
-                                              label: 'WINS',
-                                              value:
-                                                  controller.lifetimeMatchWins,
-                                              color: const Color(0xFF2BEE4B),
+                                        const SizedBox(height: 8),
+                                        Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            Expanded(
+                                              child: _StatBox(
+                                                label: 'WINS',
+                                                value:
+                                                    controller.lifetimeMatchWins,
+                                                color: const Color(0xFF2BEE4B),
+                                              ),
                                             ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Expanded(
-                                            child: _StatBox(
-                                              label: 'LOSSES',
-                                              value: controller
-                                                  .lifetimeMatchLosses,
-                                              color: Colors.orange,
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: _StatBox(
+                                                label: 'LOSSES',
+                                                value: controller
+                                                    .lifetimeMatchLosses,
+                                                color: Colors.orange,
+                                              ),
                                             ),
-                                          ),
-                                        ],
-                                      ),
+                                          ],
+                                        ),
+                                      ] else ...[
+                                        const SizedBox(height: 16),
+                                        _ChampionStatus(
+                                          championIndex: controller.sixLoveChampionIndex,
+                                          dishCounts: controller.lifetimeDishCounts,
+                                          playerNames: playerNames,
+                                        ),
+                                      ],
                                       if (controller.scoringMode == ScoringMode.sixLove) ...[
                                         const SizedBox(height: 24),
                                         const Text(
@@ -1034,13 +1127,15 @@ class _GameScreenState extends State<GameScreen> {
                             ),
                           ),
                         ),
-                    ],
-                  ),
+                      ],
+                    );
+                  },
                 ),
               ),
+            ),
 
-              // Control Area (Ends)
-              if (game.board.isNotEmpty &&
+            // Control Area (Ends)
+            if (game.board.isNotEmpty &&
                   controller.statusMessage == "Your Turn" &&
                   controller.selectedTile == null)
                 Padding(
@@ -1442,6 +1537,7 @@ class SnakingBoard extends StatelessWidget {
   final double maxWidth;
   final bool isSelectingSide;
   final Function(String)? onSelectSide;
+  final Function(Size, List<Rect>)? onLayoutCalculated;
 
   const SnakingBoard({
     super.key,
@@ -1450,6 +1546,7 @@ class SnakingBoard extends StatelessWidget {
     required this.maxWidth,
     this.isSelectingSide = false,
     this.onSelectSide,
+    this.onLayoutCalculated,
   });
 
   @override
@@ -1637,6 +1734,21 @@ class SnakingBoard extends StatelessWidget {
 
     final double boardWidth = maxX - minX;
     final double boardHeight = maxY - minY;
+
+    if (onLayoutCalculated != null) {
+      final List<Rect> tileRects = positions.values.map((pos) {
+        return Rect.fromLTWH(
+          pos.offset.dx - minX,
+          pos.offset.dy - minY,
+          pos.isVertical ? vWidth : hWidth,
+          pos.isVertical ? vHeight : hHeight,
+        );
+      }).toList();
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        onLayoutCalculated!(Size(boardWidth, boardHeight), tileRects);
+      });
+    }
 
     return Center(
       child: SizedBox(
@@ -1962,6 +2074,114 @@ class _ThinkingDotsState extends State<_ThinkingDots>
             },
           );
         }),
+      ),
+    );
+  }
+}
+
+class _ChampionStatus extends StatelessWidget {
+  final int championIndex;
+  final List<int> dishCounts;
+  final List<String> playerNames;
+
+  const _ChampionStatus({
+    required this.championIndex,
+    required this.dishCounts,
+    required this.playerNames,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    String title;
+    String name;
+    String subtext;
+    Color accentColor;
+    String icon;
+
+    if (championIndex != -1) {
+      title = 'CURRENT CHAMPION';
+      name = playerNames[championIndex].toUpperCase();
+      subtext = 'Defend the title!';
+      accentColor = const Color(0xFF2BEE4B);
+      icon = '👑';
+    } else {
+      // Find top contender
+      int maxDishes = -1;
+      int topIndex = -1;
+      for (int i = 0; i < dishCounts.length; i++) {
+        if (dishCounts[i] > maxDishes) {
+          maxDishes = dishCounts[i];
+          topIndex = i;
+        }
+      }
+
+      if (maxDishes > 0) {
+        title = 'TOP CONTENDER';
+        name = playerNames[topIndex].toUpperCase();
+        subtext = '$maxDishes Dishes Given 🔥';
+        accentColor = Colors.orange;
+        icon = '⚔️';
+      } else {
+        title = 'CHAMPIONSHIP VACANT';
+        name = 'NO CHAMPION';
+        subtext = 'Win 6-0 to claim the crown!';
+        accentColor = Colors.white24;
+        icon = '⚪';
+      }
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.black26,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: accentColor.withOpacity(0.3),
+          width: 2,
+        ),
+      ),
+      child: Column(
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 10,
+              color: accentColor.withOpacity(0.7),
+              fontWeight: FontWeight.bold,
+              letterSpacing: 2,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                icon,
+                style: const TextStyle(fontSize: 24),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                name,
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w900,
+                  color: championIndex != -1 ? accentColor : Colors.white,
+                  letterSpacing: 1.5,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            subtext,
+            style: const TextStyle(
+              fontSize: 12,
+              color: Colors.white54,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ],
       ),
     );
   }
