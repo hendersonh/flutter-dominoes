@@ -586,18 +586,24 @@ class _GameScreenState extends State<GameScreen> {
     _lastHandSize = game.hands[0].length;
 
     return Scaffold(
-      body: controller.isSetupVisible
-          ? _MatchSetupView(controller: controller)
-          : GestureDetector(
-              onTap: () {
-                // Master Unlock for Web Audio on first tap
-                if (kIsWeb) {
-                  AudioEngine.unlockAudio();
-                }
-                controller.clearSelection();
-              },
-              child: SafeArea(
-                child: Column(
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 400),
+        child: controller.isSetupVisible
+            ? _MatchSetupView(
+                key: const ValueKey('match_setup'),
+                controller: controller,
+              )
+            : GestureDetector(
+                key: const ValueKey('game_board'),
+                onTap: () {
+                  // Master Unlock for Web Audio on first tap
+                  if (kIsWeb) {
+                    AudioEngine.unlockAudio();
+                  }
+                  controller.clearSelection();
+                },
+                child: SafeArea(
+                  child: Column(
                   children: [
                     // Game Board (Now taking full height)
                     Expanded(
@@ -1108,6 +1114,7 @@ class _GameScreenState extends State<GameScreen> {
           ),
         ),
       ),
+    ),
     );
   }
 
@@ -2080,9 +2087,29 @@ class _CurvedTextPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-class _MatchSetupView extends StatelessWidget {
+class _MatchSetupView extends StatefulWidget {
   final GameController controller;
-  const _MatchSetupView({required this.controller});
+  const _MatchSetupView({super.key, required this.controller});
+
+  @override
+  State<_MatchSetupView> createState() => _MatchSetupViewState();
+}
+
+class _MatchSetupViewState extends State<_MatchSetupView> {
+  bool _isInteractable = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Safety delay to prevent "tap-through" from previous screen buttons
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (mounted) {
+        setState(() {
+          _isInteractable = true;
+        });
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -2106,7 +2133,8 @@ class _MatchSetupView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.settings_suggest, size: 48, color: Color(0xFF2BEE4B)),
+            const Icon(Icons.settings_suggest,
+                size: 48, color: Color(0xFF2BEE4B)),
             const SizedBox(height: 16),
             const Text(
               'Match Setup',
@@ -2137,9 +2165,11 @@ class _MatchSetupView extends StatelessWidget {
                   icon: Icon(Icons.auto_awesome),
                 ),
               ],
-              selected: {controller.scoringMode},
+              selected: {widget.controller.scoringMode},
               onSelectionChanged: (Set<ScoringMode> selection) {
-                controller.setScoringMode(selection.first);
+                if (_isInteractable) {
+                  widget.controller.setScoringMode(selection.first);
+                }
               },
               style: ButtonStyle(
                 backgroundColor: WidgetStateProperty.resolveWith((states) {
@@ -2151,15 +2181,17 @@ class _MatchSetupView extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 24),
-            _ModeDescription(mode: controller.scoringMode),
+            _ModeDescription(mode: widget.controller.scoringMode),
             const SizedBox(height: 32),
             SizedBox(
               width: double.infinity,
               height: 56,
               child: ElevatedButton(
-                onPressed: controller.startMatch,
+                onPressed: _isInteractable ? widget.controller.startMatch : null,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF2BEE4B),
+                  backgroundColor: _isInteractable
+                      ? const Color(0xFF2BEE4B)
+                      : const Color(0xFF2BEE4B).withOpacity(0.5),
                   foregroundColor: Colors.black,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
