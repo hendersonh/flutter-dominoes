@@ -92,7 +92,7 @@ class GameController extends ChangeNotifier {
   bool get isMatchStarted =>
       _match.scores.any((s) => s > 0) ||
       (_match.currentRound?.board.isNotEmpty ?? false);
-  bool get isSetupVisible => !isMatchStarted && !_isSetupComplete;
+  bool get isSetupVisible => !_isSetupComplete;
   ScoringMode get scoringMode => _match.mode;
 
   static const String _kMatchKey = 'dominoes_match_data';
@@ -223,6 +223,11 @@ class GameController extends ChangeNotifier {
   void startMatch() {
     _isSetupComplete = true;
     notifyListeners();
+
+    // Trigger AI turn if it's their turn to start, now that setup is complete
+    if (game != null && !game!.isGameOver && game!.currentPlayer != 0) {
+      _runAiTurn();
+    }
   }
 
   void _startNextRound() {
@@ -437,7 +442,7 @@ class GameController extends ChangeNotifier {
   }
 
   Future<void> _runAiTurn() async {
-    if (game == null || game!.isGameOver) {
+    if (game == null || game!.isGameOver || !_isSetupComplete) {
       _isAiThinking = false;
       return;
     }
