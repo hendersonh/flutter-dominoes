@@ -12,6 +12,8 @@ dependencies:
   google_fonts: ^8.0.2
   provider: ^6.1.5+1
   shared_preferences: ^2.5.4
+  audioplayers: ^6.0.0
+  web: ^1.0.0
 
 dev_dependencies:
   flutter_test:
@@ -28,6 +30,7 @@ flutter:
   assets:
     - assets/hendy.png
     - assets/human.png
+    - assets/sounds/
 
 flutter_launcher_icons:
   android: true

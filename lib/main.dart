@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'dart:math' as math;
 import 'dart:ui';
 import 'package:flutter/material.dart';
@@ -6,11 +7,15 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'engine/sound_service.dart';
+import 'engine/audio_engine.dart';
 import 'engine/dominoes_ai.dart';
 
 const List<String> playerNames = ['Hendy', 'Ed', 'Paul', 'Tim'];
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  SoundService().initialize();
   runApp(
     ChangeNotifierProvider(
       create: (_) => GameController(),
@@ -56,7 +61,10 @@ class GameController extends ChangeNotifier {
 
   int _lifetimeMatchWins = 0;
   int _lifetimeMatchLosses = 0;
+  // Index 0: Human, 1-3: AIs. Tracks total matches won by 6-0.
+  List<int> _lifetimeDishCounts = [0, 0, 0, 0];
   bool _matchStatsSaved = false;
+  bool _isSetupComplete = false;
 
   GameController() {
     _initMatch();
@@ -74,6 +82,18 @@ class GameController extends ChangeNotifier {
   DominoTile? get selectedTile => _selectedTile;
   int get lifetimeMatchWins => _lifetimeMatchWins;
   int get lifetimeMatchLosses => _lifetimeMatchLosses;
+  List<int> get lifetimeDishCounts => _lifetimeDishCounts;
+
+  int get sixLoveChampionIndex {
+    int maxDishes = _lifetimeDishCounts.reduce(math.max);
+    if (maxDishes == 0) return -1;
+    return _lifetimeDishCounts.indexOf(maxDishes);
+  }
+  bool get isMatchStarted =>
+      _match.scores.any((s) => s > 0) ||
+      (_match.currentRound?.board.isNotEmpty ?? false);
+  bool get isSetupVisible => !isMatchStarted && !_isSetupComplete;
+  ScoringMode get scoringMode => _match.mode;
 
   static const String _kMatchKey = 'dominoes_match_data';
 
@@ -82,6 +102,11 @@ class GameController extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       _lifetimeMatchWins = prefs.getInt('lifetime_match_wins') ?? 0;
       _lifetimeMatchLosses = prefs.getInt('lifetime_match_losses') ?? 0;
+      
+      final dishCountsJson = prefs.getString('lifetime_dish_counts');
+      if (dishCountsJson != null) {
+        _lifetimeDishCounts = List<int>.from(jsonDecode(dishCountsJson));
+      }
     } catch (e) {
       debugPrint("Error loading lifetime stats: $e");
     }
@@ -92,6 +117,7 @@ class GameController extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt('lifetime_match_wins', _lifetimeMatchWins);
       await prefs.setInt('lifetime_match_losses', _lifetimeMatchLosses);
+      await prefs.setString('lifetime_dish_counts', jsonEncode(_lifetimeDishCounts));
     } catch (e) {
       debugPrint("Error saving lifetime stats: $e");
     }
@@ -119,6 +145,7 @@ class GameController extends ChangeNotifier {
 
     _updateStatusMessage();
     _sortPlayerHand();
+    _isSetupComplete = isMatchStarted;
     notifyListeners();
 
     // If it's AI's turn to start the restored match
@@ -188,8 +215,14 @@ class GameController extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_kMatchKey);
     _matchStatsSaved = false;
+    _isSetupComplete = false;
     // Restart from scratch
     await _initMatch();
+  }
+
+  void startMatch() {
+    _isSetupComplete = true;
+    notifyListeners();
   }
 
   void _startNextRound() {
@@ -214,6 +247,14 @@ class GameController extends ChangeNotifier {
       _selectedTile = null;
       notifyListeners();
     }
+  }
+
+  void setScoringMode(ScoringMode mode) {
+    if (isMatchStarted) return;
+    _match.mode = mode;
+    _saveMatch();
+    _updateStatusMessage();
+    notifyListeners();
   }
 
   void selectTile(DominoTile tile) {
@@ -270,6 +311,7 @@ class GameController extends ChangeNotifier {
     final action = PlayAction(tile, side, isFirstMove: game!.board.isEmpty);
     if (game != null) {
       game!.applyAction(action);
+      SoundService().playSfx('assets/sounds/tile_place.wav');
       print("Player played $tile on $side. Board: ${game!.board}");
       _sortPlayerHand();
 
@@ -305,10 +347,10 @@ class GameController extends ChangeNotifier {
 
       _showNextRoundButton = false;
       _knockingPlayerIndex = null;
-      _bottomOverlayMessage = "..game over";
+      _bottomOverlayMessage = "Calculating Scores...";
       notifyListeners();
 
-      Future.delayed(const Duration(milliseconds: 5000), () {
+      Future.delayed(const Duration(milliseconds: 1000), () {
         int roundWinner = _match.recordRoundResult();
         _saveMatch(); // Persist scores!
 
@@ -320,6 +362,15 @@ class GameController extends ChangeNotifier {
             } else {
               _lifetimeMatchLosses++;
             }
+
+            // Track Six-Love "Dish Outs"
+            if (_match.isSixLoveVictory) {
+              int winner = _match.matchWinner;
+              if (winner != -1) {
+                _lifetimeDishCounts[winner]++;
+              }
+            }
+
             _saveLifetimeStats();
           }
         }
@@ -367,6 +418,7 @@ class GameController extends ChangeNotifier {
     if (game != null && !game!.canPlayerPlay(0)) {
       // Contextual Knock for Human
       _knockingPlayerIndex = 0;
+      SoundService().playSfx('assets/sounds/tile_knock.wav');
       HapticFeedback.lightImpact();
       notifyListeners();
 
@@ -376,6 +428,12 @@ class GameController extends ChangeNotifier {
         }
       });
     }
+  }
+
+  Duration _getAiThinkingDuration() {
+    // Randomized thinking time between 2000ms and 4500ms
+    final ms = 2000 + math.Random().nextInt(2500);
+    return Duration(milliseconds: ms);
   }
 
   Future<void> _runAiTurn() async {
@@ -388,31 +446,44 @@ class GameController extends ChangeNotifier {
     _statusMessage = "${playerNames[cp]} Thinking...";
     notifyListeners();
 
-    // Yield to the event loop so Flutter can render the human's/previous move
-    await Future.delayed(const Duration(milliseconds: 500));
+    // Natural delay before starting to "think"
+    await Future.delayed(const Duration(milliseconds: 600));
 
-    // Fast calculation: AI needs less time physically, but we still add a minimum UI delay
+    final thinkingDuration = _getAiThinkingDuration();
     final stopwatch = Stopwatch()..start();
+
+    // AI calculation (usually very fast)
     final aiAction = await getBestActionAsync(game!, cp, 1000);
     final elapsed = stopwatch.elapsedMilliseconds;
 
-    // Total artificial minimum delay per AI turn is 1.5s
-    if (elapsed < 1500) {
-      await Future.delayed(Duration(milliseconds: 1500 - elapsed));
+    // Wait for the remainder of the randomized thinking time
+    final remainingDelay = thinkingDuration.inMilliseconds - elapsed;
+    if (remainingDelay > 0) {
+      await Future.delayed(Duration(milliseconds: remainingDelay));
     }
 
     print("AI Player $cp Action: $aiAction");
     if (aiAction is PassAction) {
       // Contextual Knock for AI
       _knockingPlayerIndex = cp;
+      SoundService().playSfx('assets/sounds/tile_knock.wav');
       notifyListeners();
       await Future.delayed(const Duration(milliseconds: 1200));
     }
 
     if (game != null) {
-      game!.applyAction(aiAction);
+      if (aiAction is PlayAction) {
+        game!.applyAction(aiAction);
+        SoundService().playSfx('assets/sounds/tile_place.wav');
+      } else {
+        game!.applyAction(aiAction);
+      }
+      notifyListeners(); // Immediate update to show the tile
       print("Player $cp played ${aiAction.toString()}");
     }
+
+    // Brief pause to allow the user to see the move before turn indicator shifts
+    await Future.delayed(const Duration(milliseconds: 1000));
 
     _isAiThinking = false;
     _checkGameState();
@@ -425,16 +496,23 @@ class GameController extends ChangeNotifier {
     }
   }
 
-  void restartGame() {
+  Future<void> restartGame() async {
     if (_match.isMatchOver) {
-      resetMatch();
+      await resetMatch();
     } else if (game != null && game!.isGameOver) {
+      // Clear overlays and wait for Skwasm to settle
+      _topOverlayMessage = null;
+      _bottomOverlayMessage = null;
+      _showNextRoundButton = false;
+      notifyListeners();
+
+      await Future.delayed(const Duration(milliseconds: 100));
       _startNextRound();
     } else {
       // User tapped reset mid-round
       _topOverlayMessage = null;
       _bottomOverlayMessage = null;
-      resetMatch();
+      await resetMatch();
     }
   }
 
@@ -508,72 +586,22 @@ class _GameScreenState extends State<GameScreen> {
     _lastHandSize = game.hands[0].length;
 
     return Scaffold(
-      appBar: AppBar(
-        centerTitle: true,
-        title: const Text('HendyChallenge Dominoes'),
-        actions: [
-          IconButton(
-            tooltip: 'Restart Round',
-            icon: const Icon(Icons.refresh),
-            onPressed: controller.restartGame,
-          ),
-          IconButton(
-            tooltip: 'Reset Match (Clear Scores)',
-            icon: const Icon(Icons.delete_forever),
-            onPressed: () {
-              showDialog(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text('Reset Match?'),
-                  content: const Text(
-                    'This will clear all scores and start a fresh match from zero.',
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('CANCEL'),
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        controller.resetMatch();
-                        Navigator.pop(context);
-                      },
-                      child: const Text(
-                        'RESET',
-                        style: TextStyle(color: Colors.red),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-        ],
-      ),
-      body: GestureDetector(
-        onTap: controller.clearSelection,
-        child: SafeArea(
-          child: Column(
-            children: [
-              // Score Bar (Matched to image)
-              // Top Message
-              if (controller.statusMessage != null &&
-                  controller.statusMessage!.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8.0, bottom: 8.0),
-                  child: Text(
-                    controller.statusMessage!,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF2BEE4B),
-                    ),
-                  ),
-                ),
-
-              // Game Board
-              Expanded(
-                child: Container(
+      body: controller.isSetupVisible
+          ? _MatchSetupView(controller: controller)
+          : GestureDetector(
+              onTap: () {
+                // Master Unlock for Web Audio on first tap
+                if (kIsWeb) {
+                  AudioEngine.unlockAudio();
+                }
+                controller.clearSelection();
+              },
+              child: SafeArea(
+                child: Column(
+                  children: [
+                    // Game Board (Now taking full height)
+                    Expanded(
+                      child: Container(
                   decoration: BoxDecoration(
                     color: const Color(0xFF2B5B32),
                     borderRadius: BorderRadius.circular(16),
@@ -581,11 +609,67 @@ class _GameScreenState extends State<GameScreen> {
                   ),
                   margin: const EdgeInsets.symmetric(
                     horizontal: 16,
-                    vertical: 8,
+                    vertical: 0,
                   ),
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
+                      // Match Controls Overlay (Top Right)
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              tooltip: 'Restart Round',
+                              icon: const Icon(
+                                Icons.refresh,
+                                color: Colors.white54,
+                                size: 20,
+                              ),
+                              onPressed: controller.restartGame,
+                            ),
+                            IconButton(
+                              tooltip: 'Reset Match',
+                              icon: const Icon(
+                                Icons.delete_forever,
+                                color: Colors.white24,
+                                size: 20,
+                              ),
+                              onPressed: () {
+                                showDialog(
+                                  context: context,
+                                  builder: (context) => AlertDialog(
+                                    title: const Text('Reset Match?'),
+                                    content: const Text(
+                                      'This will clear all scores and start a fresh match from zero.',
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(context),
+                                        child: const Text('CANCEL'),
+                                      ),
+                                      TextButton(
+                                        onPressed: () {
+                                          controller.resetMatch();
+                                          Navigator.pop(context);
+                                        },
+                                        child: const Text(
+                                          'RESET',
+                                          style: TextStyle(color: Colors.red),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // (Status Overlay removed - now per-player dots)
                       Align(
                         alignment: Alignment.bottomCenter,
                         child: _EdgeScore(
@@ -604,6 +688,7 @@ class _GameScreenState extends State<GameScreen> {
                           score: controller.match.scores[1],
                           isActive: game.currentPlayer == 1,
                           isKnocking: controller.knockingPlayerIndex == 1,
+                          isThinking: game.currentPlayer == 1,
                         ),
                       ),
                       Align(
@@ -614,6 +699,7 @@ class _GameScreenState extends State<GameScreen> {
                           score: controller.match.scores[2],
                           isActive: game.currentPlayer == 2,
                           isKnocking: controller.knockingPlayerIndex == 2,
+                          isThinking: game.currentPlayer == 2,
                         ),
                       ),
                       Align(
@@ -624,6 +710,7 @@ class _GameScreenState extends State<GameScreen> {
                           score: controller.match.scores[3],
                           isActive: game.currentPlayer == 3,
                           isKnocking: controller.knockingPlayerIndex == 3,
+                          isThinking: game.currentPlayer == 3,
                         ),
                       ),
 
@@ -692,12 +779,12 @@ class _GameScreenState extends State<GameScreen> {
                                 vertical: 8,
                               ),
                               decoration: BoxDecoration(
-                                color: Colors.black.withValues(alpha: 0.6),
+                                color: Colors.black.withOpacity(0.6),
                                 borderRadius: BorderRadius.circular(8),
                                 border: Border.all(
                                   color: const Color(
                                     0xFF2BEE4B,
-                                  ).withValues(alpha: 0.5),
+                                  ).withOpacity(0.5),
                                 ),
                               ),
                               child: Text(
@@ -727,12 +814,12 @@ class _GameScreenState extends State<GameScreen> {
                                 vertical: 8,
                               ),
                               decoration: BoxDecoration(
-                                color: Colors.black.withValues(alpha: 0.6),
+                                color: Colors.black.withOpacity(0.6),
                                 borderRadius: BorderRadius.circular(8),
                                 border: Border.all(
                                   color: const Color(
                                     0xFF2BEE4B,
-                                  ).withValues(alpha: 0.5),
+                                  ).withOpacity(0.5),
                                 ),
                               ),
                               child: Text(
@@ -749,22 +836,12 @@ class _GameScreenState extends State<GameScreen> {
                         ),
                       ],
 
-                      // Premium Game Over Progress (Frosted Glass)
-                      if (controller.bottomOverlayMessage == "..game over" &&
-                          !controller.showNextRoundButton)
-                        const Align(
-                          alignment: Alignment.bottomCenter,
-                          child: _GlassyProgress(
-                            message: "ROUND COMPLETE",
-                            duration: Duration(seconds: 5),
-                          ),
-                        ),
 
                       // Game Over Modal (Idea B)
                       if (game.isGameOver && controller.showNextRoundButton)
                         Positioned.fill(
                           child: Container(
-                            color: Colors.black.withValues(alpha: 0.7),
+                            color: Colors.black.withOpacity(0.7),
                             child: Center(
                               child: Container(
                                 constraints: const BoxConstraints(
@@ -785,7 +862,7 @@ class _GameScreenState extends State<GameScreen> {
                                               : Colors.red)
                                         : const Color(
                                             0xFF2BEE4B,
-                                          ).withValues(alpha: 0.5),
+                                          ).withOpacity(0.5),
                                     width: 2,
                                   ),
                                   boxShadow: [
@@ -853,6 +930,61 @@ class _GameScreenState extends State<GameScreen> {
                                           ),
                                         ],
                                       ),
+                                      if (controller.scoringMode == ScoringMode.sixLove) ...[
+                                        const SizedBox(height: 24),
+                                        const Text(
+                                          'SIX-LOVE LEADERBOARD (DISHES)',
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            color: Colors.white54,
+                                            fontWeight: FontWeight.bold,
+                                            letterSpacing: 2,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 12),
+                                        Container(
+                                          decoration: BoxDecoration(
+                                            color: Colors.black26,
+                                            borderRadius: BorderRadius.circular(12),
+                                          ),
+                                          child: Column(
+                                            children: List.generate(4, (index) {
+                                              final count = controller.lifetimeDishCounts[index];
+                                              final isChamp = controller.sixLoveChampionIndex == index;
+                                              return Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                                decoration: BoxDecoration(
+                                                  border: index < 3 ? Border(bottom: BorderSide(color: Colors.white10)) : null,
+                                                ),
+                                                child: Row(
+                                                  children: [
+                                                    Text(
+                                                      isChamp ? '👑' : '${index + 1}.',
+                                                      style: const TextStyle(fontSize: 14),
+                                                    ),
+                                                    const SizedBox(width: 12),
+                                                    Text(
+                                                      playerNames[index],
+                                                      style: TextStyle(
+                                                        color: isChamp ? const Color(0xFF2BEE4B) : Colors.white70,
+                                                        fontWeight: isChamp ? FontWeight.bold : FontWeight.normal,
+                                                      ),
+                                                    ),
+                                                    const Spacer(),
+                                                    Text(
+                                                      '$count',
+                                                      style: TextStyle(
+                                                        color: isChamp ? const Color(0xFF2BEE4B) : Colors.white,
+                                                        fontWeight: FontWeight.bold,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              );
+                                            }),
+                                          ),
+                                        ),
+                                      ],
                                       const SizedBox(height: 24),
                                       SizedBox(
                                         width: double.infinity,
@@ -937,16 +1069,11 @@ class _GameScreenState extends State<GameScreen> {
               Builder(
                 builder: (context) {
                   final screenWidth = MediaQuery.of(context).size.width;
-                  final availableWidth =
-                      screenWidth - 32; // 16 horizontal padding on each side
-                  // 7 tiles + 6 gaps (12px each). A normal tile is 50px wide.
-                  // We want to fit 7 tiles comfortably. Target max width = 7 * 50 + 6 * 12 = 422
+                  final availableWidth = screenWidth - 32;
                   double tileScale = (availableWidth / 422).clamp(0.5, 1.0);
 
                   return SizedBox(
-                    height:
-                        102 * tileScale +
-                        18, // Reclaims board space while fitting scaled tiles + padding
+                    height: 102 * tileScale + 18,
                     child: SingleChildScrollView(
                       controller: _scrollController,
                       scrollDirection: Axis.horizontal,
@@ -954,75 +1081,76 @@ class _GameScreenState extends State<GameScreen> {
                         horizontal: 16,
                         vertical: 8,
                       ),
-                      child: ImageFiltered(
-                        imageFilter: controller.knockingPlayerIndex == 0
-                            ? ImageFilter.blur(sigmaX: 5, sigmaY: 5)
-                            : ImageFilter.blur(sigmaX: 0, sigmaY: 0),
-                        child: AnimatedOpacity(
-                          duration: const Duration(milliseconds: 300),
-                          opacity: controller.knockingPlayerIndex == 0
-                              ? 0.3
-                              : 1.0,
-                          child: Row(
-                            children: game.hands[0].asMap().entries.map((
-                              entry,
-                            ) {
-                              final index = entry.key;
-                              final tile = entry.value;
-                              final isPlayable =
-                                  !game.isGameOver &&
-                                  game.currentPlayer == 0 &&
-                                  (game.board.isEmpty ||
-                                      tile.contains(game.leftEnd!) ||
-                                      tile.contains(game.rightEnd!));
-
-                              return Padding(
-                                padding: EdgeInsets.only(
-                                  right: 12.0 * tileScale,
-                                ),
-                                child: GestureDetector(
-                                  onTap:
-                                      game.isGameOver ||
-                                          !isPlayable ||
-                                          controller.knockingPlayerIndex == 0
-                                      ? null
-                                      : () => controller.selectTile(tile),
-                                  child: Opacity(
-                                    opacity:
-                                        game.isGameOver ||
-                                            game.currentPlayer != 0 ||
-                                            isPlayable
-                                        ? 1.0
-                                        : 0.4,
-                                    child: Hero(
-                                      tag: 'tile-$index',
-                                      child: DominoTileWidget(
-                                        tile: tile,
-                                        isVertical: true,
-                                        isHighlight: isPlayable,
-                                        isSelected:
-                                            controller.selectedTile == tile,
-                                        scale: tileScale,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              );
-                            }).toList(),
-                          ),
-                        ),
-                      ),
+                      child: (controller.knockingPlayerIndex == 0)
+                          ? ImageFiltered(
+                              imageFilter:
+                                  ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+                              child: AnimatedOpacity(
+                                duration: const Duration(milliseconds: 300),
+                                opacity: 0.3,
+                                child: _buildHandRow(
+                                    game, controller, tileScale),
+                              ),
+                            )
+                          : AnimatedOpacity(
+                              duration: const Duration(milliseconds: 300),
+                              opacity: controller.knockingPlayerIndex == 0
+                                  ? 0.3
+                                  : 1.0,
+                              child: _buildHandRow(
+                                  game, controller, tileScale),
+                            ),
                     ),
                   );
                 },
               ),
-
-              // Bottom spacer
-              const SizedBox(height: 16),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildHandRow(
+      GameModel game, GameController controller, double tileScale) {
+    return Row(
+      children: game.hands[0].asMap().entries.map((entry) {
+        final index = entry.key;
+        final tile = entry.value;
+        final isPlayable = !game.isGameOver &&
+            game.currentPlayer == 0 &&
+            (game.board.isEmpty ||
+                tile.contains(game.leftEnd!) ||
+                tile.contains(game.rightEnd!));
+
+        return Padding(
+          padding: EdgeInsets.only(
+            right: 12.0 * tileScale,
+          ),
+          child: GestureDetector(
+            onTap: game.isGameOver ||
+                    !isPlayable ||
+                    controller.knockingPlayerIndex == 0
+                ? null
+                : () => controller.selectTile(tile),
+            child: Opacity(
+              opacity: game.isGameOver || game.currentPlayer != 0 || isPlayable
+                  ? 1.0
+                  : 0.4,
+              child: Hero(
+                tag: 'tile-$index',
+                child: DominoTileWidget(
+                  tile: tile,
+                  isVertical: true,
+                  isHighlight: isPlayable,
+                  isSelected: controller.selectedTile == tile,
+                  scale: tileScale,
+                ),
+              ),
+            ),
+          ),
+        );
+      }).toList(),
     );
   }
 }
@@ -1054,34 +1182,50 @@ class DominoTileWidget extends StatelessWidget {
           width: (isVertical ? 50 : 102) * scale,
           height: (isVertical ? 102 : 50) * scale,
           decoration: BoxDecoration(
-            color: const Color(0xFFFDFBF7),
+            gradient: const RadialGradient(
+              center: Alignment(-0.2, -0.4),
+              radius: 1.2,
+              colors: [
+                Color(0xFFFFFFFF), // Highlight
+                Color(0xFFFDFBF7), // Mid
+                Color(0xFFF3F0E8), // Shadow side
+              ],
+            ),
             border: isSelected
                 ? Border.all(color: const Color(0xFF2BEE4B), width: 4 * scale)
                 : isHighlight
-                ? Border.all(
-                    color: const Color(0xFF2BEE4B).withValues(alpha: 0.5),
-                    width: 2 * scale,
-                  )
-                : Border.all(
-                    color: const Color(0xFF9CA3AF),
-                    width: 1.5 * scale,
-                  ),
-            borderRadius: BorderRadius.circular(4 * scale),
-            boxShadow: isSelected
-                ? [
-                    BoxShadow(
-                      color: const Color(0xFF2BEE4B).withValues(alpha: 0.6),
-                      blurRadius: 12 * scale,
-                      spreadRadius: 2 * scale,
-                    ),
-                  ]
-                : [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.4),
-                      blurRadius: 6 * scale,
-                      offset: Offset(1 * scale, 3 * scale),
-                    ),
-                  ],
+                    ? Border.all(
+                        color: const Color(0xFF2BEE4B).withOpacity(0.5),
+                        width: 2 * scale,
+                      )
+                    : Border.all(
+                        color: const Color(0xFF9CA3AF).withOpacity(0.4),
+                        width: 1.5 * scale,
+                      ),
+            borderRadius: BorderRadius.circular(6 * scale),
+            boxShadow: [
+              if (isSelected)
+                BoxShadow(
+                  color: const Color(0xFF2BEE4B).withOpacity(0.6),
+                  blurRadius: 15 * scale,
+                  spreadRadius: 2 * scale,
+                )
+              else ...[
+                // Main soft shadow
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.25),
+                  blurRadius: 8 * scale,
+                  offset: Offset(2 * scale, 4 * scale),
+                ),
+                // Sharp contact shadow
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 2 * scale,
+                  offset: Offset(0, 1 * scale),
+                  spreadRadius: -1 * scale,
+                ),
+              ],
+            ],
           ),
           child: Flex(
             direction: isVertical ? Axis.vertical : Axis.horizontal,
@@ -1124,12 +1268,12 @@ class DominoTileWidget extends StatelessWidget {
                 colors: [Color(0xFFFBBF24), Color(0xFFB45309)],
               ),
               border: Border.all(
-                color: Colors.white.withValues(alpha: 0.3),
+                color: Colors.white.withOpacity(0.3),
                 width: 1 * scale,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.6),
+                  color: Colors.black.withOpacity(0.6),
                   blurRadius: 3 * scale,
                   offset: Offset(0, 1 * scale),
                 ),
@@ -1173,94 +1317,111 @@ class _Pips extends StatelessWidget {
         baseColor = const Color(0xFF374151); // Dark Gray for 0/Default
     }
 
-    return AspectRatio(
-      aspectRatio: 1,
-      child: GridView.builder(
-        padding: EdgeInsets.zero,
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3,
-          childAspectRatio: 1,
+    return SizedBox(
+      width: 40 * scale,
+      height: 40 * scale,
+      child: CustomPaint(
+        painter: _PipsPainter(
+          count: count,
+          color: baseColor,
+          scale: scale,
+          isVertical: isVertical,
         ),
-        itemCount: 9,
-        itemBuilder: (context, index) {
-          bool visible = false;
-          switch (count) {
-            case 1:
-              visible = index == 4;
-              break;
-            case 2:
-              visible = index == 0 || index == 8;
-              break;
-            case 3:
-              visible = index == 0 || index == 4 || index == 8;
-              break;
-            case 4:
-              visible = index == 0 || index == 2 || index == 6 || index == 8;
-              break;
-            case 5:
-              visible =
-                  index == 0 ||
-                  index == 2 ||
-                  index == 4 ||
-                  index == 6 ||
-                  index == 8;
-              break;
-            case 6:
-              if (isVertical) {
-                // 2 vertical lines of 3
-                visible =
-                    index == 0 ||
-                    index == 3 ||
-                    index == 6 ||
-                    index == 2 ||
-                    index == 5 ||
-                    index == 8;
-              } else {
-                // 2 horizontal lines of 3
-                visible =
-                    index == 0 ||
-                    index == 1 ||
-                    index == 2 ||
-                    index == 6 ||
-                    index == 7 ||
-                    index == 8;
-              }
-              break;
-          }
-          return visible
-              ? Container(
-                  margin: EdgeInsets.all(4 * scale),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: RadialGradient(
-                      center: const Alignment(-0.2, -0.2),
-                      radius: 0.8,
-                      colors: [
-                        baseColor.withValues(alpha: 0.8), // Lighter top-left
-                        baseColor, // Actual color
-                      ],
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.white.withValues(alpha: 0.2),
-                        blurRadius: 1 * scale,
-                        offset: Offset(0, 1 * scale),
-                      ),
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.2),
-                        blurRadius: 1 * scale,
-                        offset: Offset(0, -1 * scale),
-                      ),
-                    ],
-                  ),
-                )
-              : const SizedBox();
-        },
       ),
     );
   }
+}
+
+
+class _PipsPainter extends CustomPainter {
+  final int count;
+  final Color color;
+  final double scale;
+  final bool isVertical;
+
+  _PipsPainter({
+    required this.count,
+    required this.color,
+    required this.scale,
+    required this.isVertical,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (count == 0) return;
+
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+
+    final double dotSize = 8.0 * scale;
+    final double w = size.width;
+    final double h = size.height;
+    final double pad = 8.0 * scale;
+
+    void drawDot(double cx, double cy) {
+      final center = Offset(cx, cy);
+      // Subtle inner depth shadow for the pip
+      canvas.drawCircle(
+        center.translate(0.5 * scale, 0.5 * scale),
+        dotSize / 2,
+        Paint()
+          ..color = Colors.black.withOpacity(0.2)
+          ..maskFilter = MaskFilter.blur(BlurStyle.normal, 1 * scale),
+      );
+      canvas.drawCircle(center, dotSize / 2, paint);
+      // Slight highlight for "drilled" look
+      canvas.drawCircle(
+        center.translate(-0.5 * scale, -0.5 * scale),
+        dotSize / 2.5,
+        Paint()
+          ..color = Colors.white.withOpacity(0.15)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 0.5 * scale,
+      );
+    }
+
+    // 1: center
+    if (count % 2 == 1) drawDot(w / 2, h / 2);
+
+    // 2, 3: diagonals
+    if (count == 2 || count == 3) {
+      if (isVertical) {
+        drawDot(pad, pad); // TL
+        drawDot(w - pad, h - pad); // BR
+      } else {
+        drawDot(w - pad, pad); // TR
+        drawDot(pad, h - pad); // BL
+      }
+    }
+
+    // 4, 5: 4 corners
+    if (count >= 4) {
+      drawDot(pad, pad); // TL
+      drawDot(w - pad, pad); // TR
+      drawDot(pad, h - pad); // BL
+      drawDot(w - pad, h - pad); // BR
+    }
+
+    // 6: 2 rows or 2 columns
+    if (count == 6) {
+      if (isVertical) {
+        // 2 columns (Left / Right)
+        drawDot(pad, h / 2);
+        drawDot(w - pad, h / 2);
+      } else {
+        // 2 rows (Top / Bottom)
+        drawDot(w / 2, pad);
+        drawDot(w / 2, h - pad);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _PipsPainter oldDelegate) =>
+      oldDelegate.count != count ||
+      oldDelegate.color != color ||
+      oldDelegate.isVertical != isVertical;
 }
 
 class SnakingBoard extends StatelessWidget {
@@ -1499,11 +1660,11 @@ class SnakingBoard extends StatelessWidget {
                         (positions[0]!.isVertical ? vHeight : hHeight) +
                         (40 * scale),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF2BEE4B).withValues(alpha: 0.4),
+                      color: const Color(0xFF2BEE4B).withOpacity(0.4),
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF2BEE4B).withValues(alpha: 0.6),
+                          color: const Color(0xFF2BEE4B).withOpacity(0.6),
                           blurRadius: 20 * scale,
                           spreadRadius: 5 * scale,
                         ),
@@ -1535,11 +1696,11 @@ class SnakingBoard extends StatelessWidget {
                             : hHeight) +
                         (40 * scale),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF2BEE4B).withValues(alpha: 0.4),
+                      color: const Color(0xFF2BEE4B).withOpacity(0.4),
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF2BEE4B).withValues(alpha: 0.6),
+                          color: const Color(0xFF2BEE4B).withOpacity(0.6),
                           blurRadius: 20 * scale,
                           spreadRadius: 5 * scale,
                         ),
@@ -1573,6 +1734,7 @@ class _EdgeScore extends StatefulWidget {
   final int score;
   final bool isActive;
   final bool isKnocking;
+  final bool isThinking;
 
   const _EdgeScore({
     super.key,
@@ -1580,7 +1742,8 @@ class _EdgeScore extends StatefulWidget {
     required this.tiles,
     required this.score,
     required this.isActive,
-    this.isKnocking = false,
+    required this.isKnocking,
+    this.isThinking = false,
   });
 
   @override
@@ -1588,37 +1751,61 @@ class _EdgeScore extends StatefulWidget {
 }
 
 class _EdgeScoreState extends State<_EdgeScore>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
+    with TickerProviderStateMixin {
+  late AnimationController _knockingController;
+  late AnimationController _pulseController;
   late Animation<double> _scaleAnimation;
+  late Animation<double> _pulseAnimation;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
+    _knockingController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 300),
     );
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    );
+
     _scaleAnimation = TweenSequence<double>([
       TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.2), weight: 50),
       TweenSequenceItem(tween: Tween(begin: 1.2, end: 1.0), weight: 50),
-    ]).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+    ]).animate(
+        CurvedAnimation(parent: _knockingController, curve: Curves.easeInOut));
+
+    _pulseAnimation = Tween<double>(begin: 0.4, end: 1.0).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
+
+    if (widget.isActive) {
+      _pulseController.repeat(reverse: true);
+    }
   }
 
   @override
   void didUpdateWidget(_EdgeScore oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.isKnocking && !oldWidget.isKnocking) {
-      _controller.repeat(count: 2);
+      _knockingController.repeat(count: 2);
     } else if (!widget.isKnocking && oldWidget.isKnocking) {
-      _controller.stop();
-      _controller.reset();
+      _knockingController.stop();
+      _knockingController.reset();
+    }
+
+    if (widget.isActive && !oldWidget.isActive) {
+      _pulseController.repeat(reverse: true);
+    } else if (!widget.isActive && oldWidget.isActive) {
+      _pulseController.stop();
+      _pulseController.reset();
     }
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _knockingController.dispose();
+    _pulseController.dispose();
     super.dispose();
   }
 
@@ -1631,25 +1818,65 @@ class _EdgeScoreState extends State<_EdgeScore>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              widget.name,
-              style: TextStyle(
-                fontSize: 14,
-                color: widget.isActive || widget.isKnocking
-                    ? const Color(0xFF2BEE4B)
-                    : Colors.white,
-                fontWeight: widget.isActive || widget.isKnocking
-                    ? FontWeight.bold
-                    : FontWeight.w400,
-              ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (widget.isActive)
+                  FadeTransition(
+                    opacity: _pulseAnimation,
+                    child: Container(
+                      width: 8,
+                      height: 8,
+                      margin: const EdgeInsets.only(right: 6),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF2BEE4B),
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Color(0xFF2BEE4B),
+                            blurRadius: 4,
+                            spreadRadius: 1,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                Text(
+                  widget.name,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: widget.isActive || widget.isKnocking
+                        ? const Color(0xFF2BEE4B)
+                        : Colors.white,
+                    fontWeight: widget.isActive || widget.isKnocking
+                        ? FontWeight.bold
+                        : FontWeight.w400,
+                  ),
+                ),
+                if (context.watch<GameController>().sixLoveChampionIndex ==
+                    playerNames.indexOf(widget.name))
+                  Padding(
+                    padding: const EdgeInsets.only(left: 4.0),
+                    child: Tooltip(
+                      message: 'Six-Love Champion',
+                      child: Text(
+                        '👑',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    ),
+                  ),
+                if (widget.isThinking)
+                  const _ThinkingDots(),
+              ],
             ),
+            const SizedBox(height: 2),
             Text(
               '${widget.tiles}/${widget.score}',
               style: TextStyle(
                 fontSize: 14,
                 color: widget.isActive || widget.isKnocking
                     ? const Color(0xFF2BEE4B)
-                    : Colors.white.withValues(alpha: 0.8),
+                    : Colors.white.withOpacity(0.8),
                 fontWeight: widget.isActive || widget.isKnocking
                     ? FontWeight.bold
                     : FontWeight.w400,
@@ -1657,6 +1884,72 @@ class _EdgeScoreState extends State<_EdgeScore>
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _ThinkingDots extends StatefulWidget {
+  const _ThinkingDots();
+
+  @override
+  State<_ThinkingDots> createState() => _ThinkingDotsState();
+}
+
+class _ThinkingDotsState extends State<_ThinkingDots>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late List<Animation<double>> _animations;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat();
+
+    _animations = List.generate(3, (i) {
+      return Tween<double>(begin: 0.0, end: 1.0).animate(
+        CurvedAnimation(
+          parent: _controller,
+          curve: Interval(i * 0.2, 0.6 + i * 0.2, curve: Curves.easeInOut),
+        ),
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: List.generate(3, (i) {
+          return AnimatedBuilder(
+            animation: _animations[i],
+            builder: (context, child) {
+              return Opacity(
+                opacity: _animations[i].value,
+                child: Container(
+                  width: 3,
+                  height: 3,
+                  margin: const EdgeInsets.symmetric(horizontal: 1),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF2BEE4B),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              );
+            },
+          );
+        }),
       ),
     );
   }
@@ -1678,9 +1971,9 @@ class _StatBox extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.3),
+        color: Colors.black.withOpacity(0.3),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withValues(alpha: 0.3), width: 2),
+        border: Border.all(color: color.withOpacity(0.3), width: 2),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -1709,120 +2002,6 @@ class _StatBox extends StatelessWidget {
   }
 }
 
-class _GlassyProgress extends StatefulWidget {
-  final String message;
-  final Duration duration;
-
-  const _GlassyProgress({
-    super.key,
-    required this.message,
-    required this.duration,
-  });
-
-  @override
-  State<_GlassyProgress> createState() => _GlassyProgressState();
-}
-
-class _GlassyProgressState extends State<_GlassyProgress>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(vsync: this, duration: widget.duration);
-    _controller.forward();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 24.0, left: 32, right: 32),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-          child: Container(
-            padding: const EdgeInsets.all(2), // For the glowing border effect
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: const Color(0xFF2BEE4B).withValues(alpha: 0.3),
-                width: 1.5,
-              ),
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Colors.white.withValues(alpha: 0.15),
-                  Colors.white.withOpacity(0.05),
-                ],
-              ),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 16.0,
-                    horizontal: 24,
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(
-                        Icons.check_circle_outline,
-                        color: Color(0xFF2BEE4B),
-                        size: 20,
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        widget.message,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                          letterSpacing: 2.0,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                AnimatedBuilder(
-                  animation: _controller,
-                  builder: (context, child) {
-                    return Container(
-                      height: 4,
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(2),
-                        child: LinearProgressIndicator(
-                          value: _controller.value,
-                          backgroundColor: Colors.white.withValues(alpha: 0.1),
-                          valueColor: const AlwaysStoppedAnimation<Color>(
-                            Color(0xFF2BEE4B),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 12),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 class _CurvedText extends StatelessWidget {
   final String text;
@@ -1899,4 +2078,146 @@ class _CurvedTextPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _MatchSetupView extends StatelessWidget {
+  final GameController controller;
+  const _MatchSetupView({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 400),
+        margin: const EdgeInsets.all(32),
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.6),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: Colors.white.withOpacity(0.1)),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF2BEE4B).withOpacity(0.1),
+              blurRadius: 30,
+              spreadRadius: 5,
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.settings_suggest, size: 48, color: Color(0xFF2BEE4B)),
+            const SizedBox(height: 16),
+            const Text(
+              'Match Setup',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Select the scoring rules for this match.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 14, color: Colors.white70),
+            ),
+            const SizedBox(height: 32),
+            SegmentedButton<ScoringMode>(
+              showSelectedIcon: false,
+              segments: const [
+                ButtonSegment(
+                  value: ScoringMode.points100,
+                  label: Text('100 Points'),
+                  icon: Icon(Icons.score),
+                ),
+                ButtonSegment(
+                  value: ScoringMode.sixLove,
+                  label: Text('Six-Love'),
+                  icon: Icon(Icons.auto_awesome),
+                ),
+              ],
+              selected: {controller.scoringMode},
+              onSelectionChanged: (Set<ScoringMode> selection) {
+                controller.setScoringMode(selection.first);
+              },
+              style: ButtonStyle(
+                backgroundColor: WidgetStateProperty.resolveWith((states) {
+                  if (states.contains(WidgetState.selected)) {
+                    return const Color(0xFF2BEE4B).withOpacity(0.2);
+                  }
+                  return null;
+                }),
+              ),
+            ),
+            const SizedBox(height: 24),
+            _ModeDescription(mode: controller.scoringMode),
+            const SizedBox(height: 32),
+            SizedBox(
+              width: double.infinity,
+              height: 56,
+              child: ElevatedButton(
+                onPressed: controller.startMatch,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF2BEE4B),
+                  foregroundColor: Colors.black,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  elevation: 8,
+                ),
+                child: const Text(
+                  'START MATCH',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ModeDescription extends StatelessWidget {
+  final ScoringMode mode;
+  const _ModeDescription({required this.mode});
+
+  @override
+  Widget build(BuildContext context) {
+    final title = mode == ScoringMode.points100 ? 'Traditional Rules' : 'Jamaican "Six-Love"';
+    final desc = mode == ScoringMode.points100
+        ? 'Win by accumulating 100 points from opponent hands.'
+        : 'First to 6 points wins. All scores reset (Game Bruk) if EVERY player wins at least 1 round.';
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF2BEE4B),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            desc,
+            style: const TextStyle(fontSize: 12, color: Colors.white60),
+          ),
+        ],
+      ),
+    );
+  }
 }

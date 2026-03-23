@@ -2,6 +2,7 @@ import 'dart:math';
 import 'dart:isolate';
 import 'package:flutter/foundation.dart' show kIsWeb;
 
+
 /// Represents a single Domino tile.
 class DominoTile {
   final int end1;
@@ -529,14 +530,34 @@ Future<Action> getBestActionAsync(
   int timeLimitMs,
 ) async {
   if (kIsWeb) {
-    MCTSPlayer ai = MCTSPlayer(playerId);
-    return ai.getBestAction(state, timeLimitMs: timeLimitMs);
+    try {
+      // Attempt to run in a background worker with a 10s timeout
+      return await Isolate.run(() {
+        MCTSPlayer ai = MCTSPlayer(playerId);
+        return ai.getBestAction(state, timeLimitMs: timeLimitMs);
+      }).timeout(const Duration(seconds: 10));
+    } catch (e) {
+      // Fallback to main thread if the worker hangs or fails
+      print('WASM AI Worker failed or timed out: $e. Falling back to main thread.');
+      MCTSPlayer ai = MCTSPlayer(playerId);
+      return ai.getBestAction(state, timeLimitMs: timeLimitMs);
+    }
   } else {
+    // Mobile/Native uses standard isolates
     return await Isolate.run(() {
       MCTSPlayer ai = MCTSPlayer(playerId);
       return ai.getBestAction(state, timeLimitMs: timeLimitMs);
     });
   }
+}
+
+/// Modes for determining match winners and round scoring
+enum ScoringMode {
+  /// Traditional: Accumulate points from opponent hands until target (e.g. 100)
+  points100,
+
+  /// Jamaican "Six-Love": Win 6 rounds in a row. Opponent wins reset streaks to 0
+  sixLove,
 }
 
 /// Model to govern multiple rounds of dominoes up to a target score
@@ -545,15 +566,32 @@ class MatchModel {
   int roundNumber = 1;
   int nextStarter = 0; // 0 for human, 1-3 for AI
   final int targetScore;
+  ScoringMode mode;
   GameModel? currentRound;
 
-  MatchModel({this.targetScore = 100});
+  MatchModel({
+    this.targetScore = 100,
+    this.mode = ScoringMode.points100,
+  });
 
-  bool get isMatchOver => scores.any((s) => s >= targetScore);
+  bool get isMatchOver {
+    final int target = mode == ScoringMode.sixLove ? 6 : targetScore;
+    return scores.any((s) => s >= target);
+  }
+
+  /// Returns true if the match winner won with a score of 6-0 in Six-Love mode.
+  bool get isSixLoveVictory {
+    if (mode != ScoringMode.sixLove) return false;
+    int winner = matchWinner;
+    if (winner == -1) return false;
+    // Check if the winner has exactly 6 points and everyone else has 0
+    return scores[winner] == 6 && scores.every((s) => scores.indexOf(s) == winner || s == 0);
+  }
 
   int get matchWinner {
+    final int target = mode == ScoringMode.sixLove ? 6 : targetScore;
     int maxScore = scores.reduce(max);
-    if (maxScore >= targetScore) {
+    if (maxScore >= target) {
       return scores.indexOf(maxScore);
     }
     return -1;
@@ -604,17 +642,26 @@ class MatchModel {
     int winner = currentRound!.winner;
 
     if (winner != -1) {
-      // Winner gets sum of all OTHER players' pips
-      int totalPipsRound = 0;
-      for (int i = 0; i < 4; i++) {
-        if (i != winner) {
-          totalPipsRound += currentRound!.hands[i].fold(
-            0,
-            (sum, t) => sum + t.score,
-          );
+      if (mode == ScoringMode.sixLove) {
+        // Six-Love: Winner gets 1 point, everyone else resets to 0
+        scores[winner]++;
+        // Game Bruk: If all players now have a score > 0, reset all points to 0.
+        if (scores.every((s) => s > 0)) {
+          for (int i = 0; i < scores.length; i++) scores[i] = 0;
         }
+      } else {
+        // Winner gets sum of all OTHER players' pips
+        int totalPipsRound = 0;
+        for (int i = 0; i < 4; i++) {
+          if (i != winner) {
+            totalPipsRound += currentRound!.hands[i].fold(
+              0,
+              (sum, t) => sum + t.score,
+            );
+          }
+        }
+        scores[winner] += totalPipsRound;
       }
-      scores[winner] += totalPipsRound;
     }
 
     roundNumber++;
@@ -633,6 +680,7 @@ class MatchModel {
       'roundNumber': roundNumber,
       'targetScore': targetScore,
       'nextStarter': nextStarter,
+      'mode': mode.name,
     };
   }
 
@@ -647,6 +695,10 @@ class MatchModel {
     }
     match.roundNumber = json['roundNumber'] ?? 1;
     match.nextStarter = json['nextStarter'] ?? 0;
+    match.mode = ScoringMode.values.firstWhere(
+      (m) => m.name == (json['mode'] ?? 'points100'),
+      orElse: () => ScoringMode.points100,
+    );
     return match;
   }
 }
