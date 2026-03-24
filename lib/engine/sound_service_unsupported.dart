@@ -1,7 +1,8 @@
 import 'sound_service_base.dart';
 
 class UnsupportedSoundService implements SoundService {
-  static final UnsupportedSoundService _instance = UnsupportedSoundService._internal();
+  static final UnsupportedSoundService _instance =
+      UnsupportedSoundService._internal();
   factory UnsupportedSoundService() => _instance;
   UnsupportedSoundService._internal();
 

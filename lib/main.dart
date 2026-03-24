@@ -63,6 +63,10 @@ class GameController extends ChangeNotifier {
   int _lifetimeMatchLosses = 0;
   // Index 0: Human, 1-3: AIs. Tracks total matches won by 6-0.
   List<int> _lifetimeDishCounts = [0, 0, 0, 0];
+  // Running Champion points based on Jail system
+  List<int> _lifetimeSocialPoints = [0, 0, 0, 0];
+  List<int>? _lastMatchSocialAdjustments;
+  bool _isEliteJailerMatch = false;
   bool _matchStatsSaved = false;
   bool _isSetupComplete = false;
 
@@ -83,12 +87,16 @@ class GameController extends ChangeNotifier {
   int get lifetimeMatchWins => _lifetimeMatchWins;
   int get lifetimeMatchLosses => _lifetimeMatchLosses;
   List<int> get lifetimeDishCounts => _lifetimeDishCounts;
+  List<int> get lifetimeSocialPoints => _lifetimeSocialPoints;
+  List<int>? get lastMatchSocialAdjustments => _lastMatchSocialAdjustments;
+  bool get isEliteJailerMatch => _isEliteJailerMatch;
 
   int get sixLoveChampionIndex {
     int maxDishes = _lifetimeDishCounts.reduce(math.max);
     if (maxDishes == 0) return -1;
     return _lifetimeDishCounts.indexOf(maxDishes);
   }
+
   bool get isMatchStarted =>
       _match.scores.any((s) => s > 0) ||
       (_match.currentRound?.board.isNotEmpty ?? false);
@@ -102,10 +110,15 @@ class GameController extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       _lifetimeMatchWins = prefs.getInt('lifetime_match_wins') ?? 0;
       _lifetimeMatchLosses = prefs.getInt('lifetime_match_losses') ?? 0;
-      
+
       final dishCountsJson = prefs.getString('lifetime_dish_counts');
       if (dishCountsJson != null) {
         _lifetimeDishCounts = List<int>.from(jsonDecode(dishCountsJson));
+      }
+
+      final socialPointsJson = prefs.getString('lifetime_social_points');
+      if (socialPointsJson != null) {
+        _lifetimeSocialPoints = List<int>.from(jsonDecode(socialPointsJson));
       }
     } catch (e) {
       debugPrint("Error loading lifetime stats: $e");
@@ -117,9 +130,15 @@ class GameController extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt('lifetime_match_wins', _lifetimeMatchWins);
       await prefs.setInt('lifetime_match_losses', _lifetimeMatchLosses);
-      await prefs.setString('lifetime_dish_counts', jsonEncode(_lifetimeDishCounts));
-    } catch (e) {
-          }
+      await prefs.setString(
+        'lifetime_dish_counts',
+        jsonEncode(_lifetimeDishCounts),
+      );
+      await prefs.setString(
+        'lifetime_social_points',
+        jsonEncode(_lifetimeSocialPoints),
+      );
+    } catch (e) {}
   }
 
   Future<void> _initMatch() async {
@@ -265,8 +284,9 @@ class GameController extends ChangeNotifier {
     if (game == null ||
         game!.isGameOver ||
         game!.currentPlayer != 0 ||
-        _isAiThinking)
+        _isAiThinking) {
       return;
+    }
 
     bool canPlayLeft = game!.board.isEmpty || tile.contains(game!.leftEnd!);
     bool canPlayRight = game!.board.isEmpty || tile.contains(game!.rightEnd!);
@@ -309,8 +329,9 @@ class GameController extends ChangeNotifier {
     if (game == null ||
         game!.isGameOver ||
         game!.currentPlayer != 0 ||
-        _isAiThinking)
+        _isAiThinking) {
       return;
+    }
 
     final action = PlayAction(tile, side, isFirstMove: game!.board.isEmpty);
     if (game != null) {
@@ -332,8 +353,9 @@ class GameController extends ChangeNotifier {
     if (game == null ||
         game!.isGameOver ||
         game!.currentPlayer != 0 ||
-        _isAiThinking)
+        _isAiThinking) {
       return;
+    }
 
     game!.applyAction(PassAction());
     _checkGameState();
@@ -367,12 +389,26 @@ class GameController extends ChangeNotifier {
               _lifetimeMatchLosses++;
             }
 
-            // Track Six-Love "Dish Outs"
-            if (_match.isSixLoveVictory) {
+            // Track Six-Love Social Points and Elite Jailer status
+            if (_match.mode == ScoringMode.sixLove) {
+              final socialResult = _match.calculateSocialPoints();
+              final adjustments = socialResult['adjustments'] as List<int>;
+              _lastMatchSocialAdjustments = adjustments;
+              _isEliteJailerMatch = socialResult['isEliteJailer'] as bool;
+
+              for (int i = 0; i < 4; i++) {
+                _lifetimeSocialPoints[i] += adjustments[i];
+              }
+
+              // In Six-Love mode, an ending match MUST have a winner and someone with 0.
+              // We increment dish counts for the winner.
               int winner = _match.matchWinner;
               if (winner != -1) {
                 _lifetimeDishCounts[winner]++;
               }
+            } else {
+              _lastMatchSocialAdjustments = null;
+              _isEliteJailerMatch = false;
             }
 
             _saveLifetimeStats();
@@ -435,8 +471,8 @@ class GameController extends ChangeNotifier {
   }
 
   Duration _getAiThinkingDuration() {
-    // Randomized thinking time between 2000ms and 4500ms
-    final ms = 2000 + math.Random().nextInt(2500);
+    // Randomized thinking time between 800ms and 2000ms
+    final ms = 800 + math.Random().nextInt(1200);
     return Duration(milliseconds: ms);
   }
 
@@ -451,7 +487,7 @@ class GameController extends ChangeNotifier {
     notifyListeners();
 
     // Natural delay before starting to "think"
-    await Future.delayed(const Duration(milliseconds: 600));
+    await Future.delayed(const Duration(milliseconds: 300));
 
     final thinkingDuration = _getAiThinkingDuration();
     final stopwatch = Stopwatch()..start();
@@ -472,7 +508,7 @@ class GameController extends ChangeNotifier {
       _knockingPlayerIndex = cp;
       SoundService().playSfx('assets/sounds/tile_knock.wav');
       notifyListeners();
-      await Future.delayed(const Duration(milliseconds: 1200));
+      await Future.delayed(const Duration(milliseconds: 800));
     }
 
     if (game != null) {
@@ -487,7 +523,7 @@ class GameController extends ChangeNotifier {
     }
 
     // Brief pause to allow the user to see the move before turn indicator shifts
-    await Future.delayed(const Duration(milliseconds: 1000));
+    await Future.delayed(const Duration(milliseconds: 600));
 
     _isAiThinking = false;
     _checkGameState();
@@ -584,15 +620,18 @@ class _GameScreenState extends State<GameScreen> {
     if (_lastBoardSize == null ||
         _lastTileRects == null ||
         _containerSize == Size.zero ||
-        !mounted) return;
+        !mounted) {
+      return;
+    }
 
     final boardOffset = Offset(
       (_containerSize.width - _lastBoardSize!.width) / 2,
       (_containerSize.height - _lastBoardSize!.height) / 2,
     );
 
-    final globalTiles =
-        _lastTileRects!.map((r) => r.shift(boardOffset)).toList();
+    final globalTiles = _lastTileRects!
+        .map((r) => r.shift(boardOffset))
+        .toList();
 
     // HUD size estimates: 72x80
     setState(() {
@@ -682,560 +721,777 @@ class _GameScreenState extends State<GameScreen> {
                 },
                 child: SafeArea(
                   child: Column(
-                  children: [
-                    // Game Board (Now taking full height)
-                    Expanded(
-                      child: Container(
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF2B5B32),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.white.withOpacity(0.05)),
-                  ),
-                  margin: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 0,
-                  ),
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      _containerSize = Size(constraints.maxWidth, constraints.maxHeight);
-                      return Stack(
-                        fit: StackFit.expand,
                     children: [
-                      // Match Controls Overlay (Top Right)
-                      Positioned(
-                        top: 8,
-                        right: 8,
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              tooltip: 'Restart Round',
-                              icon: const Icon(
-                                Icons.refresh,
-                                color: Colors.white54,
-                                size: 20,
-                              ),
-                              onPressed: controller.restartGame,
+                      // Game Board (Now taking full height)
+                      Expanded(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF2B5B32),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.05),
                             ),
-                            IconButton(
-                              tooltip: 'Reset Match',
-                              icon: const Icon(
-                                Icons.delete_forever,
-                                color: Colors.white24,
-                                size: 20,
-                              ),
-                              onPressed: () {
-                                showDialog(
-                                  context: context,
-                                  builder: (context) => AlertDialog(
-                                    title: const Text('Reset Match?'),
-                                    content: const Text(
-                                      'This will clear all scores and start a fresh match from zero.',
-                                    ),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () => Navigator.pop(context),
-                                        child: const Text('CANCEL'),
-                                      ),
-                                      TextButton(
-                                        onPressed: () {
-                                          controller.resetMatch();
-                                          Navigator.pop(context);
-                                        },
-                                        child: const Text(
-                                          'RESET',
-                                          style: TextStyle(color: Colors.red),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      // (Status Overlay removed - now per-player dots)
-                      Align(
-                        alignment: Alignment.bottomCenter,
-                        child: _EdgeScore(
-                          name: 'Hendy',
-                          tiles: game.hands[0].length,
-                          score: controller.match.scores[0],
-                          isActive: game.currentPlayer == 0,
-                          isKnocking: controller.knockingPlayerIndex == 0,
-                        ),
-                      ),
-                      AnimatedPositioned(
-                        duration: const Duration(milliseconds: 500),
-                        curve: Curves.easeOutCubic,
-                        left: 16,
-                        top: _containerSize.height / 2 - 40 + _edYOffset,
-                        child: _EdgeScore(
-                          name: 'Ed',
-                          tiles: game.hands[1].length,
-                          score: controller.match.scores[1],
-                          isActive: game.currentPlayer == 1,
-                          isKnocking: controller.knockingPlayerIndex == 1,
-                          isThinking: game.currentPlayer == 1,
-                        ),
-                      ),
-                      Align(
-                        alignment: Alignment.topCenter,
-                        child: _EdgeScore(
-                          name: 'Paul',
-                          tiles: game.hands[2].length,
-                          score: controller.match.scores[2],
-                          isActive: game.currentPlayer == 2,
-                          isKnocking: controller.knockingPlayerIndex == 2,
-                          isThinking: game.currentPlayer == 2,
-                        ),
-                      ),
-                      AnimatedPositioned(
-                        duration: const Duration(milliseconds: 500),
-                        curve: Curves.easeOutCubic,
-                        right: 16,
-                        top: _containerSize.height / 2 - 40 + _timYOffset,
-                        child: _EdgeScore(
-                          name: 'Tim',
-                          tiles: game.hands[3].length,
-                          score: controller.match.scores[3],
-                          isActive: game.currentPlayer == 3,
-                          isKnocking: controller.knockingPlayerIndex == 3,
-                          isThinking: game.currentPlayer == 3,
-                        ),
-                      ),
-
-                      // Interactive Board Content
-                      Center(
-                        child: game.board.isEmpty
-                            ? (game.currentPlayer == 0
-                                  ? const Text(
-                                      'Tap a tile to start',
-                                      style: TextStyle(
-                                        fontSize: 18.0,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    )
-                                  : Text(
-                                      '${playerNames[game.currentPlayer]} is starting...',
-                                    ))
-                            : Stack(
+                          ),
+                          margin: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 0,
+                          ),
+                          child: LayoutBuilder(
+                            builder: (context, constraints) {
+                              _containerSize = Size(
+                                constraints.maxWidth,
+                                constraints.maxHeight,
+                              );
+                              return Stack(
+                                fit: StackFit.expand,
                                 children: [
-                                  // Curved Watermark
-                                  Center(
-                                    child: Opacity(
-                                      opacity: 0.1,
-                                      child: _CurvedText(
-                                        text: "HELP HENDY WIN",
-                                        style: GoogleFonts.outfit(
-                                          fontSize: 32,
-                                          fontWeight: FontWeight.w900,
-                                          color: Colors.white,
-                                          letterSpacing: 2,
-                                        ),
-                                        radius: 100,
-                                      ),
-                                    ),
-                                  ),
-                                  InteractiveViewer(
-                                    boundaryMargin: const EdgeInsets.all(1000),
-                                    minScale: 0.1,
-                                    maxScale: 2.0,
-                                    child: LayoutBuilder(
-                                      builder: (context, constraints) {
-                                        return SnakingBoard(
-                                          board: game.board,
-                                          rootIndex: game.rootIndex,
-                                          maxWidth: constraints.maxWidth,
-                                          isSelectingSide:
-                                              controller.selectedTile != null,
-                                          onSelectSide: controller.confirmPlay,
-                                          onLayoutCalculated:
-                                              _handleBoardLayoutCalculated,
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                ],
-                              ),
-                      ),
-
-                      // Status Overlay (Top Center)
-                      if (controller.topOverlayMessage != null)
-                        Align(
-                          alignment: Alignment.topCenter,
-                          child: Padding(
-                            padding: const EdgeInsets.only(top: 16.0),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 8,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.black.withOpacity(0.6),
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                  color: const Color(
-                                    0xFF2BEE4B,
-                                  ).withOpacity(0.5),
-                                ),
-                              ),
-                              child: Text(
-                                controller.topOverlayMessage!,
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF2BEE4B),
-                                  letterSpacing: 1.2,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-
-                      // Status Overlay (Bottom Center) - For Wins/Losses only now
-                      if (controller.bottomOverlayMessage != null &&
-                          !controller.showNextRoundButton &&
-                          controller.bottomOverlayMessage != "..game over") ...[
-                        Align(
-                          alignment: Alignment.bottomCenter,
-                          child: Padding(
-                            padding: const EdgeInsets.only(bottom: 16.0),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 8,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.black.withOpacity(0.6),
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                  color: const Color(
-                                    0xFF2BEE4B,
-                                  ).withOpacity(0.5),
-                                ),
-                              ),
-                              child: Text(
-                                controller.bottomOverlayMessage!,
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF2BEE4B),
-                                  letterSpacing: 1.2,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-
-
-                      // Game Over Modal (Idea B)
-                      if (game.isGameOver && controller.showNextRoundButton)
-                        Positioned.fill(
-                          child: Container(
-                            color: Colors.black.withOpacity(0.7),
-                            child: Center(
-                              child: Container(
-                                constraints: const BoxConstraints(
-                                  maxWidth: 360,
-                                ),
-                                margin: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 24,
-                                ),
-                                padding: const EdgeInsets.all(24),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF1E1E1E),
-                                  borderRadius: BorderRadius.circular(24),
-                                  border: Border.all(
-                                    color: controller.match.isMatchOver
-                                        ? (controller.match.matchWinner == 0
-                                              ? const Color(0xFF2BEE4B)
-                                              : Colors.red)
-                                        : const Color(
-                                            0xFF2BEE4B,
-                                          ).withOpacity(0.5),
-                                    width: 2,
-                                  ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withValues(
-                                        alpha: 0.5,
-                                      ),
-                                      blurRadius: 20,
-                                      offset: const Offset(0, 10),
-                                    ),
-                                  ],
-                                ),
-                                child: SingleChildScrollView(
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        controller.bottomOverlayMessage ??
-                                            'Game Over',
-                                        style: TextStyle(
-                                          fontSize: 24,
-                                          fontWeight: FontWeight.bold,
-                                          color:
-                                              controller.match.isMatchOver &&
-                                                  controller
-                                                          .match
-                                                          .matchWinner !=
-                                                      0
-                                              ? Colors.red
-                                              : const Color(0xFF2BEE4B),
-                                        ),
-                                        textAlign: TextAlign.center,
-                                      ),
-                                      if (controller.scoringMode != ScoringMode.sixLove) ...[
-                                        const SizedBox(height: 16),
-                                        const Text(
-                                          'LIFETIME MATCH RECORD',
-                                          style: TextStyle(
-                                            fontSize: 10,
+                                  // Match Controls Overlay (Top Right)
+                                  Positioned(
+                                    top: 8,
+                                    right: 8,
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        IconButton(
+                                          tooltip: 'Restart Round',
+                                          icon: const Icon(
+                                            Icons.refresh,
                                             color: Colors.white54,
-                                            fontWeight: FontWeight.bold,
-                                            letterSpacing: 2,
+                                            size: 20,
                                           ),
+                                          onPressed: controller.restartGame,
                                         ),
-                                        const SizedBox(height: 8),
-                                        Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            Expanded(
-                                              child: _StatBox(
-                                                label: 'WINS',
-                                                value:
-                                                    controller.lifetimeMatchWins,
-                                                color: const Color(0xFF2BEE4B),
-                                              ),
-                                            ),
-                                            const SizedBox(width: 8),
-                                            Expanded(
-                                              child: _StatBox(
-                                                label: 'LOSSES',
-                                                value: controller
-                                                    .lifetimeMatchLosses,
-                                                color: Colors.orange,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ] else ...[
-                                        const SizedBox(height: 16),
-                                        _ChampionStatus(
-                                          championIndex: controller.sixLoveChampionIndex,
-                                          dishCounts: controller.lifetimeDishCounts,
-                                          playerNames: playerNames,
-                                        ),
-                                      ],
-                                      if (controller.scoringMode == ScoringMode.sixLove) ...[
-                                        const SizedBox(height: 24),
-                                        const Text(
-                                          'SIX-LOVE LEADERBOARD (DISHES)',
-                                          style: TextStyle(
-                                            fontSize: 10,
-                                            color: Colors.white54,
-                                            fontWeight: FontWeight.bold,
-                                            letterSpacing: 2,
+                                        IconButton(
+                                          tooltip: 'Reset Match',
+                                          icon: const Icon(
+                                            Icons.delete_forever,
+                                            color: Colors.white24,
+                                            size: 20,
                                           ),
-                                        ),
-                                        const SizedBox(height: 12),
-                                        Container(
-                                          decoration: BoxDecoration(
-                                            color: Colors.black26,
-                                            borderRadius: BorderRadius.circular(12),
-                                          ),
-                                          child: Column(
-                                            children: List.generate(4, (index) {
-                                              final count = controller.lifetimeDishCounts[index];
-                                              final isChamp = controller.sixLoveChampionIndex == index;
-                                              return Container(
-                                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                                decoration: BoxDecoration(
-                                                  border: index < 3 ? Border(bottom: BorderSide(color: Colors.white10)) : null,
+                                          onPressed: () {
+                                            showDialog(
+                                              context: context,
+                                              builder: (context) => AlertDialog(
+                                                title: const Text(
+                                                  'Reset Match?',
                                                 ),
-                                                child: Row(
-                                                  children: [
-                                                    Text(
-                                                      isChamp ? '👑' : '${index + 1}.',
-                                                      style: const TextStyle(fontSize: 14),
-                                                    ),
-                                                    const SizedBox(width: 12),
-                                                    Text(
-                                                      playerNames[index],
+                                                content: const Text(
+                                                  'This will clear all scores and start a fresh match from zero.',
+                                                ),
+                                                actions: [
+                                                  TextButton(
+                                                    onPressed: () =>
+                                                        Navigator.pop(context),
+                                                    child: const Text('CANCEL'),
+                                                  ),
+                                                  TextButton(
+                                                    onPressed: () {
+                                                      controller.resetMatch();
+                                                      Navigator.pop(context);
+                                                    },
+                                                    child: const Text(
+                                                      'RESET',
                                                       style: TextStyle(
-                                                        color: isChamp ? const Color(0xFF2BEE4B) : Colors.white70,
-                                                        fontWeight: isChamp ? FontWeight.bold : FontWeight.normal,
+                                                        color: Colors.red,
                                                       ),
                                                     ),
-                                                    const Spacer(),
-                                                    Text(
-                                                      '$count',
+                                                  ),
+                                                ],
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+
+                                  // (Status Overlay removed - now per-player dots)
+                                  Align(
+                                    alignment: Alignment.bottomCenter,
+                                    child: _EdgeScore(
+                                      name: 'Hendy',
+                                      tiles: game.hands[0].length,
+                                      score: controller.match.scores[0],
+                                      isActive: game.currentPlayer == 0,
+                                      isKnocking:
+                                          controller.knockingPlayerIndex == 0,
+                                    ),
+                                  ),
+                                  AnimatedPositioned(
+                                    duration: const Duration(milliseconds: 500),
+                                    curve: Curves.easeOutCubic,
+                                    left: 16,
+                                    top:
+                                        _containerSize.height / 2 -
+                                        40 +
+                                        _edYOffset,
+                                    child: _EdgeScore(
+                                      name: 'Ed',
+                                      tiles: game.hands[1].length,
+                                      score: controller.match.scores[1],
+                                      isActive: game.currentPlayer == 1,
+                                      isKnocking:
+                                          controller.knockingPlayerIndex == 1,
+                                      isThinking: game.currentPlayer == 1,
+                                    ),
+                                  ),
+                                  Align(
+                                    alignment: Alignment.topCenter,
+                                    child: _EdgeScore(
+                                      name: 'Paul',
+                                      tiles: game.hands[2].length,
+                                      score: controller.match.scores[2],
+                                      isActive: game.currentPlayer == 2,
+                                      isKnocking:
+                                          controller.knockingPlayerIndex == 2,
+                                      isThinking: game.currentPlayer == 2,
+                                    ),
+                                  ),
+                                  AnimatedPositioned(
+                                    duration: const Duration(milliseconds: 500),
+                                    curve: Curves.easeOutCubic,
+                                    right: 16,
+                                    top:
+                                        _containerSize.height / 2 -
+                                        40 +
+                                        _timYOffset,
+                                    child: _EdgeScore(
+                                      name: 'Tim',
+                                      tiles: game.hands[3].length,
+                                      score: controller.match.scores[3],
+                                      isActive: game.currentPlayer == 3,
+                                      isKnocking:
+                                          controller.knockingPlayerIndex == 3,
+                                      isThinking: game.currentPlayer == 3,
+                                    ),
+                                  ),
+
+                                  // Interactive Board Content
+                                  Center(
+                                    child: game.board.isEmpty
+                                        ? (game.currentPlayer == 0
+                                              ? const Text(
+                                                  'Tap a tile to start',
+                                                  style: TextStyle(
+                                                    fontSize: 18.0,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                )
+                                              : Text(
+                                                  '${playerNames[game.currentPlayer]} is starting...',
+                                                ))
+                                        : Stack(
+                                            children: [
+                                              // Curved Watermark
+                                              Center(
+                                                child: Opacity(
+                                                  opacity: 0.1,
+                                                  child: _CurvedText(
+                                                    text: "HELP HENDY WIN",
+                                                    style: GoogleFonts.outfit(
+                                                      fontSize: 32,
+                                                      fontWeight:
+                                                          FontWeight.w900,
+                                                      color: Colors.white,
+                                                      letterSpacing: 2,
+                                                    ),
+                                                    radius: 100,
+                                                  ),
+                                                ),
+                                              ),
+                                              InteractiveViewer(
+                                                boundaryMargin:
+                                                    const EdgeInsets.all(1000),
+                                                minScale: 0.1,
+                                                maxScale: 2.0,
+                                                child: LayoutBuilder(
+                                                  builder: (context, constraints) {
+                                                    return SnakingBoard(
+                                                      board: game.board,
+                                                      rootIndex: game.rootIndex,
+                                                      maxWidth:
+                                                          constraints.maxWidth,
+                                                      isSelectingSide:
+                                                          controller
+                                                              .selectedTile !=
+                                                          null,
+                                                      onSelectSide: controller
+                                                          .confirmPlay,
+                                                      onLayoutCalculated:
+                                                          _handleBoardLayoutCalculated,
+                                                    );
+                                                  },
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                  ),
+
+                                  // Status Overlay (Top Center)
+                                  if (controller.topOverlayMessage != null)
+                                    Align(
+                                      alignment: Alignment.topCenter,
+                                      child: Padding(
+                                        padding: const EdgeInsets.only(
+                                          top: 16.0,
+                                        ),
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 16,
+                                            vertical: 8,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Colors.black.withOpacity(
+                                              0.6,
+                                            ),
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
+                                            border: Border.all(
+                                              color: const Color(
+                                                0xFF2BEE4B,
+                                              ).withOpacity(0.5),
+                                            ),
+                                          ),
+                                          child: Text(
+                                            controller.topOverlayMessage!,
+                                            style: const TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.bold,
+                                              color: Color(0xFF2BEE4B),
+                                              letterSpacing: 1.2,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+
+                                  // Status Overlay (Bottom Center) - For Wins/Losses only now
+                                  if (controller.bottomOverlayMessage != null &&
+                                      !controller.showNextRoundButton &&
+                                      controller.bottomOverlayMessage !=
+                                          "..game over") ...[
+                                    Align(
+                                      alignment: Alignment.bottomCenter,
+                                      child: Padding(
+                                        padding: const EdgeInsets.only(
+                                          bottom: 16.0,
+                                        ),
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 16,
+                                            vertical: 8,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Colors.black.withOpacity(
+                                              0.6,
+                                            ),
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
+                                            border: Border.all(
+                                              color: const Color(
+                                                0xFF2BEE4B,
+                                              ).withOpacity(0.5),
+                                            ),
+                                          ),
+                                          child: Text(
+                                            controller.bottomOverlayMessage!,
+                                            style: const TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.bold,
+                                              color: Color(0xFF2BEE4B),
+                                              letterSpacing: 1.2,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+
+                                  // Game Over Modal (Idea B)
+                                  if (game.isGameOver &&
+                                      controller.showNextRoundButton)
+                                    Positioned.fill(
+                                      child: Container(
+                                        color: Colors.black.withOpacity(0.7),
+                                        child: Center(
+                                          child: Container(
+                                            constraints: const BoxConstraints(
+                                              maxWidth: 360,
+                                            ),
+                                            margin: const EdgeInsets.symmetric(
+                                              horizontal: 16,
+                                              vertical: 24,
+                                            ),
+                                            padding: const EdgeInsets.all(16),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFF1E1E1E),
+                                              borderRadius:
+                                                  BorderRadius.circular(20),
+                                              border: Border.all(
+                                                color:
+                                                    controller.match.isMatchOver
+                                                    ? (controller
+                                                                  .match
+                                                                  .matchWinner ==
+                                                              0
+                                                          ? const Color(
+                                                              0xFF2BEE4B,
+                                                            )
+                                                          : Colors.red)
+                                                    : const Color(
+                                                        0xFF2BEE4B,
+                                                      ).withOpacity(0.5),
+                                                width: 2,
+                                              ),
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: Colors.black
+                                                      .withValues(alpha: 0.5),
+                                                  blurRadius: 20,
+                                                  offset: const Offset(0, 10),
+                                                ),
+                                              ],
+                                            ),
+                                            child: SingleChildScrollView(
+                                              child: Column(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Text(
+                                                    controller
+                                                            .bottomOverlayMessage ??
+                                                        'Game Over',
+                                                    style: TextStyle(
+                                                      fontSize: 24,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      color:
+                                                          controller
+                                                                  .match
+                                                                  .isMatchOver &&
+                                                              controller
+                                                                      .match
+                                                                      .matchWinner !=
+                                                                  0
+                                                          ? Colors.red
+                                                          : const Color(
+                                                              0xFF2BEE4B,
+                                                            ),
+                                                    ),
+                                                    textAlign: TextAlign.center,
+                                                  ),
+                                                  if (controller.scoringMode !=
+                                                      ScoringMode.sixLove) ...[
+                                                    const SizedBox(height: 16),
+                                                    const Text(
+                                                      'LIFETIME MATCH RECORD',
                                                       style: TextStyle(
-                                                        color: isChamp ? const Color(0xFF2BEE4B) : Colors.white,
-                                                        fontWeight: FontWeight.bold,
+                                                        fontSize: 10,
+                                                        color: Colors.white54,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        letterSpacing: 2,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(height: 8),
+                                                    Row(
+                                                      mainAxisAlignment:
+                                                          MainAxisAlignment
+                                                              .center,
+                                                      children: [
+                                                        Expanded(
+                                                          child: _StatBox(
+                                                            label: 'WINS',
+                                                            value: controller
+                                                                .lifetimeMatchWins,
+                                                            color: const Color(
+                                                              0xFF2BEE4B,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                        const SizedBox(
+                                                          width: 8,
+                                                        ),
+                                                        Expanded(
+                                                          child: _StatBox(
+                                                            label: 'LOSSES',
+                                                            value: controller
+                                                                .lifetimeMatchLosses,
+                                                            color:
+                                                                Colors.orange,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ] else ...[
+                                                    const SizedBox(height: 12),
+                                                    _ChampionStatus(
+                                                      championIndex: controller
+                                                          .sixLoveChampionIndex,
+                                                      dishCounts: controller
+                                                          .lifetimeDishCounts,
+                                                      socialPoints: controller
+                                                          .lifetimeSocialPoints,
+                                                      playerNames: playerNames,
+                                                    ),
+                                                  ],
+                                                  if (controller.scoringMode ==
+                                                      ScoringMode.sixLove) ...[
+                                                    const SizedBox(height: 16),
+                                                    Text(
+                                                      'RUNNING CHAMPION STANDINGS',
+                                                      style: TextStyle(
+                                                        fontSize: 10,
+                                                        color: const Color(0xFF2BEE4B)
+                                                            .withValues(
+                                                               alpha: 0.7,
+                                                              ),
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        letterSpacing: 2,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(height: 8),
+                                                    Container(
+                                                      decoration: BoxDecoration(
+                                                        color: Colors.black26,
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              12,
+                                                            ),
+                                                      ),
+                                                      child: Column(
+                                                        children: List.generate(4, (
+                                                          index,
+                                                        ) {
+                                                          final points = controller
+                                                              .lifetimeSocialPoints[index];
+                                                          final dishes = controller
+                                                              .lifetimeDishCounts[index];
+                                                          final isChamp =
+                                                              controller
+                                                                  .sixLoveChampionIndex ==
+                                                              index;
+                                                          final adjustment =
+                                                              controller
+                                                                  .lastMatchSocialAdjustments?[index];
+                                                          final wasWinner =
+                                                              controller
+                                                                  .match
+                                                                  .matchWinner ==
+                                                              index;
+
+                                                          return Container(
+                                                            padding:
+                                                                const EdgeInsets.symmetric(
+                                                                  horizontal:
+                                                                      16,
+                                                                  vertical: 6,
+                                                                ),
+                                                            decoration: BoxDecoration(
+                                                              border: index < 3
+                                                                  ? Border(
+                                                                      bottom: BorderSide(
+                                                                        color: Colors
+                                                                            .white10,
+                                                                      ),
+                                                                    )
+                                                                  : null,
+                                                            ),
+                                                            child: Row(
+                                                              children: [
+                                                                Text(
+                                                                  isChamp
+                                                                      ? '👑'
+                                                                      : '${index + 1}.',
+                                                                  style:
+                                                                      const TextStyle(
+                                                                        fontSize:
+                                                                            14,
+                                                                      ),
+                                                                ),
+                                                                const SizedBox(
+                                                                  width: 12,
+                                                                ),
+                                                                Column(
+                                                                  crossAxisAlignment:
+                                                                      CrossAxisAlignment
+                                                                          .start,
+                                                                  children: [
+                                                                    Row(
+                                                                      children: [
+                                                                        Text(
+                                                                          playerNames[index],
+                                                                          style: TextStyle(
+                                                                            color:
+                                                                                isChamp
+                                                                                ? const Color(
+                                                                                    0xFF2BEE4B,
+                                                                                  )
+                                                                                : Colors.white70,
+                                                                            fontWeight:
+                                                                                isChamp
+                                                                                ? FontWeight.bold
+                                                                                : FontWeight.normal,
+                                                                          ),
+                                                                        ),
+                                                                        if (wasWinner &&
+                                                                            controller.isEliteJailerMatch)
+                                                                          const Padding(
+                                                                            padding: EdgeInsets.only(
+                                                                              left: 4.0,
+                                                                            ),
+                                                                            child: Text(
+                                                                              '💎',
+                                                                              style: TextStyle(
+                                                                                fontSize: 12,
+                                                                              ),
+                                                                            ),
+                                                                          ),
+                                                                      ],
+                                                                    ),
+                                                                    if (adjustment !=
+                                                                        null)
+                                                                      Text(
+                                                                        adjustment >
+                                                                                0
+                                                                            ? '+$adjustment points'
+                                                                            : '$adjustment points',
+                                                                        style: TextStyle(
+                                                                          fontSize:
+                                                                              9,
+                                                                          color:
+                                                                              adjustment >
+                                                                                  0
+                                                                              ? const Color(
+                                                                                  0xFF2BEE4B,
+                                                                                ).withOpacity(
+                                                                                  0.7,
+                                                                                )
+                                                                              : Colors.red.withOpacity(0.7),
+                                                                          fontWeight:
+                                                                              FontWeight.bold,
+                                                                        ),
+                                                                      ),
+                                                                  ],
+                                                                ),
+                                                                const Spacer(),
+                                                                Column(
+                                                                  crossAxisAlignment:
+                                                                      CrossAxisAlignment
+                                                                          .end,
+                                                                  children: [
+                                                                    Text(
+                                                                      '$points pts',
+                                                                      style: TextStyle(
+                                                                        color:
+                                                                            isChamp
+                                                                            ? const Color(
+                                                                                0xFF2BEE4B,
+                                                                              )
+                                                                            : Colors.white,
+                                                                        fontWeight:
+                                                                            FontWeight.bold,
+                                                                      ),
+                                                                    ),
+                                                                    Text(
+                                                                      '$dishes Dishes',
+                                                                      style: const TextStyle(
+                                                                        fontSize:
+                                                                            9,
+                                                                        color: Colors
+                                                                            .white38,
+                                                                      ),
+                                                                    ),
+                                                                  ],
+                                                                ),
+                                                              ],
+                                                            ),
+                                                          );
+                                                        }),
                                                       ),
                                                     ),
                                                   ],
-                                                ),
-                                              );
-                                            }),
-                                          ),
-                                        ),
-                                      ],
-                                      const SizedBox(height: 24),
-                                      SizedBox(
-                                        width: double.infinity,
-                                        child: ElevatedButton.icon(
-                                          icon: Icon(
-                                            controller.match.isMatchOver
-                                                ? Icons.replay
-                                                : Icons.play_arrow,
-                                          ),
-                                          label: Text(
-                                            controller.match.isMatchOver
-                                                ? 'START NEW MATCH'
-                                                : 'PLAY NEXT ROUND',
-                                          ),
-                                          onPressed: controller.restartGame,
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: const Color(
-                                              0xFF2BEE4B,
-                                            ),
-                                            foregroundColor: Colors.black,
-                                            padding: const EdgeInsets.symmetric(
-                                              vertical: 16,
-                                            ),
-                                            textStyle: const TextStyle(
-                                              inherit: false,
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.bold,
+                                                  const SizedBox(height: 24),
+                                                  SizedBox(
+                                                    width: double.infinity,
+                                                    child: ElevatedButton.icon(
+                                                      icon: Icon(
+                                                        controller
+                                                                .match
+                                                                .isMatchOver
+                                                            ? Icons.replay
+                                                            : Icons.play_arrow,
+                                                      ),
+                                                      label: Text(
+                                                        controller
+                                                                .match
+                                                                .isMatchOver
+                                                            ? 'START NEW MATCH'
+                                                            : 'PLAY NEXT ROUND',
+                                                      ),
+                                                      onPressed: controller
+                                                          .restartGame,
+                                                      style: ElevatedButton.styleFrom(
+                                                        backgroundColor:
+                                                            const Color(
+                                                              0xFF2BEE4B,
+                                                            ),
+                                                        foregroundColor:
+                                                            Colors.black,
+                                                        padding:
+                                                            const EdgeInsets.symmetric(
+                                                              vertical: 12,
+                                                            ),
+                                                        textStyle:
+                                                            const TextStyle(
+                                                              inherit: false,
+                                                              fontSize: 18,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .bold,
+                                                            ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
                                             ),
                                           ),
                                         ),
                                       ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
+                                    ),
+                                ],
+                              );
+                            },
                           ),
                         ),
-                      ],
-                    );
-                  },
-                ),
-              ),
-            ),
-
-            // Control Area (Ends)
-            if (game.board.isNotEmpty &&
-                  controller.statusMessage == "Your Turn" &&
-                  controller.selectedTile == null)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [const Text('Tap a tile in your hand to play')],
-                  ),
-                ),
-
-              if (controller.selectedTile != null)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text(
-                        'Tap a ',
-                        style: TextStyle(color: Colors.white70),
                       ),
-                      const Text(
-                        'glowing end',
-                        style: TextStyle(
-                          color: Color(0xFF2BEE4B),
-                          fontWeight: FontWeight.bold,
+
+                      // Control Area (Ends)
+                      if (game.board.isNotEmpty &&
+                          controller.statusMessage == "Your Turn" &&
+                          controller.selectedTile == null)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8.0),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Text('Tap a tile in your hand to play'),
+                            ],
+                          ),
                         ),
-                      ),
-                      const Text(
-                        ' on the board to play',
-                        style: TextStyle(color: Colors.white70),
+
+                      if (controller.selectedTile != null)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8.0),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Text(
+                                'Tap a ',
+                                style: TextStyle(color: Colors.white70),
+                              ),
+                              const Text(
+                                'glowing end',
+                                style: TextStyle(
+                                  color: Color(0xFF2BEE4B),
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const Text(
+                                ' on the board to play',
+                                style: TextStyle(color: Colors.white70),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                      // Player Hand (Vertical Rack)
+                      Builder(
+                        builder: (context) {
+                          final screenWidth = MediaQuery.of(context).size.width;
+                          final availableWidth = screenWidth - 32;
+                          double tileScale = (availableWidth / 422).clamp(
+                            0.5,
+                            1.0,
+                          );
+
+                          return SizedBox(
+                            height: 102 * tileScale + 18,
+                            child: SingleChildScrollView(
+                              controller: _scrollController,
+                              scrollDirection: Axis.horizontal,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
+                              child: (controller.knockingPlayerIndex == 0)
+                                  ? ImageFiltered(
+                                      imageFilter: ImageFilter.blur(
+                                        sigmaX: 5,
+                                        sigmaY: 5,
+                                      ),
+                                      child: AnimatedOpacity(
+                                        duration: const Duration(
+                                          milliseconds: 300,
+                                        ),
+                                        opacity: 0.3,
+                                        child: _buildHandRow(
+                                          game,
+                                          controller,
+                                          tileScale,
+                                        ),
+                                      ),
+                                    )
+                                  : AnimatedOpacity(
+                                      duration: const Duration(
+                                        milliseconds: 300,
+                                      ),
+                                      opacity:
+                                          controller.knockingPlayerIndex == 0
+                                          ? 0.3
+                                          : 1.0,
+                                      child: _buildHandRow(
+                                        game,
+                                        controller,
+                                        tileScale,
+                                      ),
+                                    ),
+                            ),
+                          );
+                        },
                       ),
                     ],
                   ),
                 ),
-
-              // Player Hand (Vertical Rack)
-              Builder(
-                builder: (context) {
-                  final screenWidth = MediaQuery.of(context).size.width;
-                  final availableWidth = screenWidth - 32;
-                  double tileScale = (availableWidth / 422).clamp(0.5, 1.0);
-
-                  return SizedBox(
-                    height: 102 * tileScale + 18,
-                    child: SingleChildScrollView(
-                      controller: _scrollController,
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      child: (controller.knockingPlayerIndex == 0)
-                          ? ImageFiltered(
-                              imageFilter:
-                                  ImageFilter.blur(sigmaX: 5, sigmaY: 5),
-                              child: AnimatedOpacity(
-                                duration: const Duration(milliseconds: 300),
-                                opacity: 0.3,
-                                child: _buildHandRow(
-                                    game, controller, tileScale),
-                              ),
-                            )
-                          : AnimatedOpacity(
-                              duration: const Duration(milliseconds: 300),
-                              opacity: controller.knockingPlayerIndex == 0
-                                  ? 0.3
-                                  : 1.0,
-                              child: _buildHandRow(
-                                  game, controller, tileScale),
-                            ),
-                    ),
-                  );
-                },
               ),
-            ],
-          ),
-        ),
       ),
-    ),
     );
   }
 
   Widget _buildHandRow(
-      GameModel game, GameController controller, double tileScale) {
+    GameModel game,
+    GameController controller,
+    double tileScale,
+  ) {
     return Row(
       children: game.hands[0].asMap().entries.map((entry) {
         final index = entry.key;
         final tile = entry.value;
-        final isPlayable = !game.isGameOver &&
+        final isPlayable =
+            !game.isGameOver &&
             game.currentPlayer == 0 &&
             (game.board.isEmpty ||
                 tile.contains(game.leftEnd!) ||
                 tile.contains(game.rightEnd!));
 
         return Padding(
-          padding: EdgeInsets.only(
-            right: 12.0 * tileScale,
-          ),
+          padding: EdgeInsets.only(right: 12.0 * tileScale),
           child: GestureDetector(
-            onTap: game.isGameOver ||
+            onTap:
+                game.isGameOver ||
                     !isPlayable ||
                     controller.knockingPlayerIndex == 0
                 ? null
@@ -1301,14 +1557,14 @@ class DominoTileWidget extends StatelessWidget {
             border: isSelected
                 ? Border.all(color: const Color(0xFF2BEE4B), width: 4 * scale)
                 : isHighlight
-                    ? Border.all(
-                        color: const Color(0xFF2BEE4B).withOpacity(0.5),
-                        width: 2 * scale,
-                      )
-                    : Border.all(
-                        color: const Color(0xFF9CA3AF).withOpacity(0.4),
-                        width: 1.5 * scale,
-                      ),
+                ? Border.all(
+                    color: const Color(0xFF2BEE4B).withOpacity(0.5),
+                    width: 2 * scale,
+                  )
+                : Border.all(
+                    color: const Color(0xFF9CA3AF).withOpacity(0.4),
+                    width: 1.5 * scale,
+                  ),
             borderRadius: BorderRadius.circular(6 * scale),
             boxShadow: [
               if (isSelected)
@@ -1438,7 +1694,6 @@ class _Pips extends StatelessWidget {
     );
   }
 }
-
 
 class _PipsPainter extends CustomPainter {
   final int count;
@@ -1588,12 +1843,14 @@ class SnakingBoard extends StatelessWidget {
 
       if (rightDirection == 1) {
         if (rightCursorX + (isDouble ? vWidth : hWidth) >
-            maxWidth / 2 - turnClearance)
+            maxWidth / 2 - turnClearance) {
           turnNow = true;
+        }
       } else {
         if (rightCursorX - (isDouble ? vWidth : hWidth) <
-            -maxWidth / 2 + turnClearance)
+            -maxWidth / 2 + turnClearance) {
           turnNow = true;
+        }
       }
 
       if (turnNow) {
@@ -1660,12 +1917,14 @@ class SnakingBoard extends StatelessWidget {
 
       if (leftDirection == -1) {
         if (leftCursorX - (isDouble ? vWidth : hWidth) <
-            -maxWidth / 2 + turnClearance)
+            -maxWidth / 2 + turnClearance) {
           turnNow = true;
+        }
       } else {
         if (leftCursorX + (isDouble ? vWidth : hWidth) >
-            maxWidth / 2 - turnClearance)
+            maxWidth / 2 - turnClearance) {
           turnNow = true;
+        }
       }
 
       if (turnNow) {
@@ -1861,7 +2120,6 @@ class _EdgeScore extends StatefulWidget {
   final bool isThinking;
 
   const _EdgeScore({
-    super.key,
     required this.name,
     required this.tiles,
     required this.score,
@@ -1874,8 +2132,7 @@ class _EdgeScore extends StatefulWidget {
   State<_EdgeScore> createState() => _EdgeScoreState();
 }
 
-class _EdgeScoreState extends State<_EdgeScore>
-    with TickerProviderStateMixin {
+class _EdgeScoreState extends State<_EdgeScore> with TickerProviderStateMixin {
   late AnimationController _knockingController;
   late AnimationController _pulseController;
   late Animation<double> _scaleAnimation;
@@ -1893,11 +2150,13 @@ class _EdgeScoreState extends State<_EdgeScore>
       duration: const Duration(milliseconds: 1000),
     );
 
-    _scaleAnimation = TweenSequence<double>([
-      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.2), weight: 50),
-      TweenSequenceItem(tween: Tween(begin: 1.2, end: 1.0), weight: 50),
-    ]).animate(
-        CurvedAnimation(parent: _knockingController, curve: Curves.easeInOut));
+    _scaleAnimation =
+        TweenSequence<double>([
+          TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.2), weight: 50),
+          TweenSequenceItem(tween: Tween(begin: 1.2, end: 1.0), weight: 50),
+        ]).animate(
+          CurvedAnimation(parent: _knockingController, curve: Curves.easeInOut),
+        );
 
     _pulseAnimation = Tween<double>(begin: 0.4, end: 1.0).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
@@ -1983,14 +2242,10 @@ class _EdgeScoreState extends State<_EdgeScore>
                     padding: const EdgeInsets.only(left: 4.0),
                     child: Tooltip(
                       message: 'Six-Love Champion',
-                      child: Text(
-                        '👑',
-                        style: TextStyle(fontSize: 12),
-                      ),
+                      child: Text('👑', style: TextStyle(fontSize: 12)),
                     ),
                   ),
-                if (widget.isThinking)
-                  const _ThinkingDots(),
+                if (widget.isThinking) const _ThinkingDots(),
               ],
             ),
             const SizedBox(height: 2),
@@ -2082,11 +2337,13 @@ class _ThinkingDotsState extends State<_ThinkingDots>
 class _ChampionStatus extends StatelessWidget {
   final int championIndex;
   final List<int> dishCounts;
+  final List<int> socialPoints;
   final List<String> playerNames;
 
   const _ChampionStatus({
     required this.championIndex,
     required this.dishCounts,
+    required this.socialPoints,
     required this.playerNames,
   });
 
@@ -2118,61 +2375,73 @@ class _ChampionStatus extends StatelessWidget {
       if (maxDishes > 0) {
         title = 'TOP CONTENDER';
         name = playerNames[topIndex].toUpperCase();
-        subtext = '$maxDishes Dishes Given 🔥';
+        subtext = '$maxDishes Dishes Given • ${socialPoints[topIndex]} Points';
         accentColor = Colors.orange;
         icon = '⚔️';
       } else {
-        title = 'CHAMPIONSHIP VACANT';
-        name = 'NO CHAMPION';
-        subtext = 'Win 6-0 to claim the crown!';
-        accentColor = Colors.white24;
-        icon = '⚪';
+        // Use social points if no dishes yet
+        int maxPoints = -1000;
+        int topSocialIndex = -1;
+        for (int i = 0; i < socialPoints.length; i++) {
+          if (socialPoints[i] > maxPoints) {
+            maxPoints = socialPoints[i];
+            topSocialIndex = i;
+          }
+        }
+
+        if (maxPoints > 0) {
+          title = 'RISING STAR';
+          name = playerNames[topSocialIndex].toUpperCase();
+          subtext = 'Leading with $maxPoints social points';
+          accentColor = Colors.cyanAccent;
+          icon = '⭐';
+        } else {
+          title = 'CHAMPIONSHIP VACANT';
+          name = 'NO CHAMPION';
+          subtext = 'Win 6-0 to claim the crown!';
+          accentColor = Colors.white24;
+          icon = '⚪';
+        }
       }
     }
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.black26,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: accentColor.withOpacity(0.3),
-          width: 2,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.black26,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: accentColor.withOpacity(0.3), width: 2),
         ),
-      ),
-      child: Column(
-        children: [
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 10,
-              color: accentColor.withOpacity(0.7),
-              fontWeight: FontWeight.bold,
-              letterSpacing: 2,
+        child: Column(
+          children: [
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 10,
+                color: accentColor.withOpacity(0.7),
+                fontWeight: FontWeight.bold,
+                letterSpacing: 2,
+              ),
             ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                icon,
-                style: const TextStyle(fontSize: 24),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                name,
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w900,
-                  color: championIndex != -1 ? accentColor : Colors.white,
-                  letterSpacing: 1.5,
+            const SizedBox(height: 4),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(icon, style: const TextStyle(fontSize: 20)),
+                const SizedBox(width: 8),
+                Text(
+                  name,
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                    color: championIndex != -1 ? accentColor : Colors.white,
+                    letterSpacing: 1.2,
+                  ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
+              ],
+            ),
+            const SizedBox(height: 4),
           Text(
             subtext,
             style: const TextStyle(
@@ -2192,7 +2461,6 @@ class _StatBox extends StatelessWidget {
   final int value;
   final Color color;
   const _StatBox({
-    super.key,
     required this.label,
     required this.value,
     required this.color,
@@ -2233,7 +2501,6 @@ class _StatBox extends StatelessWidget {
     );
   }
 }
-
 
 class _CurvedText extends StatelessWidget {
   final String text;
@@ -2358,8 +2625,11 @@ class _MatchSetupViewState extends State<_MatchSetupView> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.settings_suggest,
-                size: 48, color: Color(0xFF2BEE4B)),
+            const Icon(
+              Icons.settings_suggest,
+              size: 48,
+              color: Color(0xFF2BEE4B),
+            ),
             const SizedBox(height: 16),
             const Text(
               'Match Setup',
@@ -2412,7 +2682,9 @@ class _MatchSetupViewState extends State<_MatchSetupView> {
               width: double.infinity,
               height: 56,
               child: ElevatedButton(
-                onPressed: _isInteractable ? widget.controller.startMatch : null,
+                onPressed: _isInteractable
+                    ? widget.controller.startMatch
+                    : null,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _isInteractable
                       ? const Color(0xFF2BEE4B)
@@ -2446,7 +2718,9 @@ class _ModeDescription extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final title = mode == ScoringMode.points100 ? 'Traditional Rules' : 'Jamaican "Six-Love"';
+    final title = mode == ScoringMode.points100
+        ? 'Traditional Rules'
+        : 'Jamaican "Six-Love"';
     final desc = mode == ScoringMode.points100
         ? 'Win by accumulating 100 points from opponent hands.'
         : 'First to 6 points wins. All scores reset (Game Bruk) if EVERY player wins at least 1 round.';

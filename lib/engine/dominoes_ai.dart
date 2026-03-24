@@ -2,7 +2,6 @@ import 'dart:math';
 import 'dart:isolate';
 import 'package:flutter/foundation.dart' show kIsWeb;
 
-
 /// Represents a single Domino tile.
 class DominoTile {
   final int end1;
@@ -522,7 +521,6 @@ class MCTSPlayer {
   }
 }
 
-
 /// Wrapper for Isolate computation to prevent UI freezing
 Future<Action> getBestActionAsync(
   GameModel state,
@@ -538,7 +536,9 @@ Future<Action> getBestActionAsync(
       }).timeout(const Duration(seconds: 10));
     } catch (e) {
       // Fallback to main thread if the worker hangs or fails
-      print('WASM AI Worker failed or timed out: $e. Falling back to main thread.');
+      print(
+        'WASM AI Worker failed or timed out: $e. Falling back to main thread.',
+      );
       MCTSPlayer ai = MCTSPlayer(playerId);
       return ai.getBestAction(state, timeLimitMs: timeLimitMs);
     }
@@ -569,32 +569,58 @@ class MatchModel {
   ScoringMode mode;
   GameModel? currentRound;
 
-  MatchModel({
-    this.targetScore = 100,
-    this.mode = ScoringMode.points100,
-  });
+  MatchModel({this.targetScore = 100, this.mode = ScoringMode.points100});
 
   bool get isMatchOver {
-    final int target = mode == ScoringMode.sixLove ? 6 : targetScore;
-    return scores.any((s) => s >= target);
+    if (mode == ScoringMode.sixLove) {
+      // Match only ends when winner reaches 6 AND at least one opponent remains with zero wins.
+      int winner = matchWinner;
+      if (winner == -1) return false;
+      // Someone must be at zero for the match to end
+      return scores.asMap().entries.any((e) => e.key != winner && e.value == 0);
+    }
+    return scores.any((s) => s >= targetScore);
   }
 
-  /// Returns true if the match winner won with a score of 6-0 in Six-Love mode.
-  bool get isSixLoveVictory {
+  /// Returns true if the match winner won with an "Elite Jailer" score of 6-0-0-0.
+  bool get isEliteJailer {
     if (mode != ScoringMode.sixLove) return false;
     int winner = matchWinner;
     if (winner == -1) return false;
     // Check if the winner has exactly 6 points and everyone else has 0
-    return scores[winner] == 6 && scores.every((s) => scores.indexOf(s) == winner || s == 0);
+    return scores[winner] == 6 &&
+        scores.asMap().entries.every((e) => e.key == winner || e.value == 0);
   }
 
   int get matchWinner {
     final int target = mode == ScoringMode.sixLove ? 6 : targetScore;
-    int maxScore = scores.reduce(max);
-    if (maxScore >= target) {
-      return scores.indexOf(maxScore);
+    for (int i = 0; i < scores.length; i++) {
+      if (scores[i] >= target) return i;
     }
     return -1;
+  }
+
+  /// Calculates social points for the "Running Champion" standings.
+  /// Returns a map of player index to point adjustments, and a flag for Elite Jailer.
+  Map<String, dynamic> calculateSocialPoints() {
+    List<int> adjustments = [0, 0, 0, 0];
+    int winner = matchWinner;
+    if (winner == -1) {
+      return {'adjustments': adjustments, 'isEliteJailer': false};
+    }
+
+    adjustments[winner] += 10;
+    bool allOthersZero = true;
+    for (int i = 0; i < 4; i++) {
+      if (i == winner) continue;
+      if (scores[i] == 0) {
+        adjustments[i] -= 5;
+      } else {
+        adjustments[i] += 2;
+        allOthersZero = false;
+      }
+    }
+    return {'adjustments': adjustments, 'isEliteJailer': allOthersZero};
   }
 
   void startNewRound(int roundStarterOverride, {bool isFirstHand = false}) {
@@ -643,11 +669,14 @@ class MatchModel {
 
     if (winner != -1) {
       if (mode == ScoringMode.sixLove) {
-        // Six-Love: Winner gets 1 point, everyone else resets to 0
+        // Six-Love: Winner gets 1 win point.
         scores[winner]++;
-        // Game Bruk: If all players now have a score > 0, reset all points to 0.
-        if (scores.every((s) => s > 0)) {
-          for (int i = 0; i < scores.length; i++) scores[i] = 0;
+        // The Reset (Game Bruk): If all players now have > 0 wins,
+        // AND no one has hit 6 yet, reset all to zero.
+        if (scores.every((s) => s > 0) && scores.every((s) => s < 6)) {
+          for (int i = 0; i < scores.length; i++) {
+            scores[i] = 0;
+          }
         }
       } else {
         // Winner gets sum of all OTHER players' pips
