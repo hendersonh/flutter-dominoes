@@ -470,9 +470,12 @@ class GameController extends ChangeNotifier {
     }
   }
 
-  Duration _getAiThinkingDuration() {
-    // Randomized thinking time between 800ms and 2000ms
-    final ms = 800 + math.Random().nextInt(1200);
+  Duration _getAiThinkingDuration(int numOptions) {
+    if (numOptions == 0) return const Duration(milliseconds: 100);
+    if (numOptions == 1) return const Duration(milliseconds: 1000);
+
+    // Randomized thinking time for strategic moves (avg 3.1s)
+    final ms = 2500 + math.Random().nextInt(1200);
     return Duration(milliseconds: ms);
   }
 
@@ -481,18 +484,29 @@ class GameController extends ChangeNotifier {
       _isAiThinking = false;
       return;
     }
-    _isAiThinking = true;
+
     int cp = game!.currentPlayer;
+    final legalActions = game!.getLegalActions(cp);
+    final numPlayOptions = legalActions.whereType<PlayAction>().length;
+    final bool isKnock = numPlayOptions == 0;
+
+    // Determine specific delays for this turn
+    final int preDelayMs = isKnock ? 200 : 300;
+    final int postMoveDelayMs =
+        isKnock ? 300 : (numPlayOptions == 1 ? 700 : 600);
+    final int knockDelayMs = 400;
+
+    _isAiThinking = true;
     _statusMessage = "${playerNames[cp]} Thinking...";
     notifyListeners();
 
     // Natural delay before starting to "think"
-    await Future.delayed(const Duration(milliseconds: 300));
+    await Future.delayed(Duration(milliseconds: preDelayMs));
 
-    final thinkingDuration = _getAiThinkingDuration();
+    final thinkingDuration = _getAiThinkingDuration(numPlayOptions);
     final stopwatch = Stopwatch()..start();
 
-    // AI calculation (usually very fast)
+    // AI calculation (instant for 1 option, ~1s for multiple)
     final aiAction = await getBestActionAsync(game!, cp, 1000);
     final elapsed = stopwatch.elapsedMilliseconds;
 
@@ -508,7 +522,7 @@ class GameController extends ChangeNotifier {
       _knockingPlayerIndex = cp;
       SoundService().playSfx('assets/sounds/tile_knock.wav');
       notifyListeners();
-      await Future.delayed(const Duration(milliseconds: 800));
+      await Future.delayed(Duration(milliseconds: knockDelayMs));
     }
 
     if (game != null) {
@@ -523,7 +537,7 @@ class GameController extends ChangeNotifier {
     }
 
     // Brief pause to allow the user to see the move before turn indicator shifts
-    await Future.delayed(const Duration(milliseconds: 600));
+    await Future.delayed(Duration(milliseconds: postMoveDelayMs));
 
     _isAiThinking = false;
     _checkGameState();
@@ -1162,154 +1176,165 @@ class _GameScreenState extends State<GameScreen> {
                                                             ),
                                                       ),
                                                       child: Column(
-                                                        children: List.generate(4, (
-                                                          index,
-                                                        ) {
-                                                          final points = controller
-                                                              .lifetimeSocialPoints[index];
-                                                          final dishes = controller
-                                                              .lifetimeDishCounts[index];
-                                                          final isChamp =
+                                                        children: (() {
+                                                          final indices = List.generate(4, (i) => i);
+                                                          indices.sort((a, b) =>
                                                               controller
-                                                                  .sixLoveChampionIndex ==
-                                                              index;
-                                                          final adjustment =
-                                                              controller
-                                                                  .lastMatchSocialAdjustments?[index];
-                                                          final wasWinner =
-                                                              controller
-                                                                  .match
-                                                                  .matchWinner ==
-                                                              index;
+                                                                  .lifetimeSocialPoints[b]
+                                                                  .compareTo(
+                                                                controller
+                                                                    .lifetimeSocialPoints[a],
+                                                              ));
 
-                                                          return Container(
-                                                            padding:
-                                                                const EdgeInsets.symmetric(
-                                                                  horizontal:
-                                                                      16,
-                                                                  vertical: 6,
-                                                                ),
-                                                            decoration: BoxDecoration(
-                                                              border: index < 3
-                                                                  ? Border(
-                                                                      bottom: BorderSide(
-                                                                        color: Colors
-                                                                            .white10,
-                                                                      ),
-                                                                    )
-                                                                  : null,
-                                                            ),
-                                                            child: Row(
-                                                              children: [
-                                                                Text(
-                                                                  isChamp
-                                                                      ? '👑'
-                                                                      : '${index + 1}.',
-                                                                  style:
-                                                                      const TextStyle(
-                                                                        fontSize:
-                                                                            14,
-                                                                      ),
-                                                                ),
-                                                                const SizedBox(
-                                                                  width: 12,
-                                                                ),
-                                                                Column(
-                                                                  crossAxisAlignment:
-                                                                      CrossAxisAlignment
-                                                                          .start,
-                                                                  children: [
-                                                                    Row(
-                                                                      children: [
-                                                                        Text(
-                                                                          playerNames[index],
-                                                                          style: TextStyle(
-                                                                            color:
-                                                                                isChamp
-                                                                                ? const Color(
-                                                                                    0xFF2BEE4B,
-                                                                                  )
-                                                                                : Colors.white70,
-                                                                            fontWeight:
-                                                                                isChamp
-                                                                                ? FontWeight.bold
-                                                                                : FontWeight.normal,
-                                                                          ),
+                                                          return indices.asMap().entries.map((entry) {
+                                                            final pos = entry.key; // 0-based rank
+                                                            final index = entry.value; // Original player index
+                                                            final points = controller
+                                                                .lifetimeSocialPoints[index];
+                                                            final dishes = controller
+                                                                .lifetimeDishCounts[index];
+                                                            final isChamp =
+                                                                controller
+                                                                    .sixLoveChampionIndex ==
+                                                                index;
+                                                            final adjustment =
+                                                                controller
+                                                                    .lastMatchSocialAdjustments?[index];
+                                                            final wasWinner =
+                                                                controller
+                                                                    .match
+                                                                    .matchWinner ==
+                                                                index;
+
+                                                            return Container(
+                                                              padding:
+                                                                  const EdgeInsets.symmetric(
+                                                                    horizontal:
+                                                                        16,
+                                                                    vertical: 6,
+                                                                  ),
+                                                              decoration: BoxDecoration(
+                                                                border: pos < 3
+                                                                    ? Border(
+                                                                        bottom: BorderSide(
+                                                                          color: Colors
+                                                                              .white10,
                                                                         ),
-                                                                        if (wasWinner &&
-                                                                            controller.isEliteJailerMatch)
-                                                                          const Padding(
-                                                                            padding: EdgeInsets.only(
-                                                                              left: 4.0,
+                                                                      )
+                                                                    : null,
+                                                              ),
+                                                              child: Row(
+                                                                children: [
+                                                                  Text(
+                                                                    isChamp
+                                                                        ? '👑'
+                                                                        : '${pos + 1}.',
+                                                                    style:
+                                                                        const TextStyle(
+                                                                          fontSize:
+                                                                              14,
+                                                                        ),
+                                                                  ),
+                                                                  const SizedBox(
+                                                                    width: 12,
+                                                                  ),
+                                                                  Column(
+                                                                    crossAxisAlignment:
+                                                                        CrossAxisAlignment
+                                                                            .start,
+                                                                    children: [
+                                                                      Row(
+                                                                        children: [
+                                                                          Text(
+                                                                            playerNames[index],
+                                                                            style: TextStyle(
+                                                                              color:
+                                                                                  isChamp
+                                                                                  ? const Color(
+                                                                                      0xFF2BEE4B,
+                                                                                    )
+                                                                                  : Colors.white70,
+                                                                              fontWeight:
+                                                                                  isChamp
+                                                                                  ? FontWeight.bold
+                                                                                  : FontWeight.normal,
                                                                             ),
-                                                                            child: Text(
-                                                                              '💎',
-                                                                              style: TextStyle(
-                                                                                fontSize: 12,
+                                                                          ),
+                                                                          if (wasWinner &&
+                                                                              controller.isEliteJailerMatch)
+                                                                            const Padding(
+                                                                              padding: EdgeInsets.only(
+                                                                                left: 4.0,
+                                                                              ),
+                                                                              child: Text(
+                                                                                '💎',
+                                                                                style: TextStyle(
+                                                                                  fontSize: 12,
+                                                                                ),
                                                                               ),
                                                                             ),
-                                                                          ),
-                                                                      ],
-                                                                    ),
-                                                                    if (adjustment !=
-                                                                        null)
-                                                                      Text(
-                                                                        adjustment >
-                                                                                0
-                                                                            ? '+$adjustment points'
-                                                                            : '$adjustment points',
-                                                                        style: TextStyle(
-                                                                          fontSize:
-                                                                              9,
-                                                                          color:
-                                                                              adjustment >
+                                                                        ],
+                                                                      ),
+                                                                      if (adjustment !=
+                                                                          null)
+                                                                        Text(
+                                                                          adjustment >
                                                                                   0
+                                                                              ? '+$adjustment points'
+                                                                              : '$adjustment points',
+                                                                          style: TextStyle(
+                                                                            fontSize:
+                                                                                9,
+                                                                            color:
+                                                                                adjustment >
+                                                                                    0
+                                                                                ? const Color(
+                                                                                    0xFF2BEE4B,
+                                                                                  ).withOpacity(
+                                                                                    0.7,
+                                                                                  )
+                                                                                : Colors.red.withOpacity(0.7),
+                                                                            fontWeight:
+                                                                                FontWeight.bold,
+                                                                          ),
+                                                                        ),
+                                                                    ],
+                                                                  ),
+                                                                  const Spacer(),
+                                                                  Column(
+                                                                    crossAxisAlignment:
+                                                                        CrossAxisAlignment
+                                                                            .end,
+                                                                    children: [
+                                                                      Text(
+                                                                        '$points pts',
+                                                                        style: TextStyle(
+                                                                          color:
+                                                                              isChamp
                                                                               ? const Color(
                                                                                   0xFF2BEE4B,
-                                                                                ).withOpacity(
-                                                                                  0.7,
                                                                                 )
-                                                                              : Colors.red.withOpacity(0.7),
+                                                                              : Colors.white,
                                                                           fontWeight:
                                                                               FontWeight.bold,
                                                                         ),
                                                                       ),
-                                                                  ],
-                                                                ),
-                                                                const Spacer(),
-                                                                Column(
-                                                                  crossAxisAlignment:
-                                                                      CrossAxisAlignment
-                                                                          .end,
-                                                                  children: [
-                                                                    Text(
-                                                                      '$points pts',
-                                                                      style: TextStyle(
-                                                                        color:
-                                                                            isChamp
-                                                                            ? const Color(
-                                                                                0xFF2BEE4B,
-                                                                              )
-                                                                            : Colors.white,
-                                                                        fontWeight:
-                                                                            FontWeight.bold,
+                                                                      Text(
+                                                                        '$dishes Dishes',
+                                                                        style: const TextStyle(
+                                                                          fontSize:
+                                                                              9,
+                                                                          color: Colors
+                                                                              .white38,
+                                                                        ),
                                                                       ),
-                                                                    ),
-                                                                    Text(
-                                                                      '$dishes Dishes',
-                                                                      style: const TextStyle(
-                                                                        fontSize:
-                                                                            9,
-                                                                        color: Colors
-                                                                            .white38,
-                                                                      ),
-                                                                    ),
-                                                                  ],
-                                                                ),
-                                                              ],
-                                                            ),
-                                                          );
-                                                        }),
+                                                                    ],
+                                                                  ),
+                                                                ],
+                                                              ),
+                                                            );
+                                                          }).toList();
+                                                        })(),
                                                       ),
                                                     ),
                                                   ],
