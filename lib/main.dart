@@ -70,6 +70,7 @@ class GameController extends ChangeNotifier {
   List<int> _lifetimeDishCounts = [0, 0, 0, 0];
   // Running Champion points based on Jail system
   List<int> _lifetimeSocialPoints = [0, 0, 0, 0];
+  DifficultyLevel _currentDifficulty = DifficultyLevel.professional;
   List<int>? _lastMatchSocialAdjustments;
   bool _isEliteJailerMatch = false;
   bool _matchStatsSaved = false;
@@ -127,6 +128,11 @@ class GameController extends ChangeNotifier {
       if (socialPointsJson != null) {
         _lifetimeSocialPoints = List<int>.from(jsonDecode(socialPointsJson));
       }
+
+      final difficultyIndex = prefs.getInt('current_difficulty_index');
+      if (difficultyIndex != null) {
+        _currentDifficulty = DifficultyLevel.values[difficultyIndex];
+      }
     } catch (e) {
       debugPrint("Error loading lifetime stats: $e");
     }
@@ -145,6 +151,7 @@ class GameController extends ChangeNotifier {
         'lifetime_social_points',
         jsonEncode(_lifetimeSocialPoints),
       );
+      await prefs.setInt('current_difficulty_index', _currentDifficulty.index);
     } catch (e) {}
   }
 
@@ -287,6 +294,17 @@ class GameController extends ChangeNotifier {
     _saveMatch();
     _updateStatusMessage();
     notifyListeners();
+  }
+
+  DifficultyLevel get currentDifficulty => _currentDifficulty;
+
+  void setDifficulty(DifficultyLevel level) {
+    if (_currentDifficulty == level) return;
+    _currentDifficulty = level;
+    _saveLifetimeStats();
+    _updateStatusMessage();
+    notifyListeners();
+    print("AI Difficulty set to: ${level.name}");
   }
 
   void selectTile(DominoTile tile) {
@@ -548,8 +566,8 @@ class GameController extends ChangeNotifier {
     final thinkingDuration = _getAiThinkingDuration(numPlayOptions);
     final stopwatch = Stopwatch()..start();
 
-    // AI calculation (instant for 1 option, ~1s for multiple)
-    final aiAction = await getBestActionAsync(game!, cp, 1000);
+    // AI calculation
+    final aiAction = await getBestActionAsync(game!, cp, 1000, _currentDifficulty);
     final elapsed = stopwatch.elapsedMilliseconds;
 
     // Wait for the remainder of the randomized thinking time
@@ -738,6 +756,172 @@ class _GameScreenState extends State<GameScreen> {
     return true;
   }
 
+  void _showSettingsModal(BuildContext context, GameController controller) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFF1E293B).withOpacity(0.95),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          border: Border.all(color: Colors.white10),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.5),
+              blurRadius: 40,
+              spreadRadius: 10,
+            )
+          ],
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.psychology, color: Color(0xFF2BEE4B), size: 28),
+                const SizedBox(width: 12),
+                Text(
+                  'AI DIFFICULTY',
+                  style: GoogleFonts.outfit(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.2,
+                    color: Colors.white,
+                  ),
+                ),
+                const Spacer(),
+                IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white54),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Adjust AI strategy in real-time. Changes apply to the next turn.',
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.6),
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 24),
+            _buildDifficultyOption(
+              context: context,
+              controller: controller,
+              level: DifficultyLevel.rookie,
+              title: 'ROOKIE',
+              description: 'Prone to mistakes. Prioritizes high-value tiles.',
+              icon: Icons.child_care,
+              color: Colors.blueAccent,
+            ),
+            const SizedBox(height: 12),
+            _buildDifficultyOption(
+              context: context,
+              controller: controller,
+              level: DifficultyLevel.professional,
+              title: 'PROFESSIONAL',
+              description: 'Balanced strategy with deep look-ahead.',
+              icon: Icons.workspace_premium,
+              color: const Color(0xFF2BEE4B),
+            ),
+            const SizedBox(height: 12),
+            // Greyed out placeholders for future levels
+            Opacity(
+              opacity: 0.4,
+              child: _buildDifficultyOption(
+                context: context,
+                controller: controller,
+                level: DifficultyLevel.legend,
+                title: 'LEGEND (COMMING SOON)',
+                description: 'Uncompromising grandmaster simulations.',
+                icon: Icons.bolt,
+                color: Colors.purpleAccent,
+                isLocked: true,
+              ),
+            ),
+            const SizedBox(height: 24),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDifficultyOption({
+    required BuildContext context,
+    required GameController controller,
+    required DifficultyLevel level,
+    required String title,
+    required String description,
+    required IconData icon,
+    required Color color,
+    bool isLocked = false,
+  }) {
+    final bool isSelected = controller.currentDifficulty == level;
+
+    return GestureDetector(
+      onTap: isLocked
+          ? null
+          : () {
+              controller.setDifficulty(level);
+              Navigator.pop(context);
+            },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? color.withOpacity(0.15)
+              : Colors.white.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isSelected ? color : Colors.white10,
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.2),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: color, size: 24),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: GoogleFonts.outfit(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: isSelected ? color : Colors.white,
+                    ),
+                  ),
+                  Text(
+                    description,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.white.withOpacity(0.5),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (isSelected)
+              const Icon(Icons.check_circle, color: Color(0xFF2BEE4B)),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final controller = context.watch<GameController>();
@@ -801,65 +985,7 @@ class _GameScreenState extends State<GameScreen> {
                               return Stack(
                                 fit: StackFit.expand,
                                 children: [
-                                  // Match Controls Overlay (Top Right)
-                                  Positioned(
-                                    top: 8,
-                                    right: 8,
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        IconButton(
-                                          tooltip: 'Restart Round',
-                                          icon: const Icon(
-                                            Icons.refresh,
-                                            color: Colors.white54,
-                                            size: 20,
-                                          ),
-                                          onPressed: controller.restartGame,
-                                        ),
-                                        IconButton(
-                                          tooltip: 'Reset Match',
-                                          icon: const Icon(
-                                            Icons.delete_forever,
-                                            color: Colors.white24,
-                                            size: 20,
-                                          ),
-                                          onPressed: () {
-                                            showDialog(
-                                              context: context,
-                                              builder: (context) => AlertDialog(
-                                                title: const Text(
-                                                  'Reset Match?',
-                                                ),
-                                                content: const Text(
-                                                  'This will clear all scores and start a fresh match from zero.',
-                                                ),
-                                                actions: [
-                                                  TextButton(
-                                                    onPressed: () =>
-                                                        Navigator.pop(context),
-                                                    child: const Text('CANCEL'),
-                                                  ),
-                                                  TextButton(
-                                                    onPressed: () {
-                                                      controller.resetMatch();
-                                                      Navigator.pop(context);
-                                                    },
-                                                    child: const Text(
-                                                      'RESET',
-                                                      style: TextStyle(
-                                                        color: Colors.red,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            );
-                                          },
-                                        ),
-                                      ],
-                                    ),
-                                  ),
+                                  // (Match Controls moved to end of Stack for Z-index)
 
                                   // (Status Overlay removed - now per-player dots)
                                   Align(
@@ -1430,7 +1556,74 @@ class _GameScreenState extends State<GameScreen> {
                                       ),
                                     ),
 
-                                  // Review Board Overlay
+                                   // Match Controls Overlay (Top Right - Highest Z-Index)
+                                   Positioned(
+                                     top: 8,
+                                     right: 8,
+                                     child: Row(
+                                       mainAxisSize: MainAxisSize.min,
+                                       children: [
+                                         IconButton(
+                                           padding: const EdgeInsets.all(12),
+                                           tooltip: 'Restart Round',
+                                           icon: const Icon(
+                                             Icons.refresh,
+                                             color: Colors.white70,
+                                             size: 24,
+                                           ),
+                                           onPressed: controller.restartGame,
+                                         ),
+                                         IconButton(
+                                           padding: const EdgeInsets.all(12),
+                                           tooltip: 'Reset Match',
+                                           icon: const Icon(
+                                             Icons.delete_forever,
+                                             color: Colors.white38,
+                                             size: 24,
+                                           ),
+                                           onPressed: () {
+                                             showDialog(
+                                               context: context,
+                                               builder: (context) => AlertDialog(
+                                                 title: const Text('Reset Match?'),
+                                                 content: const Text(
+                                                     'This will clear all scores and start a fresh match from zero.'),
+                                                 actions: [
+                                                   TextButton(
+                                                     onPressed: () =>
+                                                         Navigator.pop(context),
+                                                     child: const Text('CANCEL'),
+                                                   ),
+                                                   TextButton(
+                                                     onPressed: () {
+                                                       controller.resetMatch();
+                                                       Navigator.pop(context);
+                                                     },
+                                                     child: const Text('RESET',
+                                                         style: TextStyle(
+                                                             color: Colors.red)),
+                                                   ),
+                                                 ],
+                                               ),
+                                             );
+                                           },
+                                         ),
+                                         IconButton(
+                                           padding: const EdgeInsets.all(12),
+                                           tooltip: 'AI Settings',
+                                           icon: const Icon(
+                                             Icons.settings,
+                                             color: Colors.white70,
+                                             size: 24,
+                                           ),
+                                           onPressed: () =>
+                                               _showSettingsModal(context, controller),
+                                         ),
+                                       ],
+                                     ),
+                                   ),
+
+                                   // Review Board Overlay
                                   if (controller.showReviewBoard && !controller.showNextRoundButton)
                                     Positioned.fill(
                                       child: ReviewBoardOverlay(controller: controller),
@@ -3001,3 +3194,4 @@ class _MiniHand extends StatelessWidget {
     );
   }
 }
+

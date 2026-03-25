@@ -2,6 +2,8 @@ import 'dart:math';
 import 'dart:isolate';
 import 'package:flutter/foundation.dart' show kIsWeb;
 
+enum DifficultyLevel { rookie, casual, professional, legend }
+
 /// Represents a single Domino tile.
 class DominoTile {
   final int end1;
@@ -293,13 +295,12 @@ class MCTSNode {
   }
 }
 
-/// MCTS Player implementation
 class MCTSPlayer {
   final int playerId;
-  final int maxIterations;
+  final DifficultyLevel difficulty;
   final Random random = Random();
 
-  MCTSPlayer(this.playerId, {this.maxIterations = 10000});
+  MCTSPlayer(this.playerId, {this.difficulty = DifficultyLevel.professional});
 
   /// Determinization: Randomly assign unknown tiles to opponents respecting game history constraints
   GameModel determinize(GameModel state) {
@@ -389,11 +390,41 @@ class MCTSPlayer {
     List<Action> rootLegalActions = rootState.getLegalActions(playerId);
     if (rootLegalActions.length == 1) return rootLegalActions[0];
 
+    int effectiveTimeLimit = timeLimitMs;
+    
+    // Rookie level adjustments
+    if (difficulty == DifficultyLevel.rookie) {
+      // 30% chance for a 'Greedy mistake' on Rookie level
+      if (random.nextDouble() < 0.3) {
+        PlayAction? bestGreedy;
+        int maxScore = -1;
+        
+        for (var action in rootLegalActions) {
+          if (action is PlayAction) {
+            if (action.tile.score > maxScore) {
+              maxScore = action.tile.score;
+              bestGreedy = action;
+            }
+          }
+        }
+        
+        if (bestGreedy != null) {
+          print("AI [$playerId ROOKIE]: Choosing GREEDY MOVE $bestGreedy (Score: $maxScore) instead of MCTS.");
+          return bestGreedy;
+        }
+      }
+      
+      // If not doing a greedy move, just use very little time for MCTS
+      effectiveTimeLimit = 150; 
+    } else if (difficulty == DifficultyLevel.casual) {
+      effectiveTimeLimit = 500;
+    }
+
     MCTSNode rootNode = MCTSNode(player: (rootState.currentPlayer - 1 + 4) % 4);
     Stopwatch sw = Stopwatch()..start();
     int iterations = 0;
 
-    while (sw.elapsedMilliseconds < timeLimitMs) {
+    while (sw.elapsedMilliseconds < effectiveTimeLimit) {
       iterations++;
       // 1. Determinization
       GameModel state = determinize(rootState);
@@ -526,12 +557,13 @@ Future<Action> getBestActionAsync(
   GameModel state,
   int playerId,
   int timeLimitMs,
+  DifficultyLevel difficulty,
 ) async {
   if (kIsWeb) {
     try {
       // Attempt to run in a background worker with a 10s timeout
       return await Isolate.run(() {
-        MCTSPlayer ai = MCTSPlayer(playerId);
+        MCTSPlayer ai = MCTSPlayer(playerId, difficulty: difficulty);
         return ai.getBestAction(state, timeLimitMs: timeLimitMs);
       }).timeout(const Duration(seconds: 10));
     } catch (e) {
@@ -539,13 +571,13 @@ Future<Action> getBestActionAsync(
       print(
         'WASM AI Worker failed or timed out: $e. Falling back to main thread.',
       );
-      MCTSPlayer ai = MCTSPlayer(playerId);
+      MCTSPlayer ai = MCTSPlayer(playerId, difficulty: difficulty);
       return ai.getBestAction(state, timeLimitMs: timeLimitMs);
     }
   } else {
     // Mobile/Native uses standard isolates
     return await Isolate.run(() {
-      MCTSPlayer ai = MCTSPlayer(playerId);
+      MCTSPlayer ai = MCTSPlayer(playerId, difficulty: difficulty);
       return ai.getBestAction(state, timeLimitMs: timeLimitMs);
     });
   }
@@ -779,7 +811,9 @@ void main() async {
         print("\nP$cp (AI) is thinking...");
         Stopwatch stopwatch = Stopwatch()..start();
 
-        Action aiAction = await getBestActionAsync(game, cp, 1000);
+        // Alternate difficulty for simulation testing
+        DifficultyLevel diff = cp == 1 ? DifficultyLevel.rookie : DifficultyLevel.professional;
+        Action aiAction = await getBestActionAsync(game, cp, 1000, diff);
 
         stopwatch.stop();
         print(
