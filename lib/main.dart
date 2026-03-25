@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'dart:math' as math;
@@ -57,6 +58,10 @@ class GameController extends ChangeNotifier {
   bool _showNextRoundButton = false;
   bool _isFinishingRound = false;
 
+  bool _showReviewBoard = false;
+  int _reviewCountdown = 15;
+  Timer? _reviewTimer;
+
   DominoTile? _selectedTile;
 
   int _lifetimeMatchWins = 0;
@@ -82,6 +87,8 @@ class GameController extends ChangeNotifier {
   String? get bottomOverlayMessage => _bottomOverlayMessage;
   int? get knockingPlayerIndex => _knockingPlayerIndex;
   bool get showNextRoundButton => _showNextRoundButton;
+  bool get showReviewBoard => _showReviewBoard;
+  int get reviewCountdown => _reviewCountdown;
   bool get isInitialized => _match.currentRound != null;
   DominoTile? get selectedTile => _selectedTile;
   int get lifetimeMatchWins => _lifetimeMatchWins;
@@ -249,6 +256,8 @@ class GameController extends ChangeNotifier {
   }
 
   void _startNextRound() {
+    _showReviewBoard = false;
+    _reviewTimer?.cancel();
     _topOverlayMessage = null;
     _bottomOverlayMessage = null;
     _selectedTile = null;
@@ -322,6 +331,19 @@ class GameController extends ChangeNotifier {
     if (_selectedTile != null) {
       playTile(_selectedTile!, side);
       _selectedTile = null;
+    }
+  }
+
+  void skipReview() {
+    if (_showReviewBoard) {
+      _reviewTimer?.cancel();
+      _showReviewBoard = false;
+      if (_match.isMatchOver) {
+        _showNextRoundButton = true;
+      } else {
+        restartGame();
+      }
+      notifyListeners();
     }
   }
 
@@ -434,9 +456,29 @@ class GameController extends ChangeNotifier {
           }
         }
 
-        _showNextRoundButton = true;
+        _showNextRoundButton = false;
         _isFinishingRound = false;
+
+        // Start Review Phase
+        _showReviewBoard = true;
+        _reviewCountdown = 15;
         notifyListeners();
+
+        _reviewTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+          if (_reviewCountdown > 0) {
+            _reviewCountdown--;
+            notifyListeners();
+          } else {
+            timer.cancel();
+            _showReviewBoard = false;
+            if (_match.isMatchOver) {
+              _showNextRoundButton = true;
+            } else {
+              restartGame();
+            }
+            notifyListeners();
+          }
+        });
       });
     } else if (game != null) {
       if (game!.currentPlayer == 0) {
@@ -1386,6 +1428,12 @@ class _GameScreenState extends State<GameScreen> {
                                           ),
                                         ),
                                       ),
+                                    ),
+
+                                  // Review Board Overlay
+                                  if (controller.showReviewBoard && !controller.showNextRoundButton)
+                                    Positioned.fill(
+                                      child: ReviewBoardOverlay(controller: controller),
                                     ),
                                 ],
                               );
@@ -2771,6 +2819,182 @@ class _ModeDescription extends StatelessWidget {
           Text(
             desc,
             style: const TextStyle(fontSize: 12, color: Colors.white60),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class ReviewBoardOverlay extends StatelessWidget {
+  final GameController controller;
+
+  const ReviewBoardOverlay({super.key, required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    if (controller.game == null) return const SizedBox();
+    final game = controller.game!;
+
+    return Container(
+      color: Colors.black, // Fully opaque to hide the original board
+      child: SafeArea(
+        child: Column(
+          children: [
+            // Header
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'ROUND SUMMARY',
+                        style: TextStyle(
+                          color: Color(0xFF2BEE4B),
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 2,
+                        ),
+                      ),
+                      Text(
+                        'Next round starts in ${controller.reviewCountdown}s...',
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                  TextButton.icon(
+                    onPressed: controller.skipReview,
+                    icon: const Icon(Icons.skip_next, color: Colors.white),
+                    label: const Text(
+                      'SKIP',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                    style: TextButton.styleFrom(
+                      backgroundColor: Colors.white.withOpacity(0.1),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Main Content Area: North Player
+            _MiniHand(
+              name: playerNames[2],
+              tiles: game.hands[2],
+              position: 'North',
+            ),
+
+            // Middle Row: West Player | Board | East Player
+            Expanded(
+              child: Row(
+                children: [
+                  _MiniHand(
+                    name: playerNames[1],
+                    tiles: game.hands[1],
+                    position: 'West',
+                  ),
+                  Expanded(
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        return Center(
+                          child: IgnorePointer(
+                            child: SnakingBoard(
+                              board: game.board,
+                              rootIndex: game.rootIndex,
+                              maxWidth: constraints.maxWidth,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  _MiniHand(
+                    name: playerNames[3],
+                    tiles: game.hands[3],
+                    position: 'East',
+                  ),
+                ],
+              ),
+            ),
+
+            // Bottom Player (Human) info or extra space
+            Padding(
+              padding: const EdgeInsets.only(bottom: 20),
+              child: Text(
+                controller.statusMessage ?? '',
+                style: const TextStyle(
+                  color: Color(0xFF2BEE4B),
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MiniHand extends StatelessWidget {
+  final String name;
+  final List<DominoTile> tiles;
+  final String position;
+
+  const _MiniHand({
+    required this.name,
+    required this.tiles,
+    required this.position,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (tiles.isEmpty) return const SizedBox();
+    final bool isVertical = position == 'East' || position == 'West';
+
+    return Container(
+      margin: const EdgeInsets.all(8),
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Colors.black26,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.white10),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            name,
+            style: const TextStyle(
+              color: Colors.white54,
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Wrap(
+            direction: isVertical ? Axis.vertical : Axis.horizontal,
+            spacing: 4,
+            children: tiles.map((tile) {
+              return SizedBox(
+                width: 35, // Increased from 20 for optimal mobile fit
+                height: 70, // Increased from 40
+                child: Transform.scale(
+                  scale: 0.7, // Increased from 0.5 for better visibility
+                  child: DominoTileWidget(
+                    tile: tile,
+                    isVertical: true,
+                  ),
+                ),
+              );
+            }).toList(),
           ),
         ],
       ),
