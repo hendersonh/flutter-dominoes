@@ -10,7 +10,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'engine/sound_service.dart';
 import 'engine/audio_engine.dart';
-import 'engine/dominoes_ai.dart';
+import 'engine/dominoes_ai.dart' hide kIsWeb;
 
 const List<String> playerNames = ['Hendy', 'Ed', 'Paul', 'Tim'];
 
@@ -567,7 +567,15 @@ class GameController extends ChangeNotifier {
     final stopwatch = Stopwatch()..start();
 
     // AI calculation
-    final aiAction = await getBestActionAsync(game!, cp, 1000, _currentDifficulty);
+    final aiAction = await getBestActionAsync(
+      game!,
+      cp,
+      1000,
+      _currentDifficulty,
+      _match.scores,
+      _match.targetScore,
+      _match.mode,
+    );
     final elapsed = stopwatch.elapsedMilliseconds;
 
     // Wait for the remainder of the randomized thinking time
@@ -828,19 +836,14 @@ class _GameScreenState extends State<GameScreen> {
               color: const Color(0xFF2BEE4B),
             ),
             const SizedBox(height: 12),
-            // Greyed out placeholders for future levels
-            Opacity(
-              opacity: 0.4,
-              child: _buildDifficultyOption(
-                context: context,
-                controller: controller,
-                level: DifficultyLevel.legend,
-                title: 'LEGEND (COMMING SOON)',
-                description: 'Uncompromising grandmaster simulations.',
-                icon: Icons.bolt,
-                color: Colors.purpleAccent,
-                isLocked: true,
-              ),
+            _buildDifficultyOption(
+              context: context,
+              controller: controller,
+              level: DifficultyLevel.legend,
+              title: 'LEGEND',
+              description: 'Information Set MCTS with mode-aware rewards and probabilistic tile tracking.',
+              icon: Icons.local_fire_department,
+              color: Colors.orangeAccent,
             ),
             const SizedBox(height: 24),
           ],
@@ -2892,9 +2895,9 @@ class _MatchSetupViewState extends State<_MatchSetupView> {
           mainAxisSize: MainAxisSize.min,
           children: [
             const Icon(
-              Icons.settings_suggest,
+              Icons.local_fire_department,
               size: 48,
-              color: Color(0xFF2BEE4B),
+              color: Colors.orangeAccent,
             ),
             const SizedBox(height: 16),
             const Text(

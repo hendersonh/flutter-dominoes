@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'dart:isolate';
-import 'package:flutter/foundation.dart' show kIsWeb;
+// Use a pure Dart way to detect web, removing the dependency on package:flutter
+const bool kIsWeb = bool.fromEnvironment('dart.library.js_util');
 
 enum DifficultyLevel { rookie, casual, professional, legend }
 
