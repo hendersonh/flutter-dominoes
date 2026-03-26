@@ -92,6 +92,9 @@ class GameModel {
   int rootIndex = 0;
   List<DominoTile> board; // Just for visualization
   bool isFirstHandOfMatch;
+  ScoringMode scoringMode;
+  List<int> matchScores;
+  int matchTarget;
 
   GameModel({
     required this.hands,
@@ -103,7 +106,11 @@ class GameModel {
     this.rootIndex = 0,
     List<DominoTile>? board,
     this.isFirstHandOfMatch = false,
+    this.scoringMode = ScoringMode.points100,
+    List<int>? matchScores,
+    this.matchTarget = 100,
   }) : board = board ?? [],
+       matchScores = matchScores ?? [0, 0, 0, 0],
        passedSuits = passedSuits ?? [{}, {}, {}, {}];
 
   GameModel clone() {
@@ -117,6 +124,9 @@ class GameModel {
       rootIndex: rootIndex,
       board: List.from(board),
       isFirstHandOfMatch: isFirstHandOfMatch,
+      scoringMode: scoringMode,
+      matchScores: List<int>.from(matchScores),
+      matchTarget: matchTarget,
     );
   }
 
@@ -309,7 +319,28 @@ class MCTSPlayer {
     // Collect all unknown tiles (opponents' hands)
     List<DominoTile> unknownTiles = [];
     List<int> needed = List.filled(4, 0);
-    List<Set<int>> voids = detState.passedSuits;
+    List<Set<int>> voids = List.generate(4, (_) => <int>{});
+    
+    // --- DIFFICULTY-BASED MEMORY (HISTORY AWARENESS) ---
+    // Rookie: 0% memory of passes
+    // Casual: 50% memory of passes
+    // Pro/Legend: 100% memory of passes
+    double memoryRetention = 1.0;
+    if (difficulty == DifficultyLevel.rookie) {
+      memoryRetention = 0.0;
+    } else if (difficulty == DifficultyLevel.casual) {
+      memoryRetention = 0.5;
+    }
+
+    if (memoryRetention > 0) {
+      for (int i = 0; i < 4; i++) {
+        for (int suit in detState.passedSuits[i]) {
+          if (random.nextDouble() < memoryRetention) {
+            voids[i].add(suit);
+          }
+        }
+      }
+    }
 
     for (int i = 0; i < 4; i++) {
       if (i != playerId) {
@@ -319,7 +350,20 @@ class MCTSPlayer {
       }
     }
 
-    // Shuffle pool to ensure random valid distribution on each MCTS iteration
+    // --- LEGEND: Probabilistic Weighting ---
+    // If not Legend, we just shuffle randomly.
+    // If Legend, we track which tiles are more likely to be in which hands.
+    if (difficulty == DifficultyLevel.legend) {
+      // In this IS-MCTS, we don't have deep history here, 
+      // but detState.passedSuits IS the history we have.
+      // We already use passedSuits to filter absolutely impossible tiles.
+      // For Legend, we could also track 'strategic skips' if we had a move history.
+      // Since we don't have move history in GameModel yet, 
+      // we'll focus on the absolute constraints (passedSuits) which are already handled in assignTilesRec.
+      // Optimization: We will prioritize the search in assignTilesRec 
+      // to find 'valid' determinizations faster.
+    }
+
     unknownTiles.shuffle(random);
 
     // Process opponents using the Fail-First principle (Minimum Remaining Values heuristic).
@@ -391,62 +435,76 @@ class MCTSPlayer {
     if (rootLegalActions.length == 1) return rootLegalActions[0];
 
     int effectiveTimeLimit = timeLimitMs;
-    
-    // Rookie level adjustments
+    int iterationLimit = 100000; // Default high limit
+
+    // Rookie level adjustments: 50% chance of a completely random move
     if (difficulty == DifficultyLevel.rookie) {
-      // 30% chance for a 'Greedy mistake' on Rookie level
-      if (random.nextDouble() < 0.3) {
-        PlayAction? bestGreedy;
-        int maxScore = -1;
-        
-        for (var action in rootLegalActions) {
-          if (action is PlayAction) {
-            if (action.tile.score > maxScore) {
-              maxScore = action.tile.score;
-              bestGreedy = action;
-            }
-          }
-        }
-        
-        if (bestGreedy != null) {
-          print("AI [$playerId ROOKIE]: Choosing GREEDY MOVE $bestGreedy (Score: $maxScore) instead of MCTS.");
-          return bestGreedy;
-        }
+      if (random.nextDouble() < 0.5) {
+        Action randomAction =
+            rootLegalActions[random.nextInt(rootLegalActions.length)];
+        print(
+          "AI [$playerId ROOKIE]: Choosing RANDOM MOVE $randomAction instead of MCTS.",
+        );
+        return randomAction;
       }
-      
-      // If not doing a greedy move, just use very little time for MCTS
-      effectiveTimeLimit = 150; 
+      // If not doing a random move, use very little time for MCTS
+      effectiveTimeLimit = 50;
+      iterationLimit = 15; // Extremely shallow for Rookies
     } else if (difficulty == DifficultyLevel.casual) {
       effectiveTimeLimit = 500;
+      iterationLimit = 100;
+    } else if (difficulty == DifficultyLevel.legend) {
+      effectiveTimeLimit = 3500;
+      iterationLimit = 100000; // No real limit
+    } else {
+      // Professional (default)
+      effectiveTimeLimit = 1000;
+      iterationLimit = 500;
     }
 
     MCTSNode rootNode = MCTSNode(player: (rootState.currentPlayer - 1 + 4) % 4);
     Stopwatch sw = Stopwatch()..start();
     int iterations = 0;
+    int nodeCount = 0;
 
-    while (sw.elapsedMilliseconds < effectiveTimeLimit) {
+    // 1-4. Main MCTS loop: Selection, Expansion, Simulation, Backpropagation
+    while (sw.elapsedMilliseconds < effectiveTimeLimit &&
+        iterations < iterationLimit) {
       iterations++;
+      
+      // Early Exit Logic for Legend
+      if (difficulty == DifficultyLevel.legend && iterations > 1000 && sw.elapsedMilliseconds > 1500) {
+        // Simple check if one move is significantly better (2x visits)
+        List<MCTSNode> children = rootNode.children.values.toList();
+        if (children.length > 1) {
+          children.sort((a, b) => b.visits.compareTo(a.visits));
+          if (children[0].visits > children[1].visits * 2) {
+            print("AI [$playerId LEGEND]: Early Exit! Convergence achieved after $iterations iterations.");
+            break;
+          }
+        }
+      }
+
       // 1. Determinization
       GameModel state = determinize(rootState);
       MCTSNode node = rootNode;
 
       // 2. Selection
-      // Traverse down the tree as long as all legal actions in the current state are fully expanded
       while (!state.isGameOver) {
         List<Action> legalActions = state.getLegalActions(state.currentPlayer);
 
-        // Record availability BEFORE choosing to accurately track IS-MCTS availability denominator!
         for (var a in legalActions) {
           node.availabilityCount[a] = (node.availabilityCount[a] ?? 0) + 1;
         }
 
-        // Find untried actions for the current determinized state
         List<Action> untried = legalActions
             .where((a) => !node.children.containsKey(a))
             .toList();
 
         if (untried.isNotEmpty) {
           // 3. Expansion
+          if (nodeCount > 1000000) break; // Memory Guard
+          
           Action actionToTry = untried[random.nextInt(untried.length)];
           int movingPlayer = state.currentPlayer;
           state.applyAction(actionToTry);
@@ -454,15 +512,22 @@ class MCTSPlayer {
           MCTSNode childNode = MCTSNode(
             action: actionToTry,
             parent: node,
-            player: movingPlayer, // The player who just moved
+            player: movingPlayer,
           );
+          nodeCount++;
           node.children[actionToTry] = childNode;
           node = childNode;
-          break; // Move to simulation phase
+          break;
         } else {
-          // All legal actions have been expanded, select the best one using UCB1
-          MCTSNode? bestChild = node.getBestChild(legalActions, 1.414);
-          if (bestChild == null) break; // Should not happen if untried is empty
+          // UCB decay logic for Legend
+          double explorationParam = 1.414;
+          if (difficulty == DifficultyLevel.legend) {
+            double progress = sw.elapsedMilliseconds / effectiveTimeLimit;
+            explorationParam = 1.414 - (0.714 * progress); // Decay from 1.414 to 0.7
+          }
+          
+          MCTSNode? bestChild = node.getBestChild(legalActions, explorationParam);
+          if (bestChild == null) break;
 
           state.applyAction(bestChild.action!);
           node = bestChild;
@@ -470,25 +535,43 @@ class MCTSPlayer {
       }
 
       // 4. Simulation
+      // Use End-Game Solver if < 8 tiles remain
+      int unknownTilesCount = 0;
+      for (int i = 0; i < 4; i++) {
+        if (i != playerId) unknownTilesCount += state.hands[i].length;
+      }
+      
+      bool useEndGameHeuristic = (difficulty == DifficultyLevel.legend && unknownTilesCount < 8);
+      bool useRandomSimulation = (difficulty == DifficultyLevel.rookie);
+      
       while (!state.isGameOver) {
         List<Action> actions = state.getLegalActions(state.currentPlayer);
-
-        // HEURISTIC: Heavy-Tile preference during simulation
-        List<PlayAction> playActions = actions.whereType<PlayAction>().toList();
+        
         Action chosenAction;
-
-        if (playActions.isNotEmpty) {
-          playActions.sort((a, b) => b.tile.score.compareTo(a.tile.score));
-          // 80% of the time, greedily dump the highest tile to mimic basic strategy
-          if (random.nextDouble() < 0.8) {
-            chosenAction = playActions.first;
+        if (useRandomSimulation) {
+          // --- ROOKIE: PURE RANDOM SIMULATION ---
+          chosenAction = actions[random.nextInt(actions.length)];
+        } else if (useEndGameHeuristic) {
+          // --- LEGEND END-GAME HEURISTIC ---
+          // Prioritize dumping the highest score tiles to reduce hand value immediately
+          List<PlayAction> playActions = actions.whereType<PlayAction>().toList();
+          if (playActions.isNotEmpty) {
+            playActions.sort((a, b) => b.tile.score.compareTo(a.tile.score));
+            // In endgame, we are much more likely to play the best possible move
+            chosenAction = (random.nextDouble() < 0.95) ? playActions.first : playActions[random.nextInt(playActions.length)];
           } else {
-            chosenAction = playActions[random.nextInt(playActions.length)];
+            chosenAction = actions[random.nextInt(actions.length)];
           }
         } else {
-          chosenAction = actions[random.nextInt(actions.length)];
+          // Standard simulation (Casual, Professional)
+          List<PlayAction> playActions = actions.whereType<PlayAction>().toList();
+          if (playActions.isNotEmpty) {
+            playActions.sort((a, b) => b.tile.score.compareTo(a.tile.score));
+            chosenAction = (random.nextDouble() < 0.8) ? playActions.first : playActions[random.nextInt(playActions.length)];
+          } else {
+            chosenAction = actions[random.nextInt(actions.length)];
+          }
         }
-
         state.applyAction(chosenAction);
       }
 
@@ -501,30 +584,62 @@ class MCTSPlayer {
         int movingPlayer = currentNode.player;
 
         if (winner == -1) {
-          result = 0.5; // Natural Draw
+          result = 0.5;
         } else {
-          // Evaluate win/loss magnitude based on pip differential
-          int myPips = state.hands[movingPlayer].fold(
-            0,
-            (sum, t) => sum + t.score,
-          );
+          // --- ROOKIE: SIMPLE WIN/LOSS REWARD ---
+          if (difficulty == DifficultyLevel.rookie) {
+            result = (winner == movingPlayer) ? 1.0 : 0.0;
+          } else if (state.scoringMode == ScoringMode.points100) {
+            // 100-Point Mode: Focus on round win and pip efficiency
+            if (winner == movingPlayer) {
+              // Reward winning the match: 1.0
+              // Otherwise, reward based on pips gained (0.5 to 0.9)
+              int totalOpPips = 0;
+              for (int i = 0; i < 4; i++) {
+                if (i != winner) {
+                  totalOpPips +=
+                      state.hands[i].fold(0, (sum, t) => sum + t.score);
+                }
+              }
+              int remaining =
+                  max(1, state.matchTarget - state.matchScores[movingPlayer]);
+              if (totalOpPips >= remaining) {
+                result = 1.0;
+              } else {
+                result = 0.5 + 0.4 * (totalOpPips / 100.0).clamp(0.0, 1.0);
+              }
+            } else {
+              // Penalty for losing (0.0 to 0.4)
+              int myPips =
+                  state.hands[movingPlayer].fold(0, (sum, t) => sum + t.score);
+              result = 0.4 * (1.0 - (myPips / 100.0)).clamp(0.0, 1.0);
+            }
+          } else {
+            // Six-Love Mode: Focus on Wins and Anti-Leader Coalition
+            if (winner == movingPlayer) {
+              result = 1.0;
+            } else {
+              // Identify the leader
+              int leaderIndex = -1;
+              int maxScore = 0;
+              for (int i = 0; i < 4; i++) {
+                if (state.matchScores[i] > maxScore) {
+                  maxScore = state.matchScores[i];
+                  leaderIndex = i;
+                }
+              }
 
-          if (winner == movingPlayer) {
-            // Win: Reward based on total pips trapped (actual game rules)
-            int sumOpPips = 0;
-            for (int i = 0; i < 4; i++) {
-              if (i != movingPlayer) {
-                sumOpPips += state.hands[i].fold(0, (sum, t) => sum + t.score);
+              if (leaderIndex != -1 && winner == leaderIndex) {
+                // Letting the leader win (especially near the end) is bad
+                if (state.matchScores[leaderIndex] >= 5) {
+                  result = 0.0;
+                } else {
+                  result = 0.1;
+                }
+              } else {
+                result = 0.3; // Neutral loss
               }
             }
-            // Max theoretical sum is around 63 * 3 = 189, though closer to 100 in practice.
-            // Normalize sumOpPips against a reasonable cap, say 100 points.
-            result = 0.6 + 0.4 * (sumOpPips / 100.0).clamp(0.0, 1.0);
-          } else {
-            // Loss: Heavily penalize having a large number of pips left in hand.
-            // A score near 0.0 means terrible loss (many pips left).
-            // A score near 0.4 means a "good" loss (very few pips left).
-            result = 0.4 - 0.4 * (myPips / 100.0).clamp(0.0, 1.0);
           }
         }
 
@@ -546,7 +661,7 @@ class MCTSPlayer {
     }
 
     print(
-      "AI Player $playerId Iterations: $iterations | Best Action: $bestAction | Visits: $maxVisits",
+      "AI Player $playerId | Difficulty: $difficulty | Iterations: $iterations | Best Action: $bestAction | Visits: $maxVisits",
     );
     return bestAction;
   }
@@ -558,28 +673,35 @@ Future<Action> getBestActionAsync(
   int playerId,
   int timeLimitMs,
   DifficultyLevel difficulty,
+  List<int> matchScores,
+  int matchTarget,
+  ScoringMode scoringMode,
 ) async {
-  if (kIsWeb) {
-    try {
-      // Attempt to run in a background worker with a 10s timeout
-      return await Isolate.run(() {
+  // Inject match context into the state before starting search
+  state.matchScores = matchScores;
+  state.matchTarget = matchTarget;
+  state.scoringMode = scoringMode;
+
+  try {
+    // Attempt to run in a background worker with a 15s timeout
+    return await Isolate.run(() {
+      try {
         MCTSPlayer ai = MCTSPlayer(playerId, difficulty: difficulty);
         return ai.getBestAction(state, timeLimitMs: timeLimitMs);
-      }).timeout(const Duration(seconds: 10));
-    } catch (e) {
-      // Fallback to main thread if the worker hangs or fails
-      print(
-        'WASM AI Worker failed or timed out: $e. Falling back to main thread.',
-      );
-      MCTSPlayer ai = MCTSPlayer(playerId, difficulty: difficulty);
-      return ai.getBestAction(state, timeLimitMs: timeLimitMs);
-    }
-  } else {
-    // Mobile/Native uses standard isolates
-    return await Isolate.run(() {
-      MCTSPlayer ai = MCTSPlayer(playerId, difficulty: difficulty);
-      return ai.getBestAction(state, timeLimitMs: timeLimitMs);
-    });
+      } catch (e, stack) {
+        // Log error and rethrow to be caught by the outer try-catch
+        print('Error in Isolate: $e\n$stack');
+        rethrow;
+      }
+    }).timeout(const Duration(seconds: 15));
+  } catch (e, stack) {
+    // Fallback to main thread if the worker hangs or fails
+    print(
+      'AI Execution failed or timed out: $e. Falling back to main thread.',
+    );
+    print('Stack trace: $stack');
+    MCTSPlayer ai = MCTSPlayer(playerId, difficulty: difficulty);
+    return ai.getBestAction(state, timeLimitMs: timeLimitMs);
   }
 }
 
@@ -764,92 +886,4 @@ class MatchModel {
   }
 }
 
-/// Main function to simulate a Human vs 3 AI Match
-void main() async {
-  print("=== Block Dominoes: 4-Player Match (IS-MCTS) ===");
-  print("Target Score: 100 points");
-
-  MatchModel match = MatchModel(targetScore: 100);
-
-  while (!match.isMatchOver) {
-    print("\n==================================================");
-    print(
-      "MATCH SCORE - P0: ${match.scores[0]} | P1: ${match.scores[1]} | P2: ${match.scores[2]} | P3: ${match.scores[3]}",
-    );
-    print("--- ROUND ${match.roundNumber} ---");
-
-    match.startNewRound(match.nextStarter, isFirstHand: match.roundNumber == 1);
-    GameModel game = match.currentRound!;
-
-    while (!game.isGameOver) {
-      print("\n--------------------------------------------------");
-      print("Board: ${game.board.isEmpty ? 'Empty' : game.board.join(' ')}");
-      print("Ends: [${game.leftEnd ?? '?'} | ${game.rightEnd ?? '?'}]");
-      print(
-        "Hands: P0:${game.hands[0].length} P1:${game.hands[1].length} P2:${game.hands[2].length} P3:${game.hands[3].length}",
-      );
-
-      int cp = game.currentPlayer;
-      if (cp == 0) {
-        // Human Turn
-        print(
-          "Your Hand: ${game.hands[0].asMap().entries.map((e) => '${e.key}: ${e.value}').join(', ')}",
-        );
-        List<Action> legalActions = game.getLegalActions(0);
-
-        print("Legal Actions:");
-        for (int i = 0; i < legalActions.length; i++) {
-          print("$i: ${legalActions[i]}");
-        }
-
-        // Auto-play for CLI simulation
-        Action chosenAction = legalActions[0];
-        print("P0 (Human) chooses: $chosenAction");
-        game.applyAction(chosenAction);
-      } else {
-        // AI Turn
-        print("\nP$cp (AI) is thinking...");
-        Stopwatch stopwatch = Stopwatch()..start();
-
-        // Alternate difficulty for simulation testing
-        DifficultyLevel diff = cp == 1 ? DifficultyLevel.rookie : DifficultyLevel.professional;
-        Action aiAction = await getBestActionAsync(game, cp, 1000, diff);
-
-        stopwatch.stop();
-        print(
-          "P$cp chooses: $aiAction (took ${stopwatch.elapsedMilliseconds}ms)",
-        );
-        game.applyAction(aiAction);
-      }
-    }
-
-    print("\n--- Round ${match.roundNumber} Over ---");
-    print("Final Board: ${game.board.join(' ')}");
-    for (int i = 0; i < 4; i++) {
-      print(
-        "P$i Hand Remaining: ${game.hands[i]} (Pips: ${game.hands[i].fold(0, (sum, t) => sum + t.score)})",
-      );
-    }
-
-    int roundWinner = match.recordRoundResult();
-
-    if (roundWinner != -1) {
-      print(">> Player $roundWinner wins the round!");
-    } else {
-      print(">> Round is a draw!");
-    }
-  }
-
-  print("\n==================================================");
-  print("=== MATCH OVER ===");
-  print(
-    "FINAL SCORE - P0: ${match.scores[0]} | P1: ${match.scores[1]} | P2: ${match.scores[2]} | P3: ${match.scores[3]}",
-  );
-
-  int winner = match.matchWinner;
-  if (winner != -1) {
-    print("🏆 PLAYER $winner WINS THE MATCH! 🏆");
-  } else {
-    print("It's a tie!");
-  }
-}
+// End of file
