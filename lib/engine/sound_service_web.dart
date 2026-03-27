@@ -107,6 +107,17 @@ class WebSoundService implements SoundService {
     }
   }
 
+  @override
+  Future<void> resume() async {
+    print("WebSoundService: resume() requested. Current state: ${AudioEngine.context.state}");
+    try {
+      await AudioEngine.context.resume().toDart;
+      print("WebSoundService: AudioContext resumed. New state: ${AudioEngine.context.state}");
+    } catch (e) {
+      print("WebSoundService: Error resuming AudioContext: $e");
+    }
+  }
+
   /// Diagnostic tool to play a 440Hz tone for 0.5 seconds.
   @override
   void testPlayTone() {

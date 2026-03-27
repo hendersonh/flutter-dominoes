@@ -32,6 +32,9 @@ flutter:
     - assets/hendy.png
     - assets/human.png
     - assets/sounds/
+    - assets/help_rules.md
+    - assets/help_scoring.md
+    - assets/help_controls.md
 
 flutter_launcher_icons:
   android: true

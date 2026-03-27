@@ -9,6 +9,9 @@ abstract class SoundService {
   /// Play a sound effect from the given asset path.
   void playSfx(String assetPath);
 
+  /// Explicitly resume the audio context (required for web autoplay gestures).
+  Future<void> resume();
+
   /// Diagnostic tool to play a test tone.
   void testPlayTone();
 

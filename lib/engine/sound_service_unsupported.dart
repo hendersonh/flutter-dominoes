@@ -20,6 +20,11 @@ class UnsupportedSoundService implements SoundService {
   void testPlayTone() {
     print("testPlayTone not supported on this platform.");
   }
+
+  @override
+  Future<void> resume() async {
+    print("resume not supported on this platform.");
+  }
 }
 
 SoundService getSoundService() => UnsupportedSoundService();

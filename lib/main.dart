@@ -75,6 +75,7 @@ class GameController extends ChangeNotifier {
   bool _isEliteJailerMatch = false;
   bool _matchStatsSaved = false;
   bool _isSetupComplete = false;
+  bool _needsResume = false;
 
   GameController() {
     _initMatch();
@@ -98,6 +99,7 @@ class GameController extends ChangeNotifier {
   List<int> get lifetimeSocialPoints => _lifetimeSocialPoints;
   List<int>? get lastMatchSocialAdjustments => _lastMatchSocialAdjustments;
   bool get isEliteJailerMatch => _isEliteJailerMatch;
+  bool get needsResume => _needsResume;
 
   int get sixLoveChampionIndex {
     int maxDishes = _lifetimeDishCounts.reduce(math.max);
@@ -248,8 +250,20 @@ class GameController extends ChangeNotifier {
     await prefs.remove(_kMatchKey);
     _matchStatsSaved = false;
     _isSetupComplete = false;
-    // Restart from scratch
     await _initMatch();
+  }
+
+  void setNeedsResume(bool val) {
+    if (_needsResume == val) return;
+    _needsResume = val;
+    notifyListeners();
+  }
+
+  Future<void> resumeGame() async {
+    print("GameController.resumeGame() called.");
+    await SoundService().resume();
+    _needsResume = false;
+    notifyListeners();
   }
 
   void startMatch() {
@@ -659,7 +673,7 @@ class GameScreen extends StatefulWidget {
   State<GameScreen> createState() => _GameScreenState();
 }
 
-class _GameScreenState extends State<GameScreen> {
+class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
   final ScrollController _scrollController = ScrollController();
   int _lastHandSize = 0;
   double _edYOffset = 0;
@@ -671,13 +685,25 @@ class _GameScreenState extends State<GameScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     // We'll use a post-frame callback or listener to detect hand changes
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _scrollController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      if (kIsWeb) {
+        // When returning to the tab, we often need a new gesture to resume audio
+        context.read<GameController>().setNeedsResume(true);
+      }
+    }
   }
 
   void _scrollToEnd() {
@@ -1578,42 +1604,18 @@ class _GameScreenState extends State<GameScreen> {
                                          ),
                                          IconButton(
                                            padding: const EdgeInsets.all(12),
-                                           tooltip: 'Reset Match',
-                                           icon: const Icon(
-                                             Icons.delete_forever,
-                                             color: Colors.white38,
-                                             size: 24,
-                                           ),
-                                           onPressed: () {
-                                             showDialog(
-                                               context: context,
-                                               builder: (context) => AlertDialog(
-                                                 title: const Text('Reset Match?'),
-                                                 content: const Text(
-                                                     'This will clear all scores and start a fresh match from zero.'),
-                                                 actions: [
-                                                   TextButton(
-                                                     onPressed: () =>
-                                                         Navigator.pop(context),
-                                                     child: const Text('CANCEL'),
-                                                   ),
-                                                   TextButton(
-                                                     onPressed: () {
-                                                       controller.resetMatch();
-                                                       Navigator.pop(context);
-                                                     },
-                                                     child: const Text('RESET',
-                                                         style: TextStyle(
-                                                             color: Colors.red)),
-                                                   ),
-                                                 ],
-                                               ),
-                                             );
-                                           },
-                                         ),
-                                         IconButton(
-                                           padding: const EdgeInsets.all(12),
-                                           tooltip: 'AI Settings',
+                                            tooltip: 'How to Play',
+                                            icon: const Icon(
+                                              Icons.help_outline,
+                                              color: Colors.white70,
+                                              size: 24,
+                                            ),
+                                            onPressed: () =>
+                                                _showHelpModal(context, controller),
+                                          ),
+                                          IconButton(
+                                            padding: const EdgeInsets.all(12),
+                                            tooltip: 'AI Settings',
                                            icon: const Icon(
                                              Icons.settings,
                                              color: Colors.white70,
@@ -1626,10 +1628,92 @@ class _GameScreenState extends State<GameScreen> {
                                      ),
                                    ),
 
+                                    // Reset Match Control (Top Left to avoid name overlap)
+                                    Positioned(
+                                      top: 8,
+                                      left: 8,
+                                      child: IconButton(
+                                        padding: const EdgeInsets.all(12),
+                                        tooltip: 'Reset Match',
+                                        icon: const Icon(
+                                          Icons.delete_forever,
+                                          color: Colors.white38,
+                                          size: 24,
+                                        ),
+                                        onPressed: () {
+                                          showDialog(
+                                            context: context,
+                                            builder: (context) => AlertDialog(
+                                              title: const Text('Reset Match?'),
+                                              content: const Text(
+                                                  'This will clear all scores and start a fresh match from zero.'),
+                                              actions: [
+                                                TextButton(
+                                                  onPressed: () =>
+                                                      Navigator.pop(context),
+                                                  child: const Text('CANCEL'),
+                                                ),
+                                                TextButton(
+                                                  onPressed: () {
+                                                    controller.resetMatch();
+                                                    Navigator.pop(context);
+                                                  },
+                                                  child: const Text('RESET',
+                                                      style: TextStyle(
+                                                          color: Colors.red)),
+                                                ),
+                                              ],
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ),
+
                                    // Review Board Overlay
                                   if (controller.showReviewBoard && !controller.showNextRoundButton)
                                     Positioned.fill(
                                       child: ReviewBoardOverlay(controller: controller),
+                                    ),
+
+                                  // Resume Overlay
+                                  if (controller.needsResume)
+                                    Positioned.fill(
+                                      child: GestureDetector(
+                                        onTap: () => controller.resumeGame(),
+                                        child: Container(
+                                          color: Colors.black.withOpacity(0.85),
+                                          child: Center(
+                                            child: Column(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                const Icon(
+                                                  Icons.volume_up,
+                                                  color: Color(0xFF2BEE4B),
+                                                  size: 64,
+                                                ),
+                                                const SizedBox(height: 24),
+                                                Text(
+                                                  'RESUME TO PLAY',
+                                                  style: GoogleFonts.outfit(
+                                                    fontSize: 32,
+                                                    fontWeight: FontWeight.w900,
+                                                    color: Colors.white,
+                                                    letterSpacing: 2,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 12),
+                                                Text(
+                                                  'Tap anywhere to restore audio',
+                                                  style: TextStyle(
+                                                    color: Colors.white.withOpacity(0.6),
+                                                    fontSize: 16,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ),
                                     ),
                                 ],
                               );
@@ -3192,6 +3276,160 @@ class _MiniHand extends StatelessWidget {
               );
             }).toList(),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+void _showHelpModal(BuildContext context, GameController controller) {
+  showModalBottomSheet(
+    context: context,
+    backgroundColor: Colors.transparent,
+    isScrollControlled: true,
+    builder: (context) => Container(
+      height: MediaQuery.of(context).size.height * 0.85,
+      decoration: const BoxDecoration(
+        color: Color(0xFF121212),
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(24),
+          topRight: Radius.circular(24),
+        ),
+      ),
+      child: DefaultTabController(
+        length: 3,
+        child: Column(
+          children: [
+            Container(
+              margin: const EdgeInsets.only(top: 12, bottom: 8),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.white24,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const TabBar(
+              indicatorColor: Color(0xFF00C853),
+              labelColor: Color(0xFF00C853),
+              unselectedLabelColor: Colors.white54,
+              tabs: [
+                Tab(text: 'Rules', icon: Icon(Icons.menu_book)),
+                Tab(text: 'Scoring', icon: Icon(Icons.leaderboard)),
+                Tab(text: 'Controls', icon: Icon(Icons.touch_app)),
+              ],
+            ),
+            Expanded(
+              child: FutureBuilder<List<String>>(
+                future: Future.wait([
+                  DefaultAssetBundle.of(context).loadString('assets/help_rules.md'),
+                  DefaultAssetBundle.of(context).loadString('assets/help_scoring.md'),
+                  DefaultAssetBundle.of(context).loadString('assets/help_controls.md'),
+                ]),
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) {
+                    return const Center(
+                      child: CircularProgressIndicator(color: Color(0xFF00C853)),
+                    );
+                  }
+
+                  List<String> parseContent(String raw) {
+                    return raw.split('\n')
+                        .map((l) => l.trim())
+                        .where((l) => l.startsWith('-'))
+                        .map((l) => l.replaceFirst('-', '').trim())
+                        .toList();
+                  }
+
+                  return TabBarView(
+                    children: [
+                      _HelpSection(
+                        title: 'Game Rules',
+                        content: parseContent(snapshot.data![0]),
+                      ),
+                      _HelpSection(
+                        title: 'Scoring Modes',
+                        content: parseContent(snapshot.data![1]),
+                      ),
+                      _HelpSection(
+                        title: 'Controls',
+                        content: parseContent(snapshot.data![2]),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF00C853),
+                    foregroundColor: Colors.black,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('GOT IT', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _HelpSection extends StatelessWidget {
+  final String title;
+  final List<String> content;
+
+  const _HelpSection({required this.title, required this.content});
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title.toUpperCase(),
+            style: const TextStyle(
+              color: Color(0xFF00C853),
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1.2,
+            ),
+          ),
+          const SizedBox(height: 16),
+          ...content.map((text) => Padding(
+                padding: const EdgeInsets.only(bottom: 12.0),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.only(top: 6.0, right: 12),
+                      child: Icon(Icons.circle, size: 6, color: Colors.white38),
+                    ),
+                    Expanded(
+                      child: Text(
+                        text,
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 15,
+                          height: 1.5,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              )),
         ],
       ),
     );

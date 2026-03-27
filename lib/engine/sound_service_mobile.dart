@@ -25,6 +25,11 @@ class MobileSoundService implements SoundService {
   void testPlayTone() {
     // No-op on mobile for now
   }
+
+  @override
+  Future<void> resume() async {
+    // No-op on mobile usually, context is managed differently
+  }
 }
 
 SoundService getSoundService() => MobileSoundService();
