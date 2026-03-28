@@ -825,167 +825,6 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     return true;
   }
 
-  void _showSettingsModal(BuildContext context, GameController controller) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (context) => Container(
-        decoration: BoxDecoration(
-          color: const Color(0xFF1E293B).withOpacity(0.95),
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-          border: Border.all(color: Colors.white10),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.5),
-              blurRadius: 40,
-              spreadRadius: 10,
-            )
-          ],
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.psychology, color: Color(0xFF2BEE4B), size: 28),
-                const SizedBox(width: 12),
-                Text(
-                  'AI DIFFICULTY',
-                  style: GoogleFonts.outfit(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 1.2,
-                    color: Colors.white,
-                  ),
-                ),
-                const Spacer(),
-                IconButton(
-                  icon: const Icon(Icons.close, color: Colors.white54),
-                  onPressed: () => Navigator.pop(context),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Adjust AI strategy in real-time. Changes apply to the next turn.',
-              style: TextStyle(
-                color: Colors.white.withOpacity(0.6),
-                fontSize: 14,
-              ),
-            ),
-            const SizedBox(height: 24),
-            _buildDifficultyOption(
-              context: context,
-              controller: controller,
-              level: DifficultyLevel.rookie,
-              title: 'ROOKIE',
-              description: 'Prone to mistakes. Prioritizes high-value tiles.',
-              icon: Icons.child_care,
-              color: Colors.blueAccent,
-            ),
-            const SizedBox(height: 12),
-            _buildDifficultyOption(
-              context: context,
-              controller: controller,
-              level: DifficultyLevel.professional,
-              title: 'PROFESSIONAL',
-              description: 'Balanced strategy with deep look-ahead.',
-              icon: Icons.workspace_premium,
-              color: const Color(0xFF2BEE4B),
-            ),
-            const SizedBox(height: 12),
-            _buildDifficultyOption(
-              context: context,
-              controller: controller,
-              level: DifficultyLevel.legend,
-              title: 'LEGEND',
-              description: 'Information Set MCTS with mode-aware rewards and probabilistic tile tracking.',
-              icon: Icons.local_fire_department,
-              color: Colors.orangeAccent,
-            ),
-            const SizedBox(height: 24),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDifficultyOption({
-    required BuildContext context,
-    required GameController controller,
-    required DifficultyLevel level,
-    required String title,
-    required String description,
-    required IconData icon,
-    required Color color,
-    bool isLocked = false,
-  }) {
-    final bool isSelected = controller.currentDifficulty == level;
-
-    return GestureDetector(
-      onTap: isLocked
-          ? null
-          : () {
-              controller.setDifficulty(level);
-              Navigator.pop(context);
-            },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? color.withOpacity(0.15)
-              : Colors.white.withOpacity(0.05),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isSelected ? color : Colors.white10,
-            width: isSelected ? 2 : 1,
-          ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.2),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, color: color, size: 24),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: GoogleFonts.outfit(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: isSelected ? color : Colors.white,
-                    ),
-                  ),
-                  Text(
-                    description,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.white.withOpacity(0.5),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (isSelected)
-              const Icon(Icons.check_circle, color: Color(0xFF2BEE4B)),
-          ],
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final controller = context.watch<GameController>();
@@ -1639,7 +1478,9 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
                                             Text(
-                                              'Trgt=${controller.match.targetScore}',
+                                              controller.scoringMode == ScoringMode.sixLove 
+                                                  ? 'SIX-LOVE' 
+                                                  : 'Trgt=${controller.match.targetScore}',
                                               style: const TextStyle(
                                                 color: Colors.white,
                                                 fontSize: 12,
@@ -1675,45 +1516,24 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                        children: [
                                          IconButton(
                                            padding: const EdgeInsets.all(12),
-                                           tooltip: 'Reset Match',
+                                           tooltip: 'Match Settings',
                                            icon: const Icon(
-                                             Icons.restart_alt,
-                                             color: Colors.white70,
+                                             Icons.settings,
+                                             color: Color(0xFF2BEE4B),
                                              size: 24,
                                            ),
-                                           onPressed: controller.resetMatch,
+                                           onPressed: () => _showResetConfirmation(context, controller),
                                          ),
                                          IconButton(
                                            padding: const EdgeInsets.all(12),
-                                           tooltip: 'Restart Round',
+                                           tooltip: 'How to Play',
                                            icon: const Icon(
-                                             Icons.refresh,
-                                             color: Colors.white70,
-                                             size: 24,
-                                           ),
-                                           onPressed: controller.restartGame,
-                                         ),
-                                         IconButton(
-                                            padding: const EdgeInsets.all(12),
-                                            tooltip: 'How to Play',
-                                            icon: const Icon(
-                                              Icons.help_outline,
-                                              color: Colors.white70,
-                                              size: 24,
-                                            ),
-                                            onPressed: () =>
-                                                _showHelpModal(context, controller),
-                                          ),
-                                          IconButton(
-                                            padding: const EdgeInsets.all(12),
-                                            tooltip: 'AI Settings',
-                                           icon: const Icon(
-                                             Icons.settings,
+                                             Icons.help_outline,
                                              color: Colors.white70,
                                              size: 24,
                                            ),
                                            onPressed: () =>
-                                               _showSettingsModal(context, controller),
+                                               _showHelpModal(context, controller),
                                          ),
                                        ],
                                      ),
@@ -3082,19 +2902,31 @@ class _MatchSetupViewState extends State<_MatchSetupView> {
             if (widget.controller.scoringMode == ScoringMode.traditional) ...[
               const SizedBox(height: 24),
               const Text(
-                'Target Score',
+                'Target Points',
                 style: TextStyle(fontSize: 14, color: Colors.white70),
               ),
               const SizedBox(height: 12),
               SegmentedButton<int>(
                 showSelectedIcon: false,
                 segments: const [
-                  ButtonSegment(value: 100, label: Text('100')),
-                  ButtonSegment(value: 150, label: Text('150')),
-                  ButtonSegment(value: 200, label: Text('200')),
+                  ButtonSegment(
+                    value: 100,
+                    label: Text('100'),
+                    icon: Icon(Icons.flash_on),
+                  ),
+                  ButtonSegment(
+                    value: 150,
+                    label: Text('150'),
+                    icon: Icon(Icons.bolt),
+                  ),
+                  ButtonSegment(
+                    value: 200,
+                    label: Text('200'),
+                    icon: Icon(Icons.auto_awesome),
+                  ),
                 ],
                 selected: {widget.controller.match.targetScore},
-                onSelectionChanged: (selection) {
+                onSelectionChanged: (Set<int> selection) {
                   if (_isInteractable) {
                     widget.controller.setTargetScore(selection.first);
                   }
@@ -3110,9 +2942,62 @@ class _MatchSetupViewState extends State<_MatchSetupView> {
               ),
             ],
             const SizedBox(height: 24),
-            _ModeDescription(
-              mode: widget.controller.scoringMode,
-              targetScore: widget.controller.match.targetScore,
+            const Text(
+              'AI Difficulty',
+              style: TextStyle(fontSize: 14, color: Colors.white70),
+            ),
+            const SizedBox(height: 12),
+            SegmentedButton<DifficultyLevel>(
+              showSelectedIcon: false,
+              segments: const [
+                ButtonSegment(
+                  value: DifficultyLevel.rookie,
+                  label: Text('Rookie'),
+                ),
+                ButtonSegment(
+                  value: DifficultyLevel.casual,
+                  label: Text('Casual'),
+                ),
+                ButtonSegment(
+                  value: DifficultyLevel.professional,
+                  label: Text('Pro'),
+                ),
+                ButtonSegment(
+                  value: DifficultyLevel.legend,
+                  label: Text('Legend'),
+                ),
+              ],
+              selected: {widget.controller.currentDifficulty},
+              onSelectionChanged: (selection) {
+                if (_isInteractable) {
+                  widget.controller.setDifficulty(selection.first);
+                }
+              },
+              style: ButtonStyle(
+                backgroundColor: WidgetStateProperty.resolveWith((states) {
+                  if (states.contains(WidgetState.selected)) {
+                    return const Color(0xFF2BEE4B).withOpacity(0.2);
+                  }
+                  return null;
+                }),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: _ModeDescription(
+                    mode: widget.controller.scoringMode,
+                    targetScore: widget.controller.match.targetScore,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _DifficultyDescription(
+                    level: widget.controller.currentDifficulty,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 32),
             SizedBox(
@@ -3158,7 +3043,7 @@ class _ModeDescription extends StatelessWidget {
   Widget build(BuildContext context) {
     final title = mode == ScoringMode.traditional
         ? 'Traditional Rules'
-        : 'Jamaican "Six-Love"';
+        : 'Six-Love';
     final desc = mode == ScoringMode.traditional
         ? 'Win by accumulating $targetScore points from opponent hands.'
         : 'First to 6 points wins. All scores reset (Game Bruk) if EVERY player wins at least 1 round.';
@@ -3482,6 +3367,48 @@ void _showHelpModal(BuildContext context, GameController controller) {
   );
 }
 
+void _showResetConfirmation(BuildContext context, GameController controller) {
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      backgroundColor: const Color(0xFF1E293B),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      title: Row(
+        children: [
+          const Icon(Icons.warning_amber_rounded, color: Colors.orangeAccent),
+          const SizedBox(width: 12),
+          const Text(
+            'Reset Match?',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
+        ],
+      ),
+      content: const Text(
+        'This will end the current match and return to setup. All current scores will be lost.',
+        style: TextStyle(color: Colors.white70),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('CANCEL', style: TextStyle(color: Colors.white38)),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            Navigator.pop(context);
+            controller.resetMatch();
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.redAccent.withOpacity(0.8),
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+          child: const Text('RESET MATCH', style: TextStyle(fontWeight: FontWeight.bold)),
+        ),
+      ],
+    ),
+  );
+}
+
 class _HelpSection extends StatelessWidget {
   final String title;
   final List<String> content;
@@ -3604,6 +3531,64 @@ class _UpdateBanner extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _DifficultyDescription extends StatelessWidget {
+  final DifficultyLevel level;
+  const _DifficultyDescription({required this.level});
+
+  @override
+  Widget build(BuildContext context) {
+    final String title;
+    final String desc;
+
+    switch (level) {
+      case DifficultyLevel.rookie:
+        title = 'Rookie AI';
+        desc = 'Prone to mistakes. Prioritizes high-value tiles.';
+        break;
+      case DifficultyLevel.casual:
+        title = 'Casual AI';
+        desc = 'Basic strategy. Awareness of open ends but limited foresight.';
+        break;
+      case DifficultyLevel.professional:
+        title = 'Professional AI';
+        desc = 'Balanced strategy with deep look-ahead.';
+        break;
+      case DifficultyLevel.legend:
+        title = 'Legend AI';
+        desc = 'MCTS with mode-aware rewards and tile tracking.';
+        break;
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: Colors.orangeAccent,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            desc,
+            style: const TextStyle(fontSize: 12, color: Colors.white60),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
       ),
     );
   }
