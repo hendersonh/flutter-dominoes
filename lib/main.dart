@@ -1624,6 +1624,48 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                       ),
                                     ),
 
+                                    // Match Info Overlay (Top Left)
+                                    Positioned(
+                                      top: 8,
+                                      left: 8,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 12, vertical: 8),
+                                        decoration: BoxDecoration(
+                                          color: Colors.black.withAlpha(100),
+                                          borderRadius: BorderRadius.circular(20),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Text(
+                                              'Trgt=${controller.match.targetScore}',
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Container(
+                                              width: 1,
+                                              height: 12,
+                                              color: Colors.white24,
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              controller.currentDifficulty.name.toUpperCase(),
+                                              style: const TextStyle(
+                                                color: Color(0xFF2BEE4B),
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.w900,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+
                                    // Match Controls Overlay (Top Right - Highest Z-Index)
                                    Positioned(
                                      top: 8,
@@ -1631,6 +1673,16 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                      child: Row(
                                        mainAxisSize: MainAxisSize.min,
                                        children: [
+                                         IconButton(
+                                           padding: const EdgeInsets.all(12),
+                                           tooltip: 'Reset Match',
+                                           icon: const Icon(
+                                             Icons.restart_alt,
+                                             color: Colors.white70,
+                                             size: 24,
+                                           ),
+                                           onPressed: controller.resetMatch,
+                                         ),
                                          IconButton(
                                            padding: const EdgeInsets.all(12),
                                            tooltip: 'Restart Round',
@@ -1642,7 +1694,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                            onPressed: controller.restartGame,
                                          ),
                                          IconButton(
-                                           padding: const EdgeInsets.all(12),
+                                            padding: const EdgeInsets.all(12),
                                             tooltip: 'How to Play',
                                             icon: const Icon(
                                               Icons.help_outline,
@@ -1666,76 +1718,6 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                        ],
                                      ),
                                    ),
-
-                                    // Reset Match Control (Top Left to avoid name overlap)
-                                    Positioned(
-                                      top: 8,
-                                      left: 8,
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          IconButton(
-                                        padding: const EdgeInsets.all(12),
-                                        tooltip: 'Reset Match',
-                                        icon: const Icon(
-                                          Icons.delete_forever,
-                                          color: Colors.white38,
-                                          size: 24,
-                                        ),
-                                        onPressed: () {
-                                          showDialog(
-                                            context: context,
-                                            builder: (context) => AlertDialog(
-                                              title: const Text('Reset Match?'),
-                                              content: const Text(
-                                                  'This will clear all scores and start a fresh match from zero.'),
-                                              actions: [
-                                                TextButton(
-                                                  onPressed: () =>
-                                                      Navigator.pop(context),
-                                                  child: const Text('CANCEL'),
-                                                ),
-                                                TextButton(
-                                                  onPressed: () {
-                                                    controller.resetMatch();
-                                                    Navigator.pop(context);
-                                                  },
-                                                  child: const Text('RESET',
-                                                      style: TextStyle(
-                                                          color: Colors.red)),
-                                                ),
-                                              ],
-                                            ),
-                                          );
-                                        },
-                                          ),
-                                          // Target Score / Streak Indicator
-                                          Container(
-                                            margin: const EdgeInsets.only(left: 4),
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 10,
-                                              vertical: 4,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: Colors.white.withOpacity(0.08),
-                                              borderRadius: BorderRadius.circular(12),
-                                              border: Border.all(color: Colors.white10),
-                                            ),
-                                            child: Text(
-                                              controller.scoringMode == ScoringMode.sixLove
-                                                  ? "STRK=6"
-                                                  : "TRGT=${controller.match.targetScore}",
-                                              style: GoogleFonts.outfit(
-                                                color: const Color(0xFF2BEE4B),
-                                                fontSize: 11,
-                                                fontWeight: FontWeight.w900,
-                                                letterSpacing: 0.5,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
 
                                    // Review Board Overlay
                                   if (controller.showReviewBoard && !controller.showNextRoundButton)
@@ -3219,104 +3201,116 @@ class ReviewBoardOverlay extends StatelessWidget {
     if (controller.game == null) return const SizedBox();
     final game = controller.game!;
 
-    return Container(
-      color: Colors.black, // Fully opaque to hide the original board
-      child: SafeArea(
-        child: Column(
+    return GestureDetector(
+      onTap: controller.skipReview,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        color: Colors.black, // Fully opaque to hide the original board
+        child: Stack(
           children: [
-            // Header
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            SafeArea(
+              child: Column(
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'ROUND SUMMARY',
-                        style: TextStyle(
-                          color: Color(0xFF2BEE4B),
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 2,
-                        ),
-                      ),
-                      Text(
-                        'Next round starts in ${controller.reviewCountdown}s...',
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ],
-                  ),
-                  TextButton.icon(
-                    onPressed: controller.skipReview,
-                    icon: const Icon(Icons.skip_next, color: Colors.white),
-                    label: const Text(
-                      'SKIP',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                    style: TextButton.styleFrom(
-                      backgroundColor: Colors.white.withOpacity(0.1),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // Main Content Area: North Player
-            _MiniHand(
-              name: playerNames[2],
-              tiles: game.hands[2],
-              position: 'North',
-            ),
-
-            // Middle Row: West Player | Board | East Player
-            Expanded(
-              child: Row(
-                children: [
-                  _MiniHand(
-                    name: playerNames[1],
-                    tiles: game.hands[1],
-                    position: 'West',
-                  ),
-                  Expanded(
-                    child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        return Center(
-                          child: IgnorePointer(
-                            child: SnakingBoard(
-                              board: game.board,
-                              rootIndex: game.rootIndex,
-                              maxWidth: constraints.maxWidth,
-                            ),
+                  // Header (Centered)
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          'ROUND SUMMARY',
+                          style: TextStyle(
+                            color: Color(0xFF2BEE4B),
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 2,
                           ),
-                        );
-                      },
+                          textAlign: TextAlign.center,
+                        ),
+                        Text(
+                          'Next round starts in ${controller.reviewCountdown}s...',
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 14,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
                     ),
                   ),
+
+                  // Main Content Area: North Player
                   _MiniHand(
-                    name: playerNames[3],
-                    tiles: game.hands[3],
-                    position: 'East',
+                    name: playerNames[2],
+                    tiles: game.hands[2],
+                    position: 'North',
+                  ),
+
+                  // Middle Row: West Player | Board | East Player
+                  Expanded(
+                    child: Row(
+                      children: [
+                        _MiniHand(
+                          name: playerNames[1],
+                          tiles: game.hands[1],
+                          position: 'West',
+                        ),
+                        Expanded(
+                          child: LayoutBuilder(
+                            builder: (context, constraints) {
+                              return Center(
+                                child: IgnorePointer(
+                                  child: SnakingBoard(
+                                    board: game.board,
+                                    rootIndex: game.rootIndex,
+                                    maxWidth: constraints.maxWidth,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        _MiniHand(
+                          name: playerNames[3],
+                          tiles: game.hands[3],
+                          position: 'East',
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Bottom Player (Human) info or extra space
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 20),
+                    child: Text(
+                      controller.statusMessage ?? '',
+                      style: const TextStyle(
+                        color: Color(0xFF2BEE4B),
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
                   ),
                 ],
               ),
             ),
 
-            // Bottom Player (Human) info or extra space
-            Padding(
-              padding: const EdgeInsets.only(bottom: 20),
-              child: Text(
-                controller.statusMessage ?? '',
-                style: const TextStyle(
-                  color: Color(0xFF2BEE4B),
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+            // Skip button at bottom right
+            Positioned(
+              bottom: 24,
+              right: 24,
+              child: TextButton.icon(
+                onPressed: controller.skipReview,
+                icon: const Icon(Icons.skip_next, color: Colors.white),
+                label: const Text(
+                  'SKIP',
+                  style: TextStyle(color: Colors.white),
                 ),
-                textAlign: TextAlign.center,
+                style: TextButton.styleFrom(
+                  backgroundColor: Colors.white.withOpacity(0.1),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                ),
               ),
             ),
           ],
