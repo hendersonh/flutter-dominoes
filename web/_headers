@@ -1,4 +1,2 @@
-/*
-  Cross-Origin-Opener-Policy: same-origin
-  Cross-Origin-Embedder-Policy: credentialless
-  Cross-Origin-Resource-Policy: cross-origin
+/version.json
+  Cache-Control: no-cache, no-store, must-revalidate

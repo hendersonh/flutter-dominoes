@@ -11,15 +11,23 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'engine/sound_service.dart';
 import 'engine/audio_engine.dart';
 import 'engine/dominoes_ai.dart' hide kIsWeb;
+import 'engine/update_service.dart';
 
 const List<String> playerNames = ['Hendy', 'Ed', 'Paul', 'Tim'];
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   SoundService().initialize();
+  
+  final updateService = UpdateService();
+  unawaited(updateService.initialize());
+
   runApp(
-    ChangeNotifierProvider(
-      create: (_) => GameController(),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => GameController()),
+        ChangeNotifierProvider.value(value: updateService),
+      ],
       child: const DominoesApp(),
     ),
   );
@@ -1042,6 +1050,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                 fit: StackFit.expand,
                                 children: [
                                   // (Match Controls moved to end of Stack for Z-index)
+                                  // (Update Banner moved to end of Stack for Z-index)
 
                                   // (Status Overlay removed - now per-player dots)
                                   Align(
@@ -1075,14 +1084,17 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                   ),
                                   Align(
                                     alignment: Alignment.topCenter,
-                                    child: _EdgeScore(
-                                      name: 'Paul',
-                                      tiles: game.hands[2].length,
-                                      score: controller.match.scores[2],
-                                      isActive: game.currentPlayer == 2,
-                                      isKnocking:
-                                          controller.knockingPlayerIndex == 2,
-                                      isThinking: game.currentPlayer == 2,
+                                    child: Padding(
+                                      padding: const EdgeInsets.only(top: 50.0),
+                                      child: _EdgeScore(
+                                        name: 'Paul',
+                                        tiles: game.hands[2].length,
+                                        score: controller.match.scores[2],
+                                        isActive: game.currentPlayer == 2,
+                                        isKnocking:
+                                            controller.knockingPlayerIndex == 2,
+                                        isThinking: game.currentPlayer == 2,
+                                      ),
                                     ),
                                   ),
                                   AnimatedPositioned(
@@ -1771,6 +1783,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                         ),
                                       ),
                                     ),
+                                  const _UpdateBanner(),
                                 ],
                               );
                             },
@@ -3521,6 +3534,82 @@ class _HelpSection extends StatelessWidget {
                 ),
               )),
         ],
+      ),
+    );
+  }
+}
+
+class _UpdateBanner extends StatelessWidget {
+  const _UpdateBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    final updateService = context.watch<UpdateService>();
+    if (!updateService.isUpdateAvailable) return const SizedBox.shrink();
+
+    return Positioned(
+      bottom: 120,
+      left: 16,
+      right: 16,
+      child: Material(
+        color: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1E293B).withOpacity(0.95),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFF2BEE4B), width: 2),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.5),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.system_update, color: Color(0xFF2BEE4B)),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Update Available!',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                    Text(
+                      'A new version is ready. Refresh to update.',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              TextButton(
+                onPressed: () => updateService.performUpdate(),
+                style: TextButton.styleFrom(
+                  backgroundColor: const Color(0xFF2BEE4B),
+                  foregroundColor: Colors.black,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: const Text('REFRESH', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
