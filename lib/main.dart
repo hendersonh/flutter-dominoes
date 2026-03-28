@@ -442,6 +442,7 @@ class GameController extends ChangeNotifier {
       _showNextRoundButton = false;
       _knockingPlayerIndex = null;
       _bottomOverlayMessage = "Calculating Scores...";
+      _statusMessage = "Calculating Scores...";
       notifyListeners();
 
       Future.delayed(const Duration(milliseconds: 1000), () {
@@ -492,13 +493,25 @@ class GameController extends ChangeNotifier {
           } else {
             _bottomOverlayMessage = "MATCH OVER: Tie!";
           }
+          _statusMessage = _bottomOverlayMessage;
         } else {
-          if (roundWinner == 0) {
-            _bottomOverlayMessage = "${playerNames[0]} Wins Round!";
-          } else if (roundWinner != -1) {
-            _bottomOverlayMessage = "${playerNames[roundWinner]} Wins Round!";
+          // Calculate and set winner message for Review Board
+          if (roundWinner != -1) {
+            int points = 0;
+            if (_match.mode == ScoringMode.sixLove) {
+              points = 1;
+            } else {
+              for (int i = 0; i < 4; i++) {
+                if (i != roundWinner) {
+                  points += game!.hands[i].fold(0, (sum, t) => sum + t.score);
+                }
+              }
+            }
+            _statusMessage = "${playerNames[roundWinner]} gets +$points";
+            _bottomOverlayMessage = _statusMessage;
           } else {
-            _bottomOverlayMessage = "Round Drawn!";
+            _statusMessage = "Round Drawn!";
+            _bottomOverlayMessage = _statusMessage;
           }
         }
 
