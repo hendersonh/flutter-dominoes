@@ -1,6 +1,6 @@
 # Scoring Modes
 
-- 100, 150 or 200-Point Match: Points are calculated based on the dots remaining in opponents' hands. First to 100, 150 or 200 wins.
+- First to Target Points Match: Points are calculated based on the dots remaining in opponents' hands. First to 100, 150 or 200 wins.
 - Meaning of #/# is tiles/score: e.g 2/20 is 2 tiles in hand and score is 20 
 - Six-Love (Running Champion): Rounds are won as "sets."
 - Winner gets +10 points.

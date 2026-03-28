@@ -4,7 +4,7 @@ import 'package:flutter_app/engine/dominoes_ai.dart';
 void main() {
   group('MatchModel Scoring Logic', () {
     test('points100 mode: Winner gets pips sum', () {
-      final match = MatchModel(targetScore: 100, mode: ScoringMode.points100);
+      final match = MatchModel(targetScore: 100, mode: ScoringMode.traditional);
 
       // Simulate a round result
       // P0 wins, P1-3 have some pips

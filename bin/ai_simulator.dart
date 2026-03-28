@@ -11,7 +11,7 @@ void main(List<String> args) async {
   final results = parser.parse(args);
   final int numGames = int.parse(results['games']);
   final DifficultyLevel testDiff = DifficultyLevel.values.firstWhere((e) => e.name == results['difficulty']);
-  final ScoringMode scoringMode = results['mode'] == '100' ? ScoringMode.points100 : ScoringMode.sixLove;
+  final ScoringMode scoringMode = results['mode'] == '100' ? ScoringMode.traditional : ScoringMode.sixLove;
   final bool debug = results['debug'];
 
   print('=========================================');

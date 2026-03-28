@@ -305,8 +305,22 @@ class GameController extends ChangeNotifier {
   void setScoringMode(ScoringMode mode) {
     if (isMatchStarted) return;
     _match.mode = mode;
+    if (_match.currentRound != null) {
+      _match.currentRound!.scoringMode = mode;
+      _match.currentRound!.matchTarget = mode == ScoringMode.sixLove ? 6 : _match.targetScore;
+    }
     _saveMatch();
     _updateStatusMessage();
+    notifyListeners();
+  }
+
+  void setTargetScore(int target) {
+    if (isMatchStarted) return;
+    _match.targetScore = target;
+    if (_match.currentRound != null) {
+      _match.currentRound!.matchTarget = target;
+    }
+    _saveMatch();
     notifyListeners();
   }
 
@@ -1632,7 +1646,10 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                     Positioned(
                                       top: 8,
                                       left: 8,
-                                      child: IconButton(
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          IconButton(
                                         padding: const EdgeInsets.all(12),
                                         tooltip: 'Reset Match',
                                         icon: const Icon(
@@ -1666,6 +1683,32 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                             ),
                                           );
                                         },
+                                          ),
+                                          // Target Score / Streak Indicator
+                                          Container(
+                                            margin: const EdgeInsets.only(left: 4),
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 10,
+                                              vertical: 4,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: Colors.white.withOpacity(0.08),
+                                              borderRadius: BorderRadius.circular(12),
+                                              border: Border.all(color: Colors.white10),
+                                            ),
+                                            child: Text(
+                                              controller.scoringMode == ScoringMode.sixLove
+                                                  ? "STRK=6"
+                                                  : "TRGT=${controller.match.targetScore}",
+                                              style: GoogleFonts.outfit(
+                                                color: const Color(0xFF2BEE4B),
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w900,
+                                                letterSpacing: 0.5,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
 
@@ -3003,8 +3046,8 @@ class _MatchSetupViewState extends State<_MatchSetupView> {
               showSelectedIcon: false,
               segments: const [
                 ButtonSegment(
-                  value: ScoringMode.points100,
-                  label: Text('100 Points'),
+                  value: ScoringMode.traditional,
+                  label: const Text('First to Target'),
                   icon: Icon(Icons.score),
                 ),
                 ButtonSegment(
@@ -3028,8 +3071,41 @@ class _MatchSetupViewState extends State<_MatchSetupView> {
                 }),
               ),
             ),
+            if (widget.controller.scoringMode == ScoringMode.traditional) ...[
+              const SizedBox(height: 24),
+              const Text(
+                'Target Score',
+                style: TextStyle(fontSize: 14, color: Colors.white70),
+              ),
+              const SizedBox(height: 12),
+              SegmentedButton<int>(
+                showSelectedIcon: false,
+                segments: const [
+                  ButtonSegment(value: 100, label: Text('100')),
+                  ButtonSegment(value: 150, label: Text('150')),
+                  ButtonSegment(value: 200, label: Text('200')),
+                ],
+                selected: {widget.controller.match.targetScore},
+                onSelectionChanged: (selection) {
+                  if (_isInteractable) {
+                    widget.controller.setTargetScore(selection.first);
+                  }
+                },
+                style: ButtonStyle(
+                  backgroundColor: WidgetStateProperty.resolveWith((states) {
+                    if (states.contains(WidgetState.selected)) {
+                      return const Color(0xFF2BEE4B).withOpacity(0.2);
+                    }
+                    return null;
+                  }),
+                ),
+              ),
+            ],
             const SizedBox(height: 24),
-            _ModeDescription(mode: widget.controller.scoringMode),
+            _ModeDescription(
+              mode: widget.controller.scoringMode,
+              targetScore: widget.controller.match.targetScore,
+            ),
             const SizedBox(height: 32),
             SizedBox(
               width: double.infinity,
@@ -3067,15 +3143,16 @@ class _MatchSetupViewState extends State<_MatchSetupView> {
 
 class _ModeDescription extends StatelessWidget {
   final ScoringMode mode;
-  const _ModeDescription({required this.mode});
+  final int targetScore;
+  const _ModeDescription({required this.mode, required this.targetScore});
 
   @override
   Widget build(BuildContext context) {
-    final title = mode == ScoringMode.points100
+    final title = mode == ScoringMode.traditional
         ? 'Traditional Rules'
         : 'Jamaican "Six-Love"';
-    final desc = mode == ScoringMode.points100
-        ? 'Win by accumulating 100 points from opponent hands.'
+    final desc = mode == ScoringMode.traditional
+        ? 'Win by accumulating $targetScore points from opponent hands.'
         : 'First to 6 points wins. All scores reset (Game Bruk) if EVERY player wins at least 1 round.';
 
     return Container(

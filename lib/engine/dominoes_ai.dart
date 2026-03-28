@@ -107,7 +107,7 @@ class GameModel {
     this.rootIndex = 0,
     List<DominoTile>? board,
     this.isFirstHandOfMatch = false,
-    this.scoringMode = ScoringMode.points100,
+    this.scoringMode = ScoringMode.traditional,
     List<int>? matchScores,
     this.matchTarget = 100,
   }) : board = board ?? [],
@@ -590,7 +590,7 @@ class MCTSPlayer {
           // --- ROOKIE: SIMPLE WIN/LOSS REWARD ---
           if (difficulty == DifficultyLevel.rookie) {
             result = (winner == movingPlayer) ? 1.0 : 0.0;
-          } else if (state.scoringMode == ScoringMode.points100) {
+          } else if (state.scoringMode == ScoringMode.traditional) {
             // 100-Point Mode: Focus on round win and pip efficiency
             if (winner == movingPlayer) {
               // Reward winning the match: 1.0
@@ -607,13 +607,13 @@ class MCTSPlayer {
               if (totalOpPips >= remaining) {
                 result = 1.0;
               } else {
-                result = 0.5 + 0.4 * (totalOpPips / 100.0).clamp(0.0, 1.0);
+                result = 0.5 + 0.4 * (totalOpPips / state.matchTarget.toDouble()).clamp(0.0, 1.0);
               }
             } else {
               // Penalty for losing (0.0 to 0.4)
               int myPips =
                   state.hands[movingPlayer].fold(0, (sum, t) => sum + t.score);
-              result = 0.4 * (1.0 - (myPips / 100.0)).clamp(0.0, 1.0);
+              result = 0.4 * (1.0 - (myPips / state.matchTarget.toDouble())).clamp(0.0, 1.0);
             }
           } else {
             // Six-Love Mode: Focus on Wins and Anti-Leader Coalition
@@ -708,8 +708,8 @@ Future<Action> getBestActionAsync(
 
 /// Modes for determining match winners and round scoring
 enum ScoringMode {
-  /// Traditional: Accumulate points from opponent hands until target (e.g. 100)
-  points100,
+  /// Traditional: Accumulate points from opponent hands until target (e.g. 100, 150, 200)
+  traditional,
 
   /// Jamaican "Six-Love": Win 6 rounds in a row. Opponent wins reset streaks to 0
   sixLove,
@@ -720,11 +720,11 @@ class MatchModel {
   List<int> scores = [0, 0, 0, 0]; // 0: Human, 1-3: AIs
   int roundNumber = 1;
   int nextStarter = 0; // 0 for human, 1-3 for AI
-  final int targetScore;
+  int targetScore;
   ScoringMode mode;
   GameModel? currentRound;
 
-  MatchModel({this.targetScore = 100, this.mode = ScoringMode.points100});
+  MatchModel({this.targetScore = 100, this.mode = ScoringMode.traditional});
 
   bool get isMatchOver {
     if (mode == ScoringMode.sixLove) {
@@ -813,6 +813,9 @@ class MatchModel {
       hands: dealtHands,
       currentPlayer: startingPlayer,
       isFirstHandOfMatch: isFirstHand,
+      scoringMode: mode,
+      matchTarget: targetScore,
+      matchScores: List<int>.from(scores),
     );
   }
 
@@ -879,9 +882,13 @@ class MatchModel {
     }
     match.roundNumber = json['roundNumber'] ?? 1;
     match.nextStarter = json['nextStarter'] ?? 0;
+    
+    String modeName = json['mode'] ?? 'traditional';
+    if (modeName == 'points100') modeName = 'traditional';
+    
     match.mode = ScoringMode.values.firstWhere(
-      (m) => m.name == (json['mode'] ?? 'points100'),
-      orElse: () => ScoringMode.points100,
+      (m) => m.name == modeName,
+      orElse: () => ScoringMode.traditional,
     );
     return match;
   }
