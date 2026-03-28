@@ -2832,8 +2832,8 @@ class _MatchSetupViewState extends State<_MatchSetupView> {
     return Center(
       child: Container(
         constraints: const BoxConstraints(maxWidth: 400),
-        margin: const EdgeInsets.all(32),
-        padding: const EdgeInsets.all(24),
+        margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.black.withOpacity(0.6),
           borderRadius: BorderRadius.circular(24),
@@ -2852,25 +2852,25 @@ class _MatchSetupViewState extends State<_MatchSetupView> {
             children: [
             const Icon(
               Icons.local_fire_department,
-              size: 48,
+              size: 32,
               color: Colors.orangeAccent,
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
             const Text(
               'Match Setup',
               style: TextStyle(
-                fontSize: 24,
+                fontSize: 20,
                 fontWeight: FontWeight.bold,
                 color: Colors.white,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 4),
             const Text(
               'Select the scoring rules for this match.',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 14, color: Colors.white70),
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 16),
             SegmentedButton<ScoringMode>(
               showSelectedIcon: false,
               segments: const [
@@ -2907,12 +2907,12 @@ class _MatchSetupViewState extends State<_MatchSetupView> {
               ),
             ),
             if (widget.controller.scoringMode == ScoringMode.traditional) ...[
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
               const Text(
                 'Target Points',
                 style: TextStyle(fontSize: 14, color: Colors.white70),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               SegmentedButton<int>(
                 showSelectedIcon: false,
                 segments: const [
@@ -2954,12 +2954,12 @@ class _MatchSetupViewState extends State<_MatchSetupView> {
                 ),
               ),
             ],
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
             const Text(
               'AI Difficulty',
               style: TextStyle(fontSize: 14, color: Colors.white70),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             SegmentedButton<DifficultyLevel>(
               showSelectedIcon: false,
               segments: const [
@@ -3001,7 +3001,7 @@ class _MatchSetupViewState extends State<_MatchSetupView> {
                 }),
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
             Row(
               children: [
                 Expanded(
@@ -3018,10 +3018,10 @@ class _MatchSetupViewState extends State<_MatchSetupView> {
                 ),
               ],
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
-              height: 56,
+              height: 48,
               child: ElevatedButton(
                 onPressed: _isInteractable
                     ? widget.controller.startMatch
