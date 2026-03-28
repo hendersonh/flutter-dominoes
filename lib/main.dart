@@ -2846,9 +2846,10 @@ class _MatchSetupViewState extends State<_MatchSetupView> {
             ),
           ],
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
             const Icon(
               Icons.local_fire_department,
               size: 48,
@@ -2893,9 +2894,15 @@ class _MatchSetupViewState extends State<_MatchSetupView> {
               style: ButtonStyle(
                 backgroundColor: WidgetStateProperty.resolveWith((states) {
                   if (states.contains(WidgetState.selected)) {
-                    return const Color(0xFF2BEE4B).withOpacity(0.2);
+                    return const Color(0xFF2BEE4B);
                   }
                   return null;
+                }),
+                foregroundColor: WidgetStateProperty.resolveWith((states) {
+                  if (states.contains(WidgetState.selected)) {
+                    return Colors.black;
+                  }
+                  return Colors.white70;
                 }),
               ),
             ),
@@ -2934,9 +2941,15 @@ class _MatchSetupViewState extends State<_MatchSetupView> {
                 style: ButtonStyle(
                   backgroundColor: WidgetStateProperty.resolveWith((states) {
                     if (states.contains(WidgetState.selected)) {
-                      return const Color(0xFF2BEE4B).withOpacity(0.2);
+                      return const Color(0xFF2BEE4B);
                     }
                     return null;
+                  }),
+                  foregroundColor: WidgetStateProperty.resolveWith((states) {
+                    if (states.contains(WidgetState.selected)) {
+                      return Colors.black;
+                    }
+                    return Colors.white70;
                   }),
                 ),
               ),
@@ -2976,9 +2989,15 @@ class _MatchSetupViewState extends State<_MatchSetupView> {
               style: ButtonStyle(
                 backgroundColor: WidgetStateProperty.resolveWith((states) {
                   if (states.contains(WidgetState.selected)) {
-                    return const Color(0xFF2BEE4B).withOpacity(0.2);
+                    return const Color(0xFF2BEE4B);
                   }
                   return null;
+                }),
+                foregroundColor: WidgetStateProperty.resolveWith((states) {
+                  if (states.contains(WidgetState.selected)) {
+                    return Colors.black;
+                  }
+                  return Colors.white70;
                 }),
               ),
             ),
@@ -3028,6 +3047,7 @@ class _MatchSetupViewState extends State<_MatchSetupView> {
               ),
             ),
           ],
+        ),
         ),
       ),
     );
