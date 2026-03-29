@@ -67,8 +67,6 @@ class GameController extends ChangeNotifier {
   bool _isFinishingRound = false;
 
   bool _showReviewBoard = false;
-  int _reviewCountdown = 15;
-  Timer? _reviewTimer;
 
   DominoTile? _selectedTile;
 
@@ -98,7 +96,6 @@ class GameController extends ChangeNotifier {
   int? get knockingPlayerIndex => _knockingPlayerIndex;
   bool get showNextRoundButton => _showNextRoundButton;
   bool get showReviewBoard => _showReviewBoard;
-  int get reviewCountdown => _reviewCountdown;
   bool get isInitialized => _match.currentRound != null;
   DominoTile? get selectedTile => _selectedTile;
   int get lifetimeMatchWins => _lifetimeMatchWins;
@@ -286,7 +283,6 @@ class GameController extends ChangeNotifier {
 
   void _startNextRound() {
     _showReviewBoard = false;
-    _reviewTimer?.cancel();
     _topOverlayMessage = null;
     _bottomOverlayMessage = null;
     _selectedTile = null;
@@ -390,7 +386,6 @@ class GameController extends ChangeNotifier {
 
   void skipReview() {
     if (_showReviewBoard) {
-      _reviewTimer?.cancel();
       _showReviewBoard = false;
       if (_match.isMatchOver) {
         _showNextRoundButton = true;
@@ -528,24 +523,7 @@ class GameController extends ChangeNotifier {
 
         // Start Review Phase
         _showReviewBoard = true;
-        _reviewCountdown = 15;
         notifyListeners();
-
-        _reviewTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-          if (_reviewCountdown > 0) {
-            _reviewCountdown--;
-            notifyListeners();
-          } else {
-            timer.cancel();
-            _showReviewBoard = false;
-            if (_match.isMatchOver) {
-              _showNextRoundButton = true;
-            } else {
-              restartGame();
-            }
-            notifyListeners();
-          }
-        });
       });
     } else if (game != null) {
       if (game!.currentPlayer == 0) {
@@ -1463,46 +1441,50 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                       ),
                                     ),
 
-                                    // Match Info Overlay (Top Left)
+                                    // Match Info Overlay (Top Center)
                                     Positioned(
                                       top: 8,
-                                      left: 8,
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 12, vertical: 8),
-                                        decoration: BoxDecoration(
-                                          color: Colors.black.withAlpha(100),
-                                          borderRadius: BorderRadius.circular(20),
-                                        ),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Text(
-                                              controller.scoringMode == ScoringMode.sixLove 
-                                                  ? 'SIX-LOVE' 
-                                                  : 'Trgt=${controller.match.targetScore}',
-                                              style: const TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.bold,
+                                      left: 0,
+                                      right: 0,
+                                      child: Align(
+                                        alignment: Alignment.topCenter,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 12, vertical: 8),
+                                          decoration: BoxDecoration(
+                                            color: Colors.black.withAlpha(100),
+                                            borderRadius: BorderRadius.circular(20),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Text(
+                                                controller.scoringMode == ScoringMode.sixLove 
+                                                    ? 'SIX-LOVE' 
+                                                    : 'Trgt=${controller.match.targetScore}',
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
                                               ),
-                                            ),
-                                            const SizedBox(width: 8),
-                                            Container(
-                                              width: 1,
-                                              height: 12,
-                                              color: Colors.white24,
-                                            ),
-                                            const SizedBox(width: 8),
-                                            Text(
-                                              controller.currentDifficulty.name.toUpperCase(),
-                                              style: const TextStyle(
-                                                color: Color(0xFF2BEE4B),
-                                                fontSize: 10,
-                                                fontWeight: FontWeight.w900,
+                                              const SizedBox(width: 8),
+                                              Container(
+                                                width: 1,
+                                                height: 12,
+                                                color: Colors.white24,
                                               ),
-                                            ),
-                                          ],
+                                              const SizedBox(width: 8),
+                                              Text(
+                                                controller.currentDifficulty.name.toUpperCase(),
+                                                style: const TextStyle(
+                                                  color: Color(0xFF2BEE4B),
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.w900,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
                                         ),
                                       ),
                                     ),
@@ -3133,7 +3115,7 @@ class ReviewBoardOverlay extends StatelessWidget {
                           textAlign: TextAlign.center,
                         ),
                         Text(
-                          'Next round starts in ${controller.reviewCountdown}s...',
+                          'Tap anywhere to continue...',
                           style: const TextStyle(
                             color: Colors.white70,
                             fontSize: 14,
