@@ -3255,8 +3255,8 @@ class _MiniHand extends StatelessWidget {
           Text(
             name,
             style: const TextStyle(
-              color: Colors.white54,
-              fontSize: 10,
+              color: Colors.white70,
+              fontSize: 16,
               fontWeight: FontWeight.bold,
             ),
           ),
