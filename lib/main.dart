@@ -70,8 +70,8 @@ class GameController extends ChangeNotifier {
 
   DominoTile? _selectedTile;
 
-  int _lifetimeMatchWins = 0;
-  int _lifetimeMatchLosses = 0;
+  List<int> _lifetimeMatchWins = [0, 0, 0, 0];
+  List<int> _lifetimeMatchLosses = [0, 0, 0, 0];
   // Index 0: Human, 1-3: AIs. Tracks total matches won by 6-0.
   List<int> _lifetimeDishCounts = [0, 0, 0, 0];
   // Running Champion points based on Jail system
@@ -98,8 +98,8 @@ class GameController extends ChangeNotifier {
   bool get showReviewBoard => _showReviewBoard;
   bool get isInitialized => _match.currentRound != null;
   DominoTile? get selectedTile => _selectedTile;
-  int get lifetimeMatchWins => _lifetimeMatchWins;
-  int get lifetimeMatchLosses => _lifetimeMatchLosses;
+  List<int> get lifetimeMatchWins => _lifetimeMatchWins;
+  List<int> get lifetimeMatchLosses => _lifetimeMatchLosses;
   List<int> get lifetimeDishCounts => _lifetimeDishCounts;
   List<int> get lifetimeSocialPoints => _lifetimeSocialPoints;
   List<int>? get lastMatchSocialAdjustments => _lastMatchSocialAdjustments;
@@ -123,8 +123,18 @@ class GameController extends ChangeNotifier {
   Future<void> _loadLifetimeStats() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      _lifetimeMatchWins = prefs.getInt('lifetime_match_wins') ?? 0;
-      _lifetimeMatchLosses = prefs.getInt('lifetime_match_losses') ?? 0;
+      final winsJson = prefs.getString('lifetime_match_wins_list');
+      if (winsJson != null) {
+        _lifetimeMatchWins = List<int>.from(jsonDecode(winsJson));
+      } else {
+        _lifetimeMatchWins[0] = prefs.getInt('lifetime_match_wins') ?? 0;
+      }
+      final lossesJson = prefs.getString('lifetime_match_losses_list');
+      if (lossesJson != null) {
+        _lifetimeMatchLosses = List<int>.from(jsonDecode(lossesJson));
+      } else {
+        _lifetimeMatchLosses[0] = prefs.getInt('lifetime_match_losses') ?? 0;
+      }
 
       final dishCountsJson = prefs.getString('lifetime_dish_counts');
       if (dishCountsJson != null) {
@@ -148,8 +158,8 @@ class GameController extends ChangeNotifier {
   Future<void> _saveLifetimeStats() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setInt('lifetime_match_wins', _lifetimeMatchWins);
-      await prefs.setInt('lifetime_match_losses', _lifetimeMatchLosses);
+      await prefs.setString('lifetime_match_wins_list', jsonEncode(_lifetimeMatchWins));
+      await prefs.setString('lifetime_match_losses_list', jsonEncode(_lifetimeMatchLosses));
       await prefs.setString(
         'lifetime_dish_counts',
         jsonEncode(_lifetimeDishCounts),
@@ -455,10 +465,13 @@ class GameController extends ChangeNotifier {
         if (_match.isMatchOver) {
           if (!_matchStatsSaved) {
             _matchStatsSaved = true;
-            if (_match.matchWinner == 0) {
-              _lifetimeMatchWins++;
-            } else {
-              _lifetimeMatchLosses++;
+            int winner = _match.matchWinner;
+            for (int i = 0; i < 4; i++) {
+              if (i == winner) {
+                _lifetimeMatchWins[i]++;
+              } else {
+                _lifetimeMatchLosses[i]++;
+              }
             }
 
             // Track Six-Love Social Points and Elite Jailer status
@@ -1162,34 +1175,87 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                                       ),
                                                     ),
                                                     const SizedBox(height: 8),
-                                                    Row(
-                                                      mainAxisAlignment:
-                                                          MainAxisAlignment
-                                                              .center,
-                                                      children: [
-                                                        Expanded(
-                                                          child: _StatBox(
-                                                            label: 'WINS',
-                                                            value: controller
-                                                                .lifetimeMatchWins,
-                                                            color: const Color(
-                                                              0xFF2BEE4B,
+                                                    Container(
+                                                      decoration: BoxDecoration(
+                                                        color: Colors.black26,
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                          12,
+                                                        ),
+                                                      ),
+                                                      child: Column(
+                                                        children: List.generate(
+                                                            4, (index) {
+                                                          return Container(
+                                                            padding:
+                                                                const EdgeInsets
+                                                                    .symmetric(
+                                                              horizontal: 16,
+                                                              vertical: 8,
                                                             ),
-                                                          ),
-                                                        ),
-                                                        const SizedBox(
-                                                          width: 8,
-                                                        ),
-                                                        Expanded(
-                                                          child: _StatBox(
-                                                            label: 'LOSSES',
-                                                            value: controller
-                                                                .lifetimeMatchLosses,
-                                                            color:
-                                                                Colors.orange,
-                                                          ),
-                                                        ),
-                                                      ],
+                                                            decoration:
+                                                                BoxDecoration(
+                                                              border: index < 3
+                                                                  ? const Border(
+                                                                      bottom: BorderSide(
+                                                                        color: Colors
+                                                                            .white10,
+                                                                      ),
+                                                                    )
+                                                                  : null,
+                                                            ),
+                                                            child: Row(
+                                                              mainAxisAlignment:
+                                                                  MainAxisAlignment
+                                                                      .spaceBetween,
+                                                              children: [
+                                                                Text(
+                                                                  playerNames[
+                                                                      index],
+                                                                  style:
+                                                                      const TextStyle(
+                                                                    color: Colors
+                                                                        .white,
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .bold,
+                                                                  ),
+                                                                ),
+                                                                Row(
+                                                                  children: [
+                                                                    Text(
+                                                                      'W: ${controller.lifetimeMatchWins[index]}',
+                                                                      style:
+                                                                          const TextStyle(
+                                                                        color: Color(
+                                                                          0xFF2BEE4B,
+                                                                        ),
+                                                                        fontWeight:
+                                                                            FontWeight
+                                                                                .bold,
+                                                                      ),
+                                                                    ),
+                                                                    const SizedBox(
+                                                                      width: 12,
+                                                                    ),
+                                                                    Text(
+                                                                      'L: ${controller.lifetimeMatchLosses[index]}',
+                                                                      style:
+                                                                          const TextStyle(
+                                                                        color: Colors
+                                                                            .orange,
+                                                                        fontWeight:
+                                                                            FontWeight
+                                                                                .bold,
+                                                                      ),
+                                                                    ),
+                                                                  ],
+                                                                )
+                                                              ],
+                                                            ),
+                                                          );
+                                                        }),
+                                                      ),
                                                     ),
                                                   ] else ...[
                                                     const SizedBox(height: 12),
@@ -2662,51 +2728,6 @@ class _ChampionStatus extends StatelessWidget {
   }
 }
 
-class _StatBox extends StatelessWidget {
-  final String label;
-  final int value;
-  final Color color;
-  const _StatBox({
-    required this.label,
-    required this.value,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.3),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.3), width: 2),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 10,
-              color: color,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 1.5,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '$value',
-            style: const TextStyle(
-              fontSize: 24,
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 class _CurvedText extends StatelessWidget {
   final String text;
