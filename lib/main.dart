@@ -18,7 +18,7 @@ const List<String> playerNames = ['Hendy', 'Ed', 'Paul', 'Tim'];
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   SoundService().initialize();
-  
+
   final updateService = UpdateService();
   unawaited(updateService.initialize());
 
@@ -112,6 +112,17 @@ class GameController extends ChangeNotifier {
     return _lifetimeDishCounts.indexOf(maxDishes);
   }
 
+  int get lifetimeLeaderIndex {
+    final indices = [0, 1, 2, 3];
+    indices.sort((a, b) {
+      if (_lifetimeMatchWins[b] != _lifetimeMatchWins[a]) {
+        return _lifetimeMatchWins[b].compareTo(_lifetimeMatchWins[a]);
+      }
+      return _lifetimeMatchLosses[a].compareTo(_lifetimeMatchLosses[b]);
+    });
+    return indices.first;
+  }
+
   bool get isMatchStarted =>
       _match.scores.any((s) => s > 0) ||
       (_match.currentRound?.board.isNotEmpty ?? false);
@@ -158,8 +169,14 @@ class GameController extends ChangeNotifier {
   Future<void> _saveLifetimeStats() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('lifetime_match_wins_list', jsonEncode(_lifetimeMatchWins));
-      await prefs.setString('lifetime_match_losses_list', jsonEncode(_lifetimeMatchLosses));
+      await prefs.setString(
+        'lifetime_match_wins_list',
+        jsonEncode(_lifetimeMatchWins),
+      );
+      await prefs.setString(
+        'lifetime_match_losses_list',
+        jsonEncode(_lifetimeMatchLosses),
+      );
       await prefs.setString(
         'lifetime_dish_counts',
         jsonEncode(_lifetimeDishCounts),
@@ -321,7 +338,9 @@ class GameController extends ChangeNotifier {
     _match.mode = mode;
     if (_match.currentRound != null) {
       _match.currentRound!.scoringMode = mode;
-      _match.currentRound!.matchTarget = mode == ScoringMode.sixLove ? 6 : _match.targetScore;
+      _match.currentRound!.matchTarget = mode == ScoringMode.sixLove
+          ? 6
+          : _match.targetScore;
     }
     _saveMatch();
     _updateStatusMessage();
@@ -592,8 +611,9 @@ class GameController extends ChangeNotifier {
 
     // Determine specific delays for this turn
     final int preDelayMs = isKnock ? 200 : 300;
-    final int postMoveDelayMs =
-        isKnock ? 300 : (numPlayOptions == 1 ? 700 : 600);
+    final int postMoveDelayMs = isKnock
+        ? 300
+        : (numPlayOptions == 1 ? 700 : 600);
     final int knockDelayMs = 400;
 
     _isAiThinking = true;
@@ -1180,81 +1200,120 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                                         color: Colors.black26,
                                                         borderRadius:
                                                             BorderRadius.circular(
-                                                          12,
-                                                        ),
+                                                              12,
+                                                            ),
                                                       ),
                                                       child: Column(
-                                                        children: List.generate(
-                                                            4, (index) {
-                                                          return Container(
-                                                            padding:
-                                                                const EdgeInsets
-                                                                    .symmetric(
-                                                              horizontal: 16,
-                                                              vertical: 8,
-                                                            ),
-                                                            decoration:
-                                                                BoxDecoration(
-                                                              border: index < 3
-                                                                  ? const Border(
-                                                                      bottom: BorderSide(
-                                                                        color: Colors
-                                                                            .white10,
-                                                                      ),
-                                                                    )
-                                                                  : null,
-                                                            ),
-                                                            child: Row(
-                                                              mainAxisAlignment:
-                                                                  MainAxisAlignment
-                                                                      .spaceBetween,
-                                                              children: [
-                                                                Text(
-                                                                  playerNames[
-                                                                      index],
-                                                                  style:
-                                                                      const TextStyle(
-                                                                    color: Colors
-                                                                        .white,
-                                                                    fontWeight:
-                                                                        FontWeight
-                                                                            .bold,
-                                                                  ),
-                                                                ),
-                                                                Row(
-                                                                  children: [
-                                                                    Text(
-                                                                      'W: ${controller.lifetimeMatchWins[index]}',
-                                                                      style:
-                                                                          const TextStyle(
-                                                                        color: Color(
-                                                                          0xFF2BEE4B,
+                                                        children: (() {
+                                                          final indices =
+                                                              List.generate(
+                                                                4,
+                                                                (i) => i,
+                                                              );
+                                                          indices.sort((a, b) {
+                                                            int winComp = controller
+                                                                .lifetimeMatchWins[
+                                                                    b]
+                                                                .compareTo(
+                                                                    controller
+                                                                        .lifetimeMatchWins[
+                                                                    a]);
+                                                            if (winComp != 0) {
+                                                              return winComp;
+                                                            }
+                                                            return controller
+                                                                .lifetimeMatchLosses[
+                                                                    a]
+                                                                .compareTo(
+                                                                    controller
+                                                                        .lifetimeMatchLosses[
+                                                                    b]);
+                                                          });
+
+                                                          return indices
+                                                              .asMap()
+                                                              .entries
+                                                              .map((entry) {
+                                                            final pos =
+                                                                entry.key;
+                                                            final pIdx =
+                                                                entry.value;
+                                                            return Container(
+                                                              padding:
+                                                                  const EdgeInsets
+                                                                      .symmetric(
+                                                                horizontal: 16,
+                                                                vertical: 8,
+                                                              ),
+                                                              decoration:
+                                                                  BoxDecoration(
+                                                                border: pos < 3
+                                                                    ? const Border(
+                                                                        bottom:
+                                                                            BorderSide(
+                                                                          color: Colors
+                                                                              .white10,
                                                                         ),
-                                                                        fontWeight:
-                                                                            FontWeight
-                                                                                .bold,
+                                                                      )
+                                                                    : null,
+                                                              ),
+                                                              child: Row(
+                                                                mainAxisAlignment:
+                                                                    MainAxisAlignment
+                                                                        .spaceBetween,
+                                                                children: [
+                                                                  Row(
+                                                                    children: [
+                                                                      Text(
+                                                                        playerNames[pIdx],
+                                                                        style: const TextStyle(
+                                                                          color: Colors.white,
+                                                                          fontWeight: FontWeight.bold,
+                                                                        ),
                                                                       ),
-                                                                    ),
-                                                                    const SizedBox(
-                                                                      width: 12,
-                                                                    ),
-                                                                    Text(
-                                                                      'L: ${controller.lifetimeMatchLosses[index]}',
-                                                                      style:
-                                                                          const TextStyle(
-                                                                        color: Colors
-                                                                            .orange,
-                                                                        fontWeight:
-                                                                            FontWeight
-                                                                                .bold,
+                                                                      if (pos == 0) ...[
+                                                                        const SizedBox(width: 4),
+                                                                        const Text('👑',
+                                                                            style: TextStyle(
+                                                                                fontSize:
+                                                                                    14)),
+                                                                      ],
+                                                                    ],
+                                                                  ),
+                                                                  Row(
+                                                                    children: [
+                                                                      Text(
+                                                                        'W: ${controller.lifetimeMatchWins[pIdx]}',
+                                                                        style:
+                                                                            const TextStyle(
+                                                                          color: Color(
+                                                                            0xFF2BEE4B,
+                                                                          ),
+                                                                          fontWeight:
+                                                                              FontWeight.bold,
+                                                                        ),
                                                                       ),
-                                                                    ),
-                                                                  ],
-                                                                )
-                                                              ],
-                                                            ),
-                                                          );
-                                                        }),
+                                                                      const SizedBox(
+                                                                        width:
+                                                                            12,
+                                                                      ),
+                                                                      Text(
+                                                                        'L: ${controller.lifetimeMatchLosses[pIdx]}',
+                                                                        style:
+                                                                            const TextStyle(
+                                                                          color: Colors
+                                                                              .orange,
+                                                                          fontWeight:
+                                                                              FontWeight.bold,
+                                                                        ),
+                                                                      ),
+                                                                    ],
+                                                                  ),
+                                                                ],
+                                                              ),
+                                                            );
+                                                          }).toList();
+                                                        })(),
                                                       ),
                                                     ),
                                                   ] else ...[
@@ -1276,10 +1335,12 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                                       'RUNNING CHAMPION STANDINGS',
                                                       style: TextStyle(
                                                         fontSize: 10,
-                                                        color: const Color(0xFF2BEE4B)
-                                                            .withValues(
-                                                               alpha: 0.7,
-                                                              ),
+                                                        color:
+                                                            const Color(
+                                                              0xFF2BEE4B,
+                                                            ).withValues(
+                                                              alpha: 0.7,
+                                                            ),
                                                         fontWeight:
                                                             FontWeight.bold,
                                                         letterSpacing: 2,
@@ -1296,22 +1357,33 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                                       ),
                                                       child: Column(
                                                         children: (() {
-                                                          final indices = List.generate(4, (i) => i);
-                                                          indices.sort((a, b) =>
-                                                              controller
-                                                                  .lifetimeSocialPoints[b]
-                                                                  .compareTo(
-                                                                controller
-                                                                    .lifetimeSocialPoints[a],
-                                                              ));
+                                                          final indices =
+                                                              List.generate(
+                                                                4,
+                                                                (i) => i,
+                                                              );
+                                                          indices.sort(
+                                                            (a, b) => controller
+                                                                .lifetimeSocialPoints[b]
+                                                                .compareTo(
+                                                                  controller
+                                                                      .lifetimeSocialPoints[a],
+                                                                ),
+                                                          );
 
-                                                          return indices.asMap().entries.map((entry) {
-                                                            final pos = entry.key; // 0-based rank
-                                                            final index = entry.value; // Original player index
-                                                            final points = controller
-                                                                .lifetimeSocialPoints[index];
-                                                            final dishes = controller
-                                                                .lifetimeDishCounts[index];
+                                                          return indices.asMap().entries.map((
+                                                            entry,
+                                                          ) {
+                                                            final pos = entry
+                                                                .key; // 0-based rank
+                                                            final index = entry
+                                                                .value; // Original player index
+                                                            final points =
+                                                                controller
+                                                                    .lifetimeSocialPoints[index];
+                                                            final dishes =
+                                                                controller
+                                                                    .lifetimeDishCounts[index];
                                                             final isChamp =
                                                                 controller
                                                                     .sixLoveChampionIndex ==
@@ -1336,8 +1408,8 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                                                 border: pos < 3
                                                                     ? Border(
                                                                         bottom: BorderSide(
-                                                                          color: Colors
-                                                                              .white10,
+                                                                          color:
+                                                                              Colors.white10,
                                                                         ),
                                                                       )
                                                                     : null,
@@ -1348,11 +1420,10 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                                                     isChamp
                                                                         ? '👑'
                                                                         : '${pos + 1}.',
-                                                                    style:
-                                                                        const TextStyle(
-                                                                          fontSize:
-                                                                              14,
-                                                                        ),
+                                                                    style: const TextStyle(
+                                                                      fontSize:
+                                                                          14,
+                                                                    ),
                                                                   ),
                                                                   const SizedBox(
                                                                     width: 12,
@@ -1367,14 +1438,12 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                                                           Text(
                                                                             playerNames[index],
                                                                             style: TextStyle(
-                                                                              color:
-                                                                                  isChamp
+                                                                              color: isChamp
                                                                                   ? const Color(
                                                                                       0xFF2BEE4B,
                                                                                     )
                                                                                   : Colors.white70,
-                                                                              fontWeight:
-                                                                                  isChamp
+                                                                              fontWeight: isChamp
                                                                                   ? FontWeight.bold
                                                                                   : FontWeight.normal,
                                                                             ),
@@ -1412,7 +1481,9 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                                                                   ).withOpacity(
                                                                                     0.7,
                                                                                   )
-                                                                                : Colors.red.withOpacity(0.7),
+                                                                                : Colors.red.withOpacity(
+                                                                                    0.7,
+                                                                                  ),
                                                                             fontWeight:
                                                                                 FontWeight.bold,
                                                                           ),
@@ -1443,8 +1514,8 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                                                         style: const TextStyle(
                                                                           fontSize:
                                                                               9,
-                                                                          color: Colors
-                                                                              .white38,
+                                                                          color:
+                                                                              Colors.white38,
                                                                         ),
                                                                       ),
                                                                     ],
@@ -1507,90 +1578,105 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                       ),
                                     ),
 
-                                    // Match Info Overlay (Top Center)
-                                    Positioned(
-                                      top: 8,
-                                      left: 0,
-                                      right: 0,
-                                      child: Align(
-                                        alignment: Alignment.topCenter,
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 12, vertical: 8),
-                                          decoration: BoxDecoration(
-                                            color: Colors.black.withAlpha(100),
-                                            borderRadius: BorderRadius.circular(20),
+                                  // Match Info Overlay (Top Center)
+                                  Positioned(
+                                    top: 8,
+                                    left: 0,
+                                    right: 0,
+                                    child: Align(
+                                      alignment: Alignment.topCenter,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 8,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.black.withAlpha(100),
+                                          borderRadius: BorderRadius.circular(
+                                            20,
                                           ),
-                                          child: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Text(
-                                                controller.scoringMode == ScoringMode.sixLove 
-                                                    ? 'SIX-LOVE' 
-                                                    : 'Trgt=${controller.match.targetScore}',
-                                                style: const TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 12,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Text(
+                                              controller.scoringMode ==
+                                                      ScoringMode.sixLove
+                                                  ? 'SIX-LOVE'
+                                                  : 'Trgt=${controller.match.targetScore}',
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.bold,
                                               ),
-                                              const SizedBox(width: 8),
-                                              Container(
-                                                width: 1,
-                                                height: 12,
-                                                color: Colors.white24,
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Container(
+                                              width: 1,
+                                              height: 12,
+                                              color: Colors.white24,
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              controller.currentDifficulty.name
+                                                  .toUpperCase(),
+                                              style: const TextStyle(
+                                                color: Color(0xFF2BEE4B),
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.w900,
                                               ),
-                                              const SizedBox(width: 8),
-                                              Text(
-                                                controller.currentDifficulty.name.toUpperCase(),
-                                                style: const TextStyle(
-                                                  color: Color(0xFF2BEE4B),
-                                                  fontSize: 10,
-                                                  fontWeight: FontWeight.w900,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
+                                            ),
+                                          ],
                                         ),
                                       ),
                                     ),
+                                  ),
 
-                                   // Match Controls Overlay (Top Right - Highest Z-Index)
-                                   Positioned(
-                                     top: 8,
-                                     right: 8,
-                                     child: Row(
-                                       mainAxisSize: MainAxisSize.min,
-                                       children: [
-                                         IconButton(
-                                           padding: const EdgeInsets.all(12),
-                                           tooltip: 'Match Settings',
-                                           icon: const Icon(
-                                             Icons.settings,
-                                             color: Color(0xFF2BEE4B),
-                                             size: 24,
-                                           ),
-                                           onPressed: () => _showResetConfirmation(context, controller),
-                                         ),
-                                         IconButton(
-                                           padding: const EdgeInsets.all(12),
-                                           tooltip: 'How to Play',
-                                           icon: const Icon(
-                                             Icons.help_outline,
-                                             color: Colors.white70,
-                                             size: 24,
-                                           ),
-                                           onPressed: () =>
-                                               _showHelpModal(context, controller),
-                                         ),
-                                       ],
-                                     ),
-                                   ),
+                                  // Match Controls Overlay (Top Right - Highest Z-Index)
+                                  Positioned(
+                                    top: 8,
+                                    right: 8,
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        IconButton(
+                                          padding: const EdgeInsets.all(12),
+                                          tooltip: 'Match Settings',
+                                          icon: const Icon(
+                                            Icons.settings,
+                                            color: Color(0xFF2BEE4B),
+                                            size: 24,
+                                          ),
+                                          onPressed: () =>
+                                              _showResetConfirmation(
+                                                context,
+                                                controller,
+                                              ),
+                                        ),
+                                        IconButton(
+                                          padding: const EdgeInsets.all(12),
+                                          tooltip: 'How to Play',
+                                          icon: const Icon(
+                                            Icons.help_outline,
+                                            color: Colors.white70,
+                                            size: 24,
+                                          ),
+                                          onPressed: () => _showHelpModal(
+                                            context,
+                                            controller,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
 
-                                   // Review Board Overlay
-                                  if (controller.showReviewBoard && !controller.showNextRoundButton)
+                                  // Review Board Overlay
+                                  if (controller.showReviewBoard &&
+                                      !controller.showNextRoundButton)
                                     Positioned.fill(
-                                      child: ReviewBoardOverlay(controller: controller),
+                                      child: ReviewBoardOverlay(
+                                        controller: controller,
+                                      ),
                                     ),
 
                                   // Resume Overlay
@@ -1623,7 +1709,8 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                                 Text(
                                                   'Tap anywhere to restore audio',
                                                   style: TextStyle(
-                                                    color: Colors.white.withOpacity(0.6),
+                                                    color: Colors.white
+                                                        .withOpacity(0.6),
                                                     fontSize: 16,
                                                   ),
                                                 ),
@@ -2508,13 +2595,20 @@ class _EdgeScoreState extends State<_EdgeScore> with TickerProviderStateMixin {
                         : FontWeight.w400,
                   ),
                 ),
-                if (context.watch<GameController>().sixLoveChampionIndex ==
-                    playerNames.indexOf(widget.name))
+                if ((context.watch<GameController>().scoringMode == ScoringMode.sixLove &&
+                        context.watch<GameController>().sixLoveChampionIndex ==
+                            playerNames.indexOf(widget.name)) ||
+                    (context.watch<GameController>().scoringMode == ScoringMode.traditional &&
+                        context.watch<GameController>().lifetimeLeaderIndex ==
+                            playerNames.indexOf(widget.name)))
                   Padding(
                     padding: const EdgeInsets.only(left: 4.0),
                     child: Tooltip(
-                      message: 'Six-Love Champion',
-                      child: Text('👑', style: TextStyle(fontSize: 12)),
+                      message: context.watch<GameController>().scoringMode ==
+                              ScoringMode.sixLove
+                          ? 'Six-Love Champion'
+                          : 'Lifetime Leader',
+                      child: const Text('👑', style: TextStyle(fontSize: 12)),
                     ),
                   ),
                 if (widget.isThinking) const _ThinkingDots(),
@@ -2679,41 +2773,41 @@ class _ChampionStatus extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.black26,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: accentColor.withOpacity(0.3), width: 2),
-        ),
-        child: Column(
-          children: [
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 10,
-                color: accentColor.withOpacity(0.7),
-                fontWeight: FontWeight.bold,
-                letterSpacing: 2,
-              ),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.black26,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: accentColor.withOpacity(0.3), width: 2),
+      ),
+      child: Column(
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 10,
+              color: accentColor.withOpacity(0.7),
+              fontWeight: FontWeight.bold,
+              letterSpacing: 2,
             ),
-            const SizedBox(height: 4),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(icon, style: const TextStyle(fontSize: 20)),
-                const SizedBox(width: 8),
-                Text(
-                  name,
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w900,
-                    color: championIndex != -1 ? accentColor : Colors.white,
-                    letterSpacing: 1.2,
-                  ),
+          ),
+          const SizedBox(height: 4),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(icon, style: const TextStyle(fontSize: 20)),
+              const SizedBox(width: 8),
+              Text(
+                name,
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                  color: championIndex != -1 ? accentColor : Colors.white,
+                  letterSpacing: 1.2,
                 ),
-              ],
-            ),
-            const SizedBox(height: 4),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
           Text(
             subtext,
             style: const TextStyle(
@@ -2727,7 +2821,6 @@ class _ChampionStatus extends StatelessWidget {
     );
   }
 }
-
 
 class _CurvedText extends StatelessWidget {
   final String text;
@@ -2853,92 +2946,45 @@ class _MatchSetupViewState extends State<_MatchSetupView> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-            const Icon(
-              Icons.local_fire_department,
-              size: 32,
-              color: Colors.orangeAccent,
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Match Setup',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-            const SizedBox(height: 4),
-            const Text(
-              'Select the scoring rules for this match.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 14, color: Colors.white70),
-            ),
-            const SizedBox(height: 16),
-            SegmentedButton<ScoringMode>(
-              showSelectedIcon: false,
-              segments: const [
-                ButtonSegment(
-                  value: ScoringMode.traditional,
-                  label: const Text('First to Target'),
-                  icon: Icon(Icons.score),
-                ),
-                ButtonSegment(
-                  value: ScoringMode.sixLove,
-                  label: Text('Six-Love'),
-                  icon: Icon(Icons.auto_awesome),
-                ),
-              ],
-              selected: {widget.controller.scoringMode},
-              onSelectionChanged: (Set<ScoringMode> selection) {
-                if (_isInteractable) {
-                  widget.controller.setScoringMode(selection.first);
-                }
-              },
-              style: ButtonStyle(
-                backgroundColor: WidgetStateProperty.resolveWith((states) {
-                  if (states.contains(WidgetState.selected)) {
-                    return const Color(0xFF2BEE4B);
-                  }
-                  return null;
-                }),
-                foregroundColor: WidgetStateProperty.resolveWith((states) {
-                  if (states.contains(WidgetState.selected)) {
-                    return Colors.black;
-                  }
-                  return Colors.white70;
-                }),
-              ),
-            ),
-            if (widget.controller.scoringMode == ScoringMode.traditional) ...[
-              const SizedBox(height: 16),
-              const Text(
-                'Target Points',
-                style: TextStyle(fontSize: 14, color: Colors.white70),
+              const Icon(
+                Icons.local_fire_department,
+                size: 32,
+                color: Colors.orangeAccent,
               ),
               const SizedBox(height: 8),
-              SegmentedButton<int>(
+              const Text(
+                'Match Setup',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'Select the scoring rules for this match.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 14, color: Colors.white70),
+              ),
+              const SizedBox(height: 16),
+              SegmentedButton<ScoringMode>(
                 showSelectedIcon: false,
                 segments: const [
                   ButtonSegment(
-                    value: 100,
-                    label: Text('100'),
-                    icon: Icon(Icons.flash_on),
+                    value: ScoringMode.traditional,
+                    label: const Text('First to Target'),
+                    icon: Icon(Icons.score),
                   ),
                   ButtonSegment(
-                    value: 150,
-                    label: Text('150'),
-                    icon: Icon(Icons.bolt),
-                  ),
-                  ButtonSegment(
-                    value: 200,
-                    label: Text('200'),
+                    value: ScoringMode.sixLove,
+                    label: Text('Six-Love'),
                     icon: Icon(Icons.auto_awesome),
                   ),
                 ],
-                selected: {widget.controller.match.targetScore},
-                onSelectionChanged: (Set<int> selection) {
+                selected: {widget.controller.scoringMode},
+                onSelectionChanged: (Set<ScoringMode> selection) {
                   if (_isInteractable) {
-                    widget.controller.setTargetScore(selection.first);
+                    widget.controller.setScoringMode(selection.first);
                   }
                 },
                 style: ButtonStyle(
@@ -2956,101 +3002,148 @@ class _MatchSetupViewState extends State<_MatchSetupView> {
                   }),
                 ),
               ),
+              if (widget.controller.scoringMode == ScoringMode.traditional) ...[
+                const SizedBox(height: 16),
+                const Text(
+                  'Target Points',
+                  style: TextStyle(fontSize: 14, color: Colors.white70),
+                ),
+                const SizedBox(height: 8),
+                SegmentedButton<int>(
+                  showSelectedIcon: false,
+                  segments: const [
+                    ButtonSegment(
+                      value: 100,
+                      label: Text('100'),
+                      icon: Icon(Icons.flash_on),
+                    ),
+                    ButtonSegment(
+                      value: 150,
+                      label: Text('150'),
+                      icon: Icon(Icons.bolt),
+                    ),
+                    ButtonSegment(
+                      value: 200,
+                      label: Text('200'),
+                      icon: Icon(Icons.auto_awesome),
+                    ),
+                  ],
+                  selected: {widget.controller.match.targetScore},
+                  onSelectionChanged: (Set<int> selection) {
+                    if (_isInteractable) {
+                      widget.controller.setTargetScore(selection.first);
+                    }
+                  },
+                  style: ButtonStyle(
+                    backgroundColor: WidgetStateProperty.resolveWith((states) {
+                      if (states.contains(WidgetState.selected)) {
+                        return const Color(0xFF2BEE4B);
+                      }
+                      return null;
+                    }),
+                    foregroundColor: WidgetStateProperty.resolveWith((states) {
+                      if (states.contains(WidgetState.selected)) {
+                        return Colors.black;
+                      }
+                      return Colors.white70;
+                    }),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 16),
+              const Text(
+                'AI Difficulty',
+                style: TextStyle(fontSize: 14, color: Colors.white70),
+              ),
+              const SizedBox(height: 8),
+              SegmentedButton<DifficultyLevel>(
+                showSelectedIcon: false,
+                segments: const [
+                  ButtonSegment(
+                    value: DifficultyLevel.rookie,
+                    label: Text('Rookie'),
+                  ),
+                  ButtonSegment(
+                    value: DifficultyLevel.casual,
+                    label: Text('Casual'),
+                  ),
+                  ButtonSegment(
+                    value: DifficultyLevel.professional,
+                    label: Text('Pro'),
+                  ),
+                  ButtonSegment(
+                    value: DifficultyLevel.legend,
+                    label: Text('Legend'),
+                  ),
+                ],
+                selected: {widget.controller.currentDifficulty},
+                onSelectionChanged: (selection) {
+                  if (_isInteractable) {
+                    widget.controller.setDifficulty(selection.first);
+                  }
+                },
+                style: ButtonStyle(
+                  backgroundColor: WidgetStateProperty.resolveWith((states) {
+                    if (states.contains(WidgetState.selected)) {
+                      return const Color(0xFF2BEE4B);
+                    }
+                    return null;
+                  }),
+                  foregroundColor: WidgetStateProperty.resolveWith((states) {
+                    if (states.contains(WidgetState.selected)) {
+                      return Colors.black;
+                    }
+                    return Colors.white70;
+                  }),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: _ModeDescription(
+                      mode: widget.controller.scoringMode,
+                      targetScore: widget.controller.match.targetScore,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _DifficultyDescription(
+                      level: widget.controller.currentDifficulty,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: _isInteractable
+                      ? widget.controller.startMatch
+                      : null,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _isInteractable
+                        ? const Color(0xFF2BEE4B)
+                        : const Color(0xFF2BEE4B).withOpacity(0.5),
+                    foregroundColor: Colors.black,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    elevation: 8,
+                  ),
+                  child: const Text(
+                    'START MATCH',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                ),
+              ),
             ],
-            const SizedBox(height: 16),
-            const Text(
-              'AI Difficulty',
-              style: TextStyle(fontSize: 14, color: Colors.white70),
-            ),
-            const SizedBox(height: 8),
-            SegmentedButton<DifficultyLevel>(
-              showSelectedIcon: false,
-              segments: const [
-                ButtonSegment(
-                  value: DifficultyLevel.rookie,
-                  label: Text('Rookie'),
-                ),
-                ButtonSegment(
-                  value: DifficultyLevel.casual,
-                  label: Text('Casual'),
-                ),
-                ButtonSegment(
-                  value: DifficultyLevel.professional,
-                  label: Text('Pro'),
-                ),
-                ButtonSegment(
-                  value: DifficultyLevel.legend,
-                  label: Text('Legend'),
-                ),
-              ],
-              selected: {widget.controller.currentDifficulty},
-              onSelectionChanged: (selection) {
-                if (_isInteractable) {
-                  widget.controller.setDifficulty(selection.first);
-                }
-              },
-              style: ButtonStyle(
-                backgroundColor: WidgetStateProperty.resolveWith((states) {
-                  if (states.contains(WidgetState.selected)) {
-                    return const Color(0xFF2BEE4B);
-                  }
-                  return null;
-                }),
-                foregroundColor: WidgetStateProperty.resolveWith((states) {
-                  if (states.contains(WidgetState.selected)) {
-                    return Colors.black;
-                  }
-                  return Colors.white70;
-                }),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: _ModeDescription(
-                    mode: widget.controller.scoringMode,
-                    targetScore: widget.controller.match.targetScore,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _DifficultyDescription(
-                    level: widget.controller.currentDifficulty,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton(
-                onPressed: _isInteractable
-                    ? widget.controller.startMatch
-                    : null,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _isInteractable
-                      ? const Color(0xFF2BEE4B)
-                      : const Color(0xFF2BEE4B).withOpacity(0.5),
-                  foregroundColor: Colors.black,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  elevation: 8,
-                ),
-                child: const Text(
-                  'START MATCH',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 1.2,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
+          ),
         ),
       ),
     );
@@ -3217,7 +3310,10 @@ class ReviewBoardOverlay extends StatelessWidget {
                 ),
                 style: TextButton.styleFrom(
                   backgroundColor: Colors.white.withOpacity(0.1),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                 ),
               ),
             ),
@@ -3255,13 +3351,30 @@ class _MiniHand extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            name,
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                name,
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              if ((context.watch<GameController>().scoringMode ==
+                          ScoringMode.sixLove &&
+                      context.watch<GameController>().sixLoveChampionIndex ==
+                          playerNames.indexOf(name)) ||
+                  (context.watch<GameController>().scoringMode ==
+                          ScoringMode.traditional &&
+                      context.watch<GameController>().lifetimeLeaderIndex ==
+                          playerNames.indexOf(name)))
+                const Padding(
+                  padding: EdgeInsets.only(left: 4.0),
+                  child: Text('👑', style: TextStyle(fontSize: 14)),
+                ),
+            ],
           ),
           const SizedBox(height: 4),
           Wrap(
@@ -3273,10 +3386,7 @@ class _MiniHand extends StatelessWidget {
                 height: 70, // Increased from 40
                 child: Transform.scale(
                   scale: 0.7, // Increased from 0.5 for better visibility
-                  child: DominoTileWidget(
-                    tile: tile,
-                    isVertical: true,
-                  ),
+                  child: DominoTileWidget(tile: tile, isVertical: true),
                 ),
               );
             }).toList(),
@@ -3327,19 +3437,28 @@ void _showHelpModal(BuildContext context, GameController controller) {
             Expanded(
               child: FutureBuilder<List<String>>(
                 future: Future.wait([
-                  DefaultAssetBundle.of(context).loadString('assets/help_rules.md'),
-                  DefaultAssetBundle.of(context).loadString('assets/help_scoring.md'),
-                  DefaultAssetBundle.of(context).loadString('assets/help_controls.md'),
+                  DefaultAssetBundle.of(
+                    context,
+                  ).loadString('assets/help_rules.md'),
+                  DefaultAssetBundle.of(
+                    context,
+                  ).loadString('assets/help_scoring.md'),
+                  DefaultAssetBundle.of(
+                    context,
+                  ).loadString('assets/help_controls.md'),
                 ]),
                 builder: (context, snapshot) {
                   if (!snapshot.hasData) {
                     return const Center(
-                      child: CircularProgressIndicator(color: Color(0xFF00C853)),
+                      child: CircularProgressIndicator(
+                        color: Color(0xFF00C853),
+                      ),
                     );
                   }
 
                   List<String> parseContent(String raw) {
-                    return raw.split('\n')
+                    return raw
+                        .split('\n')
                         .map((l) => l.trim())
                         .where((l) => l.startsWith('-'))
                         .map((l) => l.replaceFirst('-', '').trim())
@@ -3379,7 +3498,10 @@ void _showHelpModal(BuildContext context, GameController controller) {
                     ),
                   ),
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('GOT IT', style: TextStyle(fontWeight: FontWeight.bold)),
+                  child: const Text(
+                    'GOT IT',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
                 ),
               ),
             ),
@@ -3423,9 +3545,14 @@ void _showResetConfirmation(BuildContext context, GameController controller) {
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.redAccent.withOpacity(0.8),
             foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
-          child: const Text('RESET MATCH', style: TextStyle(fontWeight: FontWeight.bold)),
+          child: const Text(
+            'RESET MATCH',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
         ),
       ],
     ),
@@ -3455,28 +3582,30 @@ class _HelpSection extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          ...content.map((text) => Padding(
-                padding: const EdgeInsets.only(bottom: 12.0),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Padding(
-                      padding: EdgeInsets.only(top: 6.0, right: 12),
-                      child: Icon(Icons.circle, size: 6, color: Colors.white38),
-                    ),
-                    Expanded(
-                      child: Text(
-                        text,
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 15,
-                          height: 1.5,
-                        ),
+          ...content.map(
+            (text) => Padding(
+              padding: const EdgeInsets.only(bottom: 12.0),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.only(top: 6.0, right: 12),
+                    child: Icon(Icons.circle, size: 6, color: Colors.white38),
+                  ),
+                  Expanded(
+                    child: Text(
+                      text,
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 15,
+                        height: 1.5,
                       ),
                     ),
-                  ],
-                ),
-              )),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -3530,10 +3659,7 @@ class _UpdateBanner extends StatelessWidget {
                     ),
                     Text(
                       'A new version is ready. Refresh to update.',
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 12,
-                      ),
+                      style: TextStyle(color: Colors.white70, fontSize: 12),
                     ),
                   ],
                 ),
@@ -3544,12 +3670,18 @@ class _UpdateBanner extends StatelessWidget {
                 style: TextButton.styleFrom(
                   backgroundColor: const Color(0xFF2BEE4B),
                   foregroundColor: Colors.black,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
-                child: const Text('REFRESH', style: TextStyle(fontWeight: FontWeight.bold)),
+                child: const Text(
+                  'REFRESH',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
               ),
             ],
           ),
@@ -3616,4 +3748,3 @@ class _DifficultyDescription extends StatelessWidget {
     );
   }
 }
-
