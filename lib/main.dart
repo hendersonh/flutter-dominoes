@@ -211,7 +211,12 @@ class GameController extends ChangeNotifier {
 
     _updateStatusMessage();
     _sortPlayerHand();
-    _isSetupComplete = isMatchStarted;
+    // Only set _isSetupComplete if it hasn't been explicitly set by resetMatch
+    if (!isMatchStarted) {
+      // If we're starting fresh, it depends on whether we're in setup
+    } else {
+      _isSetupComplete = true;
+    }
     notifyListeners();
 
     // If it's AI's turn to start the restored match
@@ -277,12 +282,29 @@ class GameController extends ChangeNotifier {
     }
   }
 
-  Future<void> resetMatch() async {
+  Future<void> resetMatch({bool goToSetup = true}) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_kMatchKey);
+    
+    // Preserve current settings
+    final currentTarget = _match.targetScore;
+    final currentMode = _match.mode;
+    
     _matchStatsSaved = false;
-    _isSetupComplete = false;
+    _isSetupComplete = !goToSetup;
+    
     await _initMatch();
+    
+    // Ensure settings are preserved in the new match
+    _match.targetScore = currentTarget;
+    _match.mode = currentMode;
+    if (_match.currentRound != null) {
+      _match.currentRound!.scoringMode = currentMode;
+      _match.currentRound!.matchTarget = currentMode == ScoringMode.sixLove ? 6 : currentTarget;
+    }
+    
+    _isSetupComplete = !goToSetup;
+    notifyListeners();
   }
 
   void setNeedsResume(bool val) {
@@ -678,9 +700,9 @@ class GameController extends ChangeNotifier {
     }
   }
 
-  Future<void> restartGame() async {
+  Future<void> restartGame({bool goToSetup = false}) async {
     if (_match.isMatchOver) {
-      await resetMatch();
+      await resetMatch(goToSetup: goToSetup);
     } else if (game != null && game!.isGameOver) {
       // Clear overlays and wait for Skwasm to settle
       _topOverlayMessage = null;
@@ -694,7 +716,7 @@ class GameController extends ChangeNotifier {
       // User tapped reset mid-round
       _topOverlayMessage = null;
       _bottomOverlayMessage = null;
-      await resetMatch();
+      await resetMatch(goToSetup: goToSetup);
     }
   }
 
@@ -1529,47 +1551,114 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                                     ),
                                                   ],
                                                   const SizedBox(height: 24),
-                                                  SizedBox(
-                                                    width: double.infinity,
-                                                    child: ElevatedButton.icon(
-                                                      icon: Icon(
-                                                        controller
-                                                                .match
-                                                                .isMatchOver
-                                                            ? Icons.replay
-                                                            : Icons.play_arrow,
-                                                      ),
-                                                      label: Text(
-                                                        controller
-                                                                .match
-                                                                .isMatchOver
-                                                            ? 'START NEW MATCH'
-                                                            : 'PLAY NEXT ROUND',
-                                                      ),
-                                                      onPressed: controller
-                                                          .restartGame,
-                                                      style: ElevatedButton.styleFrom(
-                                                        backgroundColor:
-                                                            const Color(
-                                                              0xFF2BEE4B,
-                                                            ),
-                                                        foregroundColor:
-                                                            Colors.black,
-                                                        padding:
-                                                            const EdgeInsets.symmetric(
-                                                              vertical: 12,
-                                                            ),
-                                                        textStyle:
-                                                            const TextStyle(
-                                                              inherit: false,
-                                                              fontSize: 18,
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .bold,
-                                                            ),
+                                                  if (controller.match.isMatchOver) ...[
+                                                    SizedBox(
+                                                      width: double.infinity,
+                                                      child: ElevatedButton.icon(
+                                                        icon: const Icon(Icons.replay),
+                                                        label: const Text('PLAY AGAIN'),
+                                                        onPressed: () =>
+                                                            controller.restartGame(
+                                                          goToSetup: false,
+                                                        ),
+                                                        style: ElevatedButton.styleFrom(
+                                                          backgroundColor:
+                                                              const Color(
+                                                            0xFF2BEE4B,
+                                                          ),
+                                                          foregroundColor:
+                                                              Colors.black,
+                                                          padding:
+                                                              const EdgeInsets
+                                                                  .symmetric(
+                                                            vertical: 12,
+                                                          ),
+                                                          textStyle:
+                                                              const TextStyle(
+                                                            inherit: false,
+                                                            fontSize: 18,
+                                                            fontWeight:
+                                                                FontWeight.bold,
+                                                          ),
+                                                        ),
                                                       ),
                                                     ),
-                                                  ),
+                                                    const SizedBox(height: 12),
+                                                    SizedBox(
+                                                      width: double.infinity,
+                                                      child: OutlinedButton.icon(
+                                                        icon: const Icon(
+                                                          Icons
+                                                              .settings_backup_restore,
+                                                        ),
+                                                        label: const Text(
+                                                          'CHANGE RULES',
+                                                        ),
+                                                        onPressed: () =>
+                                                            controller.restartGame(
+                                                          goToSetup: true,
+                                                        ),
+                                                        style: OutlinedButton
+                                                            .styleFrom(
+                                                          foregroundColor:
+                                                              const Color(
+                                                            0xFF2BEE4B,
+                                                          ),
+                                                          side: const BorderSide(
+                                                            color: Color(
+                                                              0xFF2BEE4B,
+                                                            ),
+                                                          ),
+                                                          padding:
+                                                              const EdgeInsets
+                                                                  .symmetric(
+                                                            vertical: 12,
+                                                          ),
+                                                          textStyle:
+                                                              const TextStyle(
+                                                            inherit: false,
+                                                            fontSize: 16,
+                                                            fontWeight:
+                                                                FontWeight.bold,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ] else
+                                                    SizedBox(
+                                                      width: double.infinity,
+                                                      child: ElevatedButton.icon(
+                                                        icon: const Icon(
+                                                          Icons.play_arrow,
+                                                        ),
+                                                        label: const Text(
+                                                          'PLAY NEXT ROUND',
+                                                        ),
+                                                        onPressed: controller
+                                                            .restartGame,
+                                                        style: ElevatedButton
+                                                            .styleFrom(
+                                                          backgroundColor:
+                                                              const Color(
+                                                            0xFF2BEE4B,
+                                                          ),
+                                                          foregroundColor:
+                                                              Colors.black,
+                                                          padding:
+                                                              const EdgeInsets
+                                                                  .symmetric(
+                                                            vertical: 12,
+                                                          ),
+                                                          textStyle:
+                                                              const TextStyle(
+                                                            inherit: false,
+                                                            fontSize: 18,
+                                                            fontWeight:
+                                                                FontWeight.bold,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ),
                                                 ],
                                               ),
                                             ),
