@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="description" content="User guide for HendyDom (Cut-Throat Dominoes), covering UI navigation, scoring systems, and match reporting." />
+  <title>HendyDom - User Guide</title>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-gradient: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      --text-main: #f8fafc;
+      --text-muted: #cbd5e1;
+      --accent-primary: #38bdf8;
+      --accent-secondary: #818cf8;
+      --card-bg: rgba(30, 41, 59, 0.7);
+      --card-border: rgba(255, 255, 255, 0.1);
+    }
+    
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Outfit', sans-serif;
+      background: var(--bg-gradient);
+      color: var(--text-main);
+      line-height: 1.6;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Mobile-First Layout Adjustments */
+    header {
+      text-align: center;
+      padding: 2.5rem 1rem 1.5rem;
+      animation: fadeInDown 0.8s ease-out;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      font-weight: 800;
+      background: linear-gradient(to right, var(--accent-primary), var(--accent-secondary));
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 0.5rem;
+      letter-spacing: -1px;
+    }
+
+    .subtitle {
+      font-size: 1.1rem;
+      color: var(--text-muted);
+      font-weight: 300;
+      padding: 0 1rem;
+    }
+
+    main {
+      max-width: 100%;
+      margin: 0 auto;
+      padding: 1rem;
+      display: grid;
+      gap: 1.5rem;
+    }
+
+    section {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      padding: 1.5rem;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.25);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      opacity: 0;
+      animation: fadeInUp 0.8s ease-out forwards;
+    }
+
+    section:nth-child(1) { animation-delay: 0.2s; }
+    section:nth-child(2) { animation-delay: 0.4s; }
+    section:nth-child(3) { animation-delay: 0.6s; }
+
+    h2 {
+      min-height: 0;
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin-bottom: 1.2rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: #fff;
+    }
+
+    .icon-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, rgba(56,189,248,0.2), rgba(129,140,248,0.2));
+      border-radius: 10px;
+      border: 1px solid var(--accent-secondary);
+      font-size: 1.1rem;
+    }
+
+    h3 {
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: var(--accent-primary);
+      margin: 1.5rem 0 0.5rem;
+    }
+
+    p {
+      color: var(--text-muted);
+      margin-bottom: 1rem;
+      font-size: 1.05rem; /* Larger for mobile reading */
+      line-height: 1.5;
+    }
+
+    ul {
+      list-style-type: none;
+      margin-top: 0.75rem;
+    }
+
+    li {
+      margin-bottom: 0.75rem;
+      padding-left: 1.5rem;
+      position: relative;
+      color: var(--text-muted);
+      font-size: 1.05rem;
+      line-height: 1.5;
+    }
+
+    li::before {
+      content: '✦';
+      position: absolute;
+      left: 0;
+      top: 2px;
+      color: var(--accent-secondary);
+      font-size: 1rem;
+    }
+
+    strong {
+      color: var(--text-main);
+      font-weight: 600;
+    }
+
+    .highlight-box {
+      background: rgba(255, 255, 255, 0.05);
+      border-left: 4px solid var(--accent-primary);
+      padding: 1rem;
+      border-radius: 0 12px 12px 0;
+      margin: 1.5rem 0;
+    }
+
+    .highlight-box p {
+      margin: 0;
+      color: #fff;
+      font-size: 1rem;
+    }
+
+    footer {
+      text-align: center;
+      padding: 3rem 1rem 2rem;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      opacity: 0.7;
+    }
+
+    /* Tablet and Desktop scaling */
+    @media (min-width: 601px) {
+      main { max-width: 800px; padding: 2rem; gap: 2rem; }
+      header { padding: 4rem 2rem 2rem; }
+      h1 { font-size: 3.5rem; }
+      section { padding: 2.5rem; border-radius: 24px; }
+      h2 { font-size: 2rem; gap: 0.75rem; }
+      .icon-badge { width: 40px; height: 40px; font-size: 1.2rem; }
+    }
+
+    /* Animations */
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(30px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes fadeInDown {
+      from { opacity: 0; transform: translateY(-30px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>HendyDom</h1>
+    <p class="subtitle">Cut-Throat Dominoes UI & Scoring Guide</p>
+  </header>
+
+  <main>
+    <!-- Section 1: Navigating the UI -->
+    <section>
+      <h2><span class="icon-badge">🧭</span> Navigating the Interface</h2>
+      <p>Welcome to HendyDom. The game's interface is designed to be sleek, intuitive, and responsive.</p>
+      
+      <h3>1. Match Setup Menu</h3>
+      <p>Before any domino is played, you'll be greeted by the Match Setup screen. Here you will define the rules of engagement:</p>
+      <ul>
+        <li><strong>Game Mode & Target Goals:</strong> Choose your arena. You can select a traditional point-based target match (with configurable finish lines of <strong>100, 150, or 200 points</strong>) or dive into the historic Jamaican Six-Love matching rules.</li>
+        <li><strong>AI Difficulty:</strong> Select your opponent's skill level—choose from Rookie, Casual, Pro, or Legend.</li>
+      </ul>
+
+      <h3>2. The Match HUD (Heads-Up Display)</h3>
+      <p>During a game, keep your eyes on the HUD overlay. It provides realtime match telemetry:</p>
+      <ul>
+        <li><strong>Scores & Standings:</strong> View current round points and aggregate match wins.</li>
+        <li><strong>The Champion Crown (👑):</strong> Pay close attention to the leaderboards. The all-time match leader will wear the digital crown directly beside their name on the HUD.</li>
+      </ul>
+
+      <h3>3. Making Your Move</h3>
+      <p>Interaction is optimized purely for touch devices. Simply <strong>tap</strong> any playable domino in your hand. If the move is valid, the game will automatically place it onto the active board for you. Invalid dominoes will remain securely in your hand.</p>
+    </section>
+
+    <!-- Section 2: Scoring System -->
+    <section>
+      <h2><span class="icon-badge">🎯</span> The Scoring System</h2>
+      <p>HendyDom features two dramatically different competitive arenas with their own distinct scoring philosophies.</p>
+
+      <h3>Point-Based Target Score Mode</h3>
+      <p>The global standard. Over multiple rounds, players accumulate the pip values of dominoes left in their opponents' hands when the round ends. The first player to reach or exceed your chosen <strong>target score limit (100, 150, or 200 points)</strong> wins the match.</p>
+
+      <h3>"Six-Love" Mode</h3>
+      <p>The authentic Jamaican gauntlet. Points don't matter across rounds; only pure round victories counts. The first player to secure <strong>6 separate round wins</strong> instantly wins the championship.</p>
+      
+      <div class="highlight-box">
+        <p><strong>What is a "Game Bruk"?</strong><br>In Six-Love mode, if the competition is so fierce that <strong>EVERY player at the table manages to win at least one round</strong>, a "Game Bruk" triggers. All scores are instantly reset to zero, and the match restarts from the beginning!</p>
+      </div>
+    </section>
+
+    <!-- Section 3: End of Match -->
+    <section>
+      <h2><span class="icon-badge">🏆</span> End of Match Reporting</h2>
+      <p>When the dust settles and a champion is crowned, the application instantly transitions to the post-match debrief.</p>
+
+      <h3>The Summary Modal</h3>
+      <p>A cinematic Game Over screen will overlay the board. It features:</p>
+      <ul>
+        <li><strong>The Champion Reveal:</strong> The victor is highlighted, displaying their legendary crown (👑) status if applicable.</li>
+        <li><strong>Lifetime Metrics & Win Distribution:</strong> A complete breakdown of all historical match results, helping you track your long-term success against the AI.</li>
+      </ul>
+
+      <h3>The Performance Ranking System (A/B/C/D)</h3>
+      <p>At the end of a match, your performance is graded with a letter rank that perfectly mirrors the AI difficulty level you chose to face. This proves the exact caliber of opponents you managed to defeat (or lose to):</p>
+      <ul>
+        <li><strong>Rank A (Legend Difficulty):</strong> The ultimate prestige. Earning this means you have been sitting at the table playing against 3 uncompromising Dominoes Masters. Only the elite survive here.</li>
+        <li><strong>Rank B (Pro Difficulty):</strong> A highly respected competitive rank. You are playing against seasoned, strategic opponents who rarely make mistakes.</li>
+        <li><strong>Rank C (Casual Difficulty):</strong> The standard ranking. You faced average opponents playing predictably but competently.</li>
+        <li><strong>Rank D (Rookie Difficulty):</strong> The training wheels rank. You played against beginners who often make random or suboptimal moves.</li>
+      </ul>
+
+      <h3>Next Actions</h3>
+      <p>You have total control over the flow of your session. At the bottom of the reporting modal, choose your path:</p>
+      <ul>
+        <li><strong>PLAY AGAIN:</strong> Bypasses the setup menu entirely. Instantly drops you into a fresh round retaining your exact difficulty and mode settings. Ideal for non-stop action.</li>
+        <li><strong>CHANGE RULES:</strong> Returns you to the main Match Setup menu if you want to dial up the AI difficulty or switch scoring formats.</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer>
+    <p>&copy; HendyDom. Hosted securely on Cloudflare Pages.</p>
+  </footer>
+
+</body>
+</html>

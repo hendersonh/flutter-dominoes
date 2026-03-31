@@ -76,6 +76,8 @@ class GameController extends ChangeNotifier {
   List<int> _lifetimeDishCounts = [0, 0, 0, 0];
   // Running Champion points based on Jail system
   List<int> _lifetimeSocialPoints = [0, 0, 0, 0];
+  // Wins recorded at each DifficultyLevel: [rookie, casual, professional, legend]
+  List<int> _lifetimeWinsByDifficulty = [0, 0, 0, 0];
   DifficultyLevel _currentDifficulty = DifficultyLevel.professional;
   List<int>? _lastMatchSocialAdjustments;
   bool _isEliteJailerMatch = false;
@@ -102,6 +104,7 @@ class GameController extends ChangeNotifier {
   List<int> get lifetimeMatchLosses => _lifetimeMatchLosses;
   List<int> get lifetimeDishCounts => _lifetimeDishCounts;
   List<int> get lifetimeSocialPoints => _lifetimeSocialPoints;
+  List<int> get lifetimeWinsByDifficulty => _lifetimeWinsByDifficulty;
   List<int>? get lastMatchSocialAdjustments => _lastMatchSocialAdjustments;
   bool get isEliteJailerMatch => _isEliteJailerMatch;
   bool get needsResume => _needsResume;
@@ -157,6 +160,11 @@ class GameController extends ChangeNotifier {
         _lifetimeSocialPoints = List<int>.from(jsonDecode(socialPointsJson));
       }
 
+      final winsByDiffJson = prefs.getString('lifetime_wins_by_difficulty');
+      if (winsByDiffJson != null) {
+        _lifetimeWinsByDifficulty = List<int>.from(jsonDecode(winsByDiffJson));
+      }
+
       final difficultyIndex = prefs.getInt('current_difficulty_index');
       if (difficultyIndex != null) {
         _currentDifficulty = DifficultyLevel.values[difficultyIndex];
@@ -184,6 +192,10 @@ class GameController extends ChangeNotifier {
       await prefs.setString(
         'lifetime_social_points',
         jsonEncode(_lifetimeSocialPoints),
+      );
+      await prefs.setString(
+        'lifetime_wins_by_difficulty',
+        jsonEncode(_lifetimeWinsByDifficulty),
       );
       await prefs.setInt('current_difficulty_index', _currentDifficulty.index);
     } catch (e) {}
@@ -526,15 +538,17 @@ class GameController extends ChangeNotifier {
                 _lifetimeSocialPoints[i] += adjustments[i];
               }
 
-              // In Six-Love mode, an ending match MUST have a winner and someone with 0.
-              // We increment dish counts for the winner.
-              int winner = _match.matchWinner;
               if (winner != -1) {
                 _lifetimeDishCounts[winner]++;
               }
             } else {
               _lastMatchSocialAdjustments = null;
               _isEliteJailerMatch = false;
+            }
+
+            // Track Win Quality (Strength of Schedule) for the human player
+            if (winner == 0) {
+              _lifetimeWinsByDifficulty[_currentDifficulty.index]++;
             }
 
             _saveLifetimeStats();
@@ -1180,6 +1194,11 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                               child: Column(
                                                 mainAxisSize: MainAxisSize.min,
                                                 children: [
+                                                  if (controller.match.isMatchOver)
+                                                    Padding(
+                                                      padding: const EdgeInsets.only(bottom: 12.0),
+                                                      child: _buildMatchGradeBadge(controller.currentDifficulty),
+                                                    ),
                                                   Text(
                                                     controller
                                                             .bottomOverlayMessage ??
@@ -1255,7 +1274,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                                           return indices
                                                               .asMap()
                                                               .entries
-                                                              .map((entry) {
+                                                              .map<Widget>((entry) {
                                                             final pos =
                                                                 entry.key;
                                                             final pIdx =
@@ -1338,6 +1357,8 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                                         })(),
                                                       ),
                                                     ),
+                                                    const SizedBox(height: 12),
+                                                    _buildVictoryQualityRow(controller.lifetimeWinsByDifficulty),
                                                   ] else ...[
                                                     const SizedBox(height: 12),
                                                     _ChampionStatus(
@@ -1393,7 +1414,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                                                 ),
                                                           );
 
-                                                          return indices.asMap().entries.map((
+                                                          return indices.asMap().entries.map<Widget>((
                                                             entry,
                                                           ) {
                                                             final pos = entry
@@ -1549,6 +1570,8 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                                         })(),
                                                       ),
                                                     ),
+                                                    const SizedBox(height: 12),
+                                                    _buildVictoryQualityRow(controller.lifetimeWinsByDifficulty),
                                                   ],
                                                   const SizedBox(height: 24),
                                                   if (controller.match.isMatchOver) ...[
@@ -1962,6 +1985,133 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
           ),
         );
       }).toList(),
+    );
+  }
+  Widget _buildMatchGradeBadge(DifficultyLevel difficulty) {
+    String grade;
+    String label;
+    Color color;
+
+    switch (difficulty) {
+      case DifficultyLevel.legend:
+        grade = 'A';
+        label = 'LEGENDARY';
+        color = const Color(0xFF64FFDA);
+        break;
+      case DifficultyLevel.professional:
+        grade = 'B';
+        label = 'PROFESSIONAL';
+        color = const Color(0xFF2BEE4B);
+        break;
+      case DifficultyLevel.casual:
+        grade = 'C';
+        label = 'CASUAL';
+        color = Colors.orangeAccent;
+        break;
+      case DifficultyLevel.rookie:
+        grade = 'D';
+        label = 'NOVICE';
+        color = Colors.white54;
+        break;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              grade,
+              style: const TextStyle(
+                color: Colors.black,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            'MATCH INTENSITY: $label',
+            style: TextStyle(
+              color: color,
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVictoryQualityRow(List<int> winsByDiff) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'VICTORY QUALITY',
+          style: TextStyle(
+            fontSize: 10,
+            color: Colors.white54,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 2,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _buildQualityBadge('A', winsByDiff[3], const Color(0xFF64FFDA)),
+            _buildQualityBadge('B', winsByDiff[2], const Color(0xFF2BEE4B)),
+            _buildQualityBadge('C', winsByDiff[1], Colors.orangeAccent),
+            _buildQualityBadge('D', winsByDiff[0], Colors.white54),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildQualityBadge(String grade, int count, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withOpacity(0.2)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            grade,
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.bold,
+              fontSize: 12,
+            ),
+          ),
+          const SizedBox(width: 4),
+          Text(
+            '×$count',
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
