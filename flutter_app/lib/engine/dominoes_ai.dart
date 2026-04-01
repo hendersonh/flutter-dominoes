@@ -159,6 +159,21 @@ class GameModel {
     return scores.indexOf(minScore);
   }
 
+  /// Identifies the "Victim" player in Six-Love mode (exactly one player at 0 wins).
+  /// Returns -1 if no singular victim exists or not in Six-Love mode.
+  int get victimId {
+    if (scoringMode != ScoringMode.sixLove) return -1;
+    int zeroCount = 0;
+    int victim = -1;
+    for (int i = 0; i < matchScores.length; i++) {
+      if (matchScores[i] == 0) {
+        zeroCount++;
+        victim = i;
+      }
+    }
+    return zeroCount == 1 ? victim : -1;
+  }
+
   bool canPlayerPlay(int player) {
     if (board.isEmpty) return hands[player].isNotEmpty;
     // board.isEmpty is false, so leftEnd and rightEnd must be non-null.
@@ -166,6 +181,18 @@ class GameModel {
       if (tile.contains(leftEnd!) || tile.contains(rightEnd!)) return true;
     }
     return false;
+  }
+
+  /// Returns the number of tiles played for each suite (0-6).
+  Map<int, int> get suiteCounts {
+    Map<int, int> counts = {for (int i = 0; i <= 6; i++) i: 0};
+    for (var tile in board) {
+      counts[tile.end1] = counts[tile.end1]! + 1;
+      if (!tile.isDouble) {
+        counts[tile.end2] = counts[tile.end2]! + 1;
+      }
+    }
+    return counts;
   }
 
   List<Action> getLegalActions(int player) {
@@ -283,7 +310,14 @@ class MCTSNode {
 
   /// Selects the best child using the UCB1 formula modified for Information Sets.
   /// Only considers children that correspond to legal actions in the current determinized state.
-  MCTSNode? getBestChild(List<Action> legalActions, double explorationParam) {
+  MCTSNode? getBestChild(
+    List<Action> legalActions,
+    double explorationParam, {
+    int victimId = -1,
+    List<Set<int>>? passedSuits,
+    int? currentLeft,
+    int? currentRight,
+  }) {
     MCTSNode? bestChild;
     double bestValue = -double.infinity;
 
@@ -296,6 +330,29 @@ class MCTSNode {
         int Ni = availabilityCount[action] ?? 1;
 
         double ucb1 = (child.wins / ni) + explorationParam * sqrt(log(Ni) / ni);
+
+        // --- ZERO SCORE PROTOCOL: THE SQUEEZE ---
+        // Penalize moves that "Open" the board for the victim.
+        // A move is "Dangerous" if it results in a board where neither end is a victim void.
+        if (victimId != -1 && passedSuits != null && action is PlayAction && currentLeft != null && currentRight != null) {
+          int? nextLeft = currentLeft;
+          int? nextRight = currentRight;
+          
+          if (action.side == 'left') {
+            nextLeft = (action.tile.end1 == currentLeft) ? action.tile.end2 : action.tile.end1;
+          } else {
+            nextRight = (action.tile.end1 == currentRight) ? action.tile.end2 : action.tile.end1;
+          }
+
+          final voids = passedSuits[victimId];
+          bool isSafe = voids.contains(nextLeft) || voids.contains(nextRight);
+          
+          if (!isSafe) {
+            // Apply a "Squeeze Penalty" to the UCT value to discourage this branch
+            ucb1 -= 2.0; 
+          }
+        }
+
         if (ucb1 > bestValue) {
           bestValue = ucb1;
           bestChild = child;
@@ -436,7 +493,7 @@ class MCTSPlayer {
     if (rootLegalActions.length == 1) return rootLegalActions[0];
 
     int effectiveTimeLimit = timeLimitMs;
-    int iterationLimit = 100000; // Default high limit
+    int iterationLimit = 200000; // Default high limit
 
     // Rookie level adjustments: 50% chance of a completely random move
     if (difficulty == DifficultyLevel.rookie) {
@@ -456,7 +513,7 @@ class MCTSPlayer {
       iterationLimit = 100;
     } else if (difficulty == DifficultyLevel.legend) {
       effectiveTimeLimit = 3500;
-      iterationLimit = 100000; // No real limit
+      iterationLimit = 200000; // Increased for high-precision Legend
     } else {
       // Professional (default)
       effectiveTimeLimit = 1000;
@@ -526,8 +583,21 @@ class MCTSPlayer {
             double progress = sw.elapsedMilliseconds / effectiveTimeLimit;
             explorationParam = 1.414 - (0.714 * progress); // Decay from 1.414 to 0.7
           }
-          
-          MCTSNode? bestChild = node.getBestChild(legalActions, explorationParam);
+
+          int victimId = rootState.victimId;
+          bool isProtocolActive = (victimId != -1 && victimId != playerId);
+          if (iterations == 1 && node == rootNode) {
+             print("ZSP Active: $isProtocolActive, Victim: $victimId");
+          }
+
+          MCTSNode? bestChild = node.getBestChild(
+            legalActions,
+            explorationParam,
+            victimId: isProtocolActive ? victimId : -1,
+            passedSuits: isProtocolActive ? state.passedSuits : null,
+            currentLeft: state.leftEnd,
+            currentRight: state.rightEnd,
+          );
           if (bestChild == null) break;
 
           state.applyAction(bestChild.action!);
@@ -547,11 +617,45 @@ class MCTSPlayer {
       
       while (!state.isGameOver) {
         List<Action> actions = state.getLegalActions(state.currentPlayer);
-        
+        int victimId = rootState.victimId;
+        bool isProtocolActive = (victimId != -1 && victimId != playerId);
+
         Action chosenAction;
         if (useRandomSimulation) {
           // --- ROOKIE: PURE RANDOM SIMULATION ---
           chosenAction = actions[random.nextInt(actions.length)];
+        } else if (isProtocolActive) {
+          // --- ZERO SCORE PROTOCOL: STARVATION ROLLOUT ---
+          // Prioritize moves that "Maintain the Gap" (keep a victim void on the board)
+          List<PlayAction> starvationMoves = actions.whereType<PlayAction>().where((a) {
+            // Predict the ends if we play this tile
+            int? newLeft = state.leftEnd;
+            int? newRight = state.rightEnd;
+            if (a.side == 'left') {
+              newLeft = (a.tile.end1 == state.leftEnd) ? a.tile.end2 : a.tile.end1;
+            } else {
+              newRight = (a.tile.end1 == state.rightEnd) ? a.tile.end2 : a.tile.end1;
+            }
+            
+            // Is the victim void in at least one of the new ends?
+            final voids = state.passedSuits[victimId];
+            return (newLeft != null && voids.contains(newLeft)) || 
+                   (newRight != null && voids.contains(newRight));
+          }).toList();
+
+          if (starvationMoves.isNotEmpty && random.nextDouble() < 0.9) {
+            // Highly likely to choose a starvation move if available
+            chosenAction = starvationMoves[random.nextInt(starvationMoves.length)];
+          } else {
+            // Standard pip-count heuristic as fallback
+            List<PlayAction> playActions = actions.whereType<PlayAction>().toList();
+            if (playActions.isNotEmpty) {
+              playActions.sort((a, b) => b.tile.score.compareTo(a.tile.score));
+              chosenAction = (random.nextDouble() < 0.8) ? playActions.first : playActions[random.nextInt(playActions.length)];
+            } else {
+              chosenAction = actions[random.nextInt(actions.length)];
+            }
+          }
         } else if (useEndGameHeuristic) {
           // --- LEGEND END-GAME HEURISTIC ---
           // Prioritize dumping the highest score tiles to reduce hand value immediately
@@ -578,6 +682,8 @@ class MCTSPlayer {
 
       // 5. Backpropagation
       int winner = state.winner;
+      int victimId = rootState.victimId;
+      bool isProtocolActive = (victimId != -1 && victimId != playerId);
 
       MCTSNode? currentNode = node;
       while (currentNode != null) {
@@ -585,62 +691,36 @@ class MCTSPlayer {
         int movingPlayer = currentNode.player;
 
         if (winner == -1) {
+          result = 0.5; // Draw
+        } else if (winner == movingPlayer) {
+          result = 1.0; // Simple Win
+        } else if (isProtocolActive && winner == victimId) {
+          // --- ZERO SCORE PROTOCOL: THE COLLISION ---
+          // Harsh penalty for letting the victim win
+          result = -100.0;
+        } else if (isProtocolActive && winner != victimId) {
+          // --- ZERO SCORE PROTOCOL: COALITION REWARD ---
+          // Reward ally wins to prevent a match reset
           result = 0.5;
+        } else if (rootState.scoringMode == ScoringMode.traditional) {
+          // 100-Point Mode: Focus on pip efficiency for losses
+          int myPips = state.hands[movingPlayer].fold(0, (sum, t) => sum + t.score);
+          result = 0.4 * (1.0 - (myPips / rootState.matchTarget.toDouble())).clamp(0.0, 1.0);
         } else {
-          // --- ROOKIE: SIMPLE WIN/LOSS REWARD ---
-          if (difficulty == DifficultyLevel.rookie) {
-            result = (winner == movingPlayer) ? 1.0 : 0.0;
-          } else if (state.scoringMode == ScoringMode.traditional) {
-            // 100-Point Mode: Focus on round win and pip efficiency
-            if (winner == movingPlayer) {
-              // Reward winning the match: 1.0
-              // Otherwise, reward based on pips gained (0.5 to 0.9)
-              int totalOpPips = 0;
-              for (int i = 0; i < 4; i++) {
-                if (i != winner) {
-                  totalOpPips +=
-                      state.hands[i].fold(0, (sum, t) => sum + t.score);
-                }
-              }
-              int remaining =
-                  max(1, state.matchTarget - state.matchScores[movingPlayer]);
-              if (totalOpPips >= remaining) {
-                result = 1.0;
-              } else {
-                result = 0.5 + 0.4 * (totalOpPips / state.matchTarget.toDouble()).clamp(0.0, 1.0);
-              }
-            } else {
-              // Penalty for losing (0.0 to 0.4)
-              int myPips =
-                  state.hands[movingPlayer].fold(0, (sum, t) => sum + t.score);
-              result = 0.4 * (1.0 - (myPips / state.matchTarget.toDouble())).clamp(0.0, 1.0);
+          // Six-Love Normal Coalition: Identify the leader
+          int maxScore = 0;
+          int leaderIndex = -1;
+          for (int i = 0; i < 4; i++) {
+            if (rootState.matchScores[i] > maxScore) {
+              maxScore = rootState.matchScores[i];
+              leaderIndex = i;
             }
-          } else {
-            // Six-Love Mode: Focus on Wins and Anti-Leader Coalition
-            if (winner == movingPlayer) {
-              result = 1.0;
-            } else {
-              // Identify the leader
-              int leaderIndex = -1;
-              int maxScore = 0;
-              for (int i = 0; i < 4; i++) {
-                if (state.matchScores[i] > maxScore) {
-                  maxScore = state.matchScores[i];
-                  leaderIndex = i;
-                }
-              }
+          }
 
-              if (leaderIndex != -1 && winner == leaderIndex) {
-                // Letting the leader win (especially near the end) is bad
-                if (state.matchScores[leaderIndex] >= 5) {
-                  result = 0.0;
-                } else {
-                  result = 0.1;
-                }
-              } else {
-                result = 0.3; // Neutral loss
-              }
-            }
+          if (leaderIndex != -1 && winner == leaderIndex) {
+            result = (rootState.matchScores[leaderIndex] >= 5) ? 0.0 : 0.1;
+          } else {
+            result = 0.3; // Neutral loss
           }
         }
 

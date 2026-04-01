@@ -1,0 +1,17 @@
+Running build hooks...Running build hooks...00:00 +0: loading test/zsp_test.dart
+00:00 +0: Zero Score Protocol Verification AI 1 (Leader) should prioritize starving Human Victim (P0) at 0 wins
+AI Player 1 | Difficulty: DifficultyLevel.legend | Iterations: 100000 | Best Action: Play [4|5] on right | Visits: -1
+AI Resulting Action: Play [4|5] on right
+00:00 +0 -1: Zero Score Protocol Verification AI 1 (Leader) should prioritize starving Human Victim (P0) at 0 wins [E]
+  Expected: DominoTile:<[3|2]>
+    Actual: DominoTile:<[4|5]>
+  AI should choose to maintain the suite-4 void for the victim.
+  
+  package:matcher          expect
+  test\zsp_test.dart 44:7  main.<fn>.<fn>
+  
+00:00 +0 -1: Zero Score Protocol Verification Victim AI (P3 at 0 wins) should NOT use ZSP on itself
+00:00 +1 -1: Some tests failed.
+
+Consider enabling the flag chain-stack-traces to receive more detailed exceptions.
+For example, 'dart test --chain-stack-traces'.
