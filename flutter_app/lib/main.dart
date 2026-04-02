@@ -938,7 +938,9 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     _lastHandSize = game.hands[0].length;
 
     return Scaffold(
-      body: AnimatedSwitcher(
+      body: Stack(
+        children: [
+          AnimatedSwitcher(
         duration: const Duration(milliseconds: 400),
         child: controller.isSetupVisible
             ? _MatchSetupView(
@@ -1923,6 +1925,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                           ),
                                         ),
                                       ),
+                                    ),
                                 ],
                               );
                             },
@@ -2027,12 +2030,15 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                     ],
                   ),
                 ),
-              ),
+              ],
+            ),
+          ),
         ),
         const _UpdateBanner(),
       ],
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildHandRow(
     GameModel game,

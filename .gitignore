@@ -57,6 +57,11 @@ flutter_app/app.*.map.json
 !implementation_plan.md
 !walkthrough.md
 !task.md
+!activeContext.md
+!progress.md
+!productContext.md
+!techContext.md
+!decisionLog.md
 !assets/help_*.md
 projects.txt
 help_web*.txt

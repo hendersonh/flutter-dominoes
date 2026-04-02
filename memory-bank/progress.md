@@ -1,0 +1,166 @@
+# Progress Log
+
+## Milestones
+- [x] Create Implementation Plan (v4 - CPS Verified)
+- [x] **Phase 1: Engine & Models**
+- [x] **Phase 2: MCTS Collaborative Brains**
+- [x] **Phase 3: Match State (Six-Love)**
+- [x] **Phase 4: UI Updates**
+- [x] **Phase 5: Verification**
+- [x] Initial game implementation.
+- [x] WASM AI hang fix.
+- [x] WASM Isolate crash fix (`RawReceivePort` error).
+- [x] Game continuation fix.
+- [x] UI score symmetry adjustment.
+- [x] WASM sound and multi-platform build research.
+- [x] Memory Bank MCP server installation.
+- [x] Memory Bank project initialization.
+- [x] WASM Sound Service implementation and verification.
+- [x] Confirmed build-tree asset structure awareness.
+- [x] WASM Memory Error Fix (Skwasm Background AI & Isolate.run).
+- [x] WASM Rendering Optimization (Pip CustomPainter & Staggered Transitions).
+- [x] **AI Strategy Overhaul**: Integrated "Rookie" (formerly "Rockie") and "Legend" difficulties with specialized MCTS heuristics.
+- [x] **Rookie Consistency Fix**: Implemented iteration caps (15) and memory filters (0% history) to prevent Rookies from "solving" the endgame.
+- [x] **UI/UX Polish**: Resolved hit-testing conflicts for overlay buttons and improved mobile accessibility with larger touch targets.
+- [x] **AI Validation**: Developed CLI simulation suite and verified Rookie win rates (4% vs 22% baseline).
+- [x] **Update Notification System**: Implemented `UpdateService` and `_UpdateBanner` in `package:web` with automatic polling and cache-busting `version.json`.
+- [x] **Zero Score Protocol (ZSP)**: Integrated collaborative AI starvation tactics into the MCTS engine to prevent "Game Bruk" resets in Jamaican Six-Love mode.
+- [x] **ZSP High-Precision Verification**: Confirmed starvation tactics hold at 200,000 simulations for Legend difficulty.
+- [x] **ZSP Branch Integration**: Successfully merged `feature/ai-zero-score-protocol` into `feature/4-player-block`.
+- [x] **Partners Feature**: Successfully implemented the 2v2 partner-based mode.
+  - [x] **Research**: Analyzed IS-MCTS and scoring logic for team compatibility.
+  - [x] **Planning**: Created and verified the `implementation_plan.md` for 2v2 integration.
+  - [x] **Implementation**: Integrated team-based HUD, "Bruk" liquidation logic, and partner-aware MCTS rewards.
+  - [x] **Verification**: Validated 2v2 gameplay and Six-Love rules in end-to-end simulations.
+  - [x] **Maintenance**: UI cleanup (removed "Team #" from board HUD), finalized game mode terminology.
+- [x] **HUD Enhancement**: Added "PlayStyle" label to header.
+- [x] **HUD Refinement**: Restore "PROFESSIONAL", Move Gear to Left of Pill.
+- [x] **Mobile UI & Terminology Optimization**: Replaced "CUT-THROAT" with "SOLO", updated AI descriptions, and refined Match Setup layout for small screens.
+- [x] **Partner Mode Scoring Fixes**:
+  - [x] **Winner Determination**: Implemented team-based combined pip comparison for blocked games in Partner mode.
+  - [x] **Pip Calculation**: Fixed round summary to sum only opposing team pips, excluding partner's pips.
+  - [x] **Score Mode Isolation**: Separated Six-Love bonuses (Key Bone/Derby) from Traditional traditional pip rewards to prevent over-scoring.
+  - [x] **UI/Engine Synchronization**: Unified the Round Summary message with the actual engine score updates.
+  - [x] **Round Summary (Review Board) Mobile Refinement**:
+    - [x] Removed redundant "South" (Human) hand from the review board to save space.
+    - [x] Increased tile scaling for the remaining three players for maximum mobile legibility.
+- [x] **Global UI Layering Fix**:
+    - [x] Relocated `_UpdateBanner` to the root `Stack` of `GameScreen` to ensure it overlays all game elements.
+- [x] **Critical main.dart Repair**:
+    - [x] Restored the `GameScreen` widget tree and HUD logic after a catastrophic code corruption during automated edits.
+    - [x] Verified code compilation and structural integrity via `flutter analyze`.
+- [x] **Version Deployment**: Released version `1775156981282` to Cloudflare test branch.
+- [x] **WASM Test Deployment**: Initiating build and deployment for `feature/partners` with updated version `1775161404720`.
+
+
+- [x] High-fidelity tile visual overhaul (ivory texture, depth shadows).
+- [x] Realistic axis-aware pip orientation (6-pips horizontal/vertical).
+- [x] Audio: Implemented "tile_knock" for pass actions (AI & Human).
+- [x] Renderer: Migrated to CanvasKit for stability on Web.
+- [x] Feature: Multi-Mode Scoring (Six-Love vs 100 Points).
+- [x] Feature: Jamaican "Game Bruk" scoring logic implementation.
+- [x] UI: Match Setup screen for mobile space optimization.
+- [x] UI: Compact `tiles/streak` status display.
+- [x] UI: Maximized Playable Area (Full-height board, Overlay HUD).
+- [x] UI: Pulsing Turn Indicator Dot (Replaced blocking central overlay).
+- [x] Deployed optimized WASM production build to Cloudflare Pages (`cut-throat-dom`).
+- [x] Implemented realistic AI turn speeds with randomized "thinking" delays to improve game rhythm.
+- [x] Six-Love Champion System: Global "Dish Out" tracking, leaderboard, and crown indicator.
+- [x] Dynamic HUD Repositioning: Animated shifting of player badges to avoid tile obstructions.
+- [x] Six-Love Modal Overhaul: Thematic "Champion Status" and "Top Contender" logic.
+- [x] **Review Board Implementation**: 15-second post-round observation window with revealed AI hands and dynamic mobile scaling.
+
+## Completed Tasks
+- Added `allpepper-memory-bank` to `mcp_config.json`.
+- Set `MEMORY_BANK_ROOT` to `E:/antigravity/dominoes/memory-bank`.
+- Created initial set of memory files for the Dominoes project.
+- Formalized WASM research into `wasmResearch.md`.
+- Implemented `WebSoundService` and successfully verified sound playback in the browser.
+- [x] Implement AI Difficulty Persistence via `SharedPreferences`.
+- [x] Add "Rockie" difficulty with 30% greedy bias and 150ms MCTS limit.
+- [x] Fix Settings Gear hit-testing by moving overlay to end of Stack.
+- [x] Increase touch targets for mobile accessibility.
+- [x] Released updated WASM build with Difficulty System to Cloudflare.
+- [x] [x] Implement Six-Love stats persistence and per-opponent "Dish Out" tracking.
+- [x] Crown the global "Dish Out" champion with unique UI indicators (e.g. 👑).
+- [x] Polish game animations and transitions for a more "premium" feel.
+- [x] Polished production code by removing diagnostic sine wave triggers.
+- Recorded the verified `assets/assets/` structure in the memory bank.
+- Resolved `skwasm.wasm` memory access out of bounds error by offloading AI to background workers and hardening COOP/COEP headers.
+- Optimized UI rendering (pips, blurs) and staggered- Implementing 2v2 Partner Mode (Six-Love only)
+- Enhancing MCTS with "The Shield" and "The Squeeze" collaborative heuristics
+- Updating UI for Team-based HUD and 2x2 Setup Matrix
+stability and visual consistency.
+- Overhauled `DominoTileWidget` with ivory radial gradients and layered shadows for a premium look.
+- Refined `_PipsPainter` for realistic orientation and depth.
+- Integrated pass/knock sound effects for all players.
+- Removed Scaffold AppBar to maximize vertical playable area.
+- Relocated Turn Indicator and Match Controls into Floating Overlays.
+- Released updated WASM build to Production via Cloudflare Pages.
+- Overhauled Turn Indicators: Replaced central overlay with per-player pulsing dots to unblock score areas.
+- [x] Implemented AI "Thinking" dots animation for visual feedback during machine turns.
+- [x] Slowed down AI turns: Replaced 1.5s fixed delay with randomized 2.0s-4.5s "thinking" periods.
+- [x] Added 1.0s post-play delay to allow users to visually register AI moves.
+- [x] **Dynamic HUD Repositioning**: Implemented `onLayoutCalculated` in `SnakingBoard` and collision detection logic in `GameScreenState` to dynamically move HUD elements (Ed & Tim) out of the way of growing domino tracks.
+- [x] **Six-Love Stats Redesign**: Updated Game Over and Lifetime Stats modals to prioritize "Champion Status" over generic wins/losses.
+- [x] **Authored Championship Logic**: Implemented "Current Champion" (6-0 winner) vs "Top Contender" (most Dishes) logic with visual branding (👑 vs 🔥).
+- [x] **Six-Love Championship Implementation**: Integrated "Running Champion" system (+10/win, +2/escapee, -5/inmate) with lifetime persistence.
+- [x] **Mobile UX Optimization**: Densified "Match Over" modal layout to ensure zero-scroll visibility for the "Next Round" button.
+- [x] **AI Pacing Tune-Up**: Optimized AI delay to ~2.3 seconds ("Normal") while maintaining deep IS-MCTS simulation in background isolates.
+- [x] **Project Infrastructure**: Created a symbolic link in the repository root (`memory-bank -> E:\antigravity\dominoes\memory-bank`) to ensure cross-branch context persistence.
+- [x] **Production Maintenance**: Resolved WASM production build linting issues and redeployed to Cloudflare Pages.
+- [x] **Review Board Feature**: Implemented a post-round "Review Board" overlay with solid black background, dynamic `LayoutBuilder` scaling, and oversized unplayed tiles (35x70) for mobile legibility.
+- [x] **Rookie AI Nerf**: Introduced 50% random move chance and 50ms time limit.
+- [x] **AI Consistency Adjustments**: Capped iterations based on difficulty (Rookie: 15, Casual: 100) and implemented "Memory Filters" to simulate forgotten passes.
+- [x] **Legend AI Finalization**: Implemented mode-aware reward functions (100-Point/Six-Love) and 3.5s computation time.
+- [x] **Production Maintenance**: Redeployed updated WASM build with consistency fixes to Cloudflare.
+- [x] **Audio Fix**: Added `SoundService.resume()` implementation and `RESUME TO PLAY` UI overlay.
+- [x] **HUD Fix**: Moved Reset Match button to top-left for better visual clarity.
+- [x] **Asset Integration**: Created `assets/help_rules.md`, `assets/help_scoring.md`, `assets/help_controls.md`.
+- [x] **Scoring Mode Updates**: Refined `help_scoring.md` with 150/200 point match options and updated "Bruk" logic (all players at 1 point).
+- [x] **Infrastructure Maintenance**: Removed non-functional `cloudflare-api` MCP server from `mcp_config.json`.
+- [x] **UI: Match Info Indicator**: Added dynamic `TRGT=100/150/200` and `STRK=6` labels to the HUD for at-a-glance match status.
+- [x] **UI: Review Board Refinement**: Replaced stale "Thinking..." status with round-winner points announcement (e.g., "Hendy gets +15").
+- [x] **Feature: Target Score Selection**: Implemented user selection for 100, 150, or 200 target points in Traditional matches.
+- [x] **Deployment**: Built and deployed latest refinements to Cloudflare Pages (`cut-throat-dom`).
+- [x] **Infrastructure: MCP Optimization**: Reconfigured `allpepper-memory-bank` in `mcp_config.json` with `autoApprove` for all tools (`read`, `write`, `update`, `list`) to streamline agentic workflows.
+- [x] **Version Control**: Committed and pushed latest UI and scoring work to `feature/4-player-block`.
+- [x] **Feature: Update Notice**: Implemented `UpdateService` and `_UpdateBanner` to bypass mobile browser caching and notify users of new deployments.
+- [x] **WASM Build Fix**: Migrated `UpdateService` from `dart:html` to `package:web` to resolve `dart2wasm` build failure.
+- [x] **HUD Refinement**: Restored "PROFESSIONAL" and relocated the gear icon to the left of the status pill to resolve mobile overlap (Pixel 7).
+- [x] **HUD Polish**: Added a persistent "CUT-THROAT" or "PARTNERS" label to the top board header, alongside the scoring mode and difficulty.
+- [x] **Production Rollout**: Successfully built and deployed the versioned update system and HUD fix to Cloudflare Pages (`cut-throat-dom.pages.dev`).
+- [x] **Mobile UX Optimization**: Squashed padding, font sizes, and container margins throughout the `MatchSetupView` to guarantee the "START MATCH" button sits cleanly within mobile viewports without scrolling.
+- [x] **Review Board UX**: Increased player name text dimensions and brightness inside `ReviewBoardOverlay` for enhanced readability on small screens.
+- [x] **HUD Layout Balance**: Relocated the score-mode (TRGT/STRK) and difficulty indicators to the top-center of the screen for improved visual symmetry.
+- [x] **Documentation Refinement**: Updated `help_controls.md`, `help_rules.md`, and `help_scoring.md` with clarified wording regarding settings resets, difficulty/scoring selections, and HUD status indicators.
+- [x] **Infrastructure Maintenance**: Removed unused `github-mcp-server` from MCP configuration as the local Git workflow is sufficient.
+- [x] **UX Research**: Confirmed the technical feasibility of dynamic in-game AI difficulty adjustments without resetting the active match.
+- [x] **Feature: Lifetime Records**: Overhauled the Traditional match Lifetime Stats modal to dynamically track and display Wins & Losses for all 4 players instead of just the human player.
+- [x] **Lifetime Stats Sorting**: Implemented dynamic sorting for the Traditional Lifetime Stats modal (Wins descending, Losses ascending) using a pattern consistent with the Six-Love championship standings.
+- [x] **Crown Icon Indicator**: Integrated a 👑 icon for the top-ranked player in the sorted Lifetime Stats modal to provide clear visual feedback for match leadership.
+- [x] **In-Game HUD Crown**: Implemented the lifetime leader crown (👑) directly on the board HUD during active matches for Traditional mode.
+- [x] **Review Board Crown**: Extended the 👑 indicator to the post-round "ROUND SUMMARY" screen to maintain visual consistency.
+- [x] **Match Flow Optimization**: Refined the post-match game flow to eliminate the mandatory return to "Match Setup" after every match. Players can now choose **"PLAY AGAIN"** to immediately start a new match with the same rules or **"CHANGE RULES"** to adjust settings.
+- [x] **GameController Refactoring**: Updated `resetMatch` and `restartGame` with a `goToSetup` flag to optionally skip the configuration modal while preserving rules.
+- [x] **WASM Production Rollout**: Successfully built and deployed version `1774880431206` to Cloudflare Pages.
+- [x] **Repository Cleanup**: Cleaned up the root directory by permanently removing the unused Google AI Studio Vite/React template (`src`, `index.html`, `vite.config.ts`, `package.json`, etc.) and the early prototype `dominoes_ai.dart` script. Rewrote root `README.md` to properly describe the Flutter WASM project.
+- [x] **Agentic Guardrails**: Removed redundant MB update steps from the `/git` workflow due to the active global user rule that now mandates pre-commit Memory Bank synchronization.
+- [x] **User Guide Revision**: Expanded `guide.html` to clearly define the `#/#` HUD metrics (Hand vs Score) and the rank-to-difficulty correlation (A/B/C/D).
+- [x] **Documentation Refinement**: Updated `guide.html` with a detailed example of the Performance Rating system (e.g. `A*3 B*2 C*4 D*3`) for clearer interpretation of lifetime stats.
+- [x] **Git Repository Promotion**: Successfully promoted the `.git` directory from `flutter_app/` to the project root. Consolidated `.gitignore` to track all project documentation, MB assets, and agent workflows in a single repository.
+- [x] **ZSP Verification**: Successfully ran 5-1-1-0 simulation tests with 200,000 iterations to confirm AI coalition stability.
+- [x] **Repository Maintenance**: Performed `git clean -fd` to remove untracked files and directories (e.g., empty "New folder").
+- [x] **ZSP Test Deployment**: Deployed the verified Zero Score Protocol to `test.cut-throat-dom.pages.dev`.
+
+- [x] **HUD Mobile Responsiveness**: Optimized the in-game HUD status indicator for narrow viewports (Pixel 7).
+  - [x] **Text Shortening**: Shortened labels (e.g. "SOLO" for "CUT-THROAT", "PRO" for "PROFESSIONAL") on screens < 600px.
+  - [x] **Layout Alignment**: Centered the informational status pill independently of interactive icons.
+  - [x] **Icon Relocation**: Moved the Match Settings gear (⚙️) from the status pill to a dedicated position at the **top-left of the board** (12px padding).
+  - [x] **Threshold Tuning**: Tuned `MediaQuery` breakpoints to 600px to guarantee shortening on 412px Pixel 7 viewports.
+  - [x] **Pixel 7 Verification**: Confirmed layout stability, legibility, and centering via simulated mobile testing and manual user review.
+- [x] **Documentation & UX**: Updated the User Guide (`guide.html`) to reflect the new Partners mode.
+  - [x] **Content Expansion**: Added dedicated sections for 2v2 Play Style, Team Scoring, and Alliance-based "Game Bruk" rules.
+  - [x] **UI Documentation**: Clarified shared score indicators and team-based board labeling.
+- [x] **Cleanup**: Removed all `STITCH_DEBUG` logging for a clean production codebase.
+- [x] **Partners Dominoes Deployment Recovery**: Repaired code corruption in `main.dart` and resolved analysis blockers in `test/` suite. Successfully built and deployed version `17751631477198` to the Cloudflare testing environment.

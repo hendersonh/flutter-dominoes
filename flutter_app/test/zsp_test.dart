@@ -1,5 +1,5 @@
 import 'package:test/test.dart';
-import '../lib/engine/dominoes_ai.dart';
+import 'package:flutter_app/engine/dominoes_ai.dart';
 
 void main() {
   group('Zero Score Protocol Verification', () {
