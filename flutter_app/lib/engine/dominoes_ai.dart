@@ -4,6 +4,7 @@ import 'dart:isolate';
 const bool kIsWeb = bool.fromEnvironment('dart.library.js_util');
 
 enum DifficultyLevel { rookie, casual, professional, legend }
+enum PlayStyle { cutThroat, partners }
 
 /// Represents a single Domino tile.
 class DominoTile {
@@ -94,8 +95,12 @@ class GameModel {
   List<DominoTile> board; // Just for visualization
   bool isFirstHandOfMatch;
   ScoringMode scoringMode;
+  PlayStyle playStyle;
   List<int> matchScores;
   int matchTarget;
+  
+  // Inference markers for Partner Mode
+  List<Map<int, double>> playSpeeds; // [player][suit] -> seconds
 
   GameModel({
     required this.hands,
@@ -108,11 +113,14 @@ class GameModel {
     List<DominoTile>? board,
     this.isFirstHandOfMatch = false,
     this.scoringMode = ScoringMode.traditional,
+    this.playStyle = PlayStyle.cutThroat,
     List<int>? matchScores,
     this.matchTarget = 100,
+    List<Map<int, double>>? playSpeeds,
   }) : board = board ?? [],
        matchScores = matchScores ?? [0, 0, 0, 0],
-       passedSuits = passedSuits ?? [{}, {}, {}, {}];
+       passedSuits = passedSuits ?? [{}, {}, {}, {}],
+       playSpeeds = playSpeeds ?? [{}, {}, {}, {}];
 
   GameModel clone() {
     return GameModel(
@@ -126,8 +134,10 @@ class GameModel {
       board: List.from(board),
       isFirstHandOfMatch: isFirstHandOfMatch,
       scoringMode: scoringMode,
+      playStyle: playStyle,
       matchScores: List<int>.from(matchScores),
       matchTarget: matchTarget,
+      playSpeeds: playSpeeds.map((m) => Map<int, double>.from(m)).toList(),
     );
   }
 
@@ -141,22 +151,52 @@ class GameModel {
 
   int get winner {
     if (!isGameOver) return -1;
+    
+    // Check if anyone played their last tile
     for (int i = 0; i < 4; i++) {
-      if (hands[i].isEmpty) return i;
+        if (hands[i].isEmpty) return i;
     }
 
-    // Blocked game: player with lowest score in hand wins
-    List<int> scores = hands
-        .map((h) => h.fold(0, (sum, tile) => sum + tile.score))
-        .toList();
-    int minScore = scores.reduce(min);
-
-    // Check for ties
-    if (scores.where((s) => s == minScore).length > 1) {
-      return -1; // Draw
+    // Blocked game: find individual with lowest pip count
+    List<int> pipCounts = hands.map((h) => h.fold(0, (sum, t) => sum + t.score)).toList();
+    int minPips = pipCounts.reduce(min);
+    
+    // Check for ties (Derby)
+    List<int> minPlayers = [];
+    for (int i = 0; i < 4; i++) {
+      if (pipCounts[i] == minPips) minPlayers.add(i);
     }
+    
+    if (minPlayers.length > 1) {
+      if (playStyle == PlayStyle.partners) {
+        // In partners, if the two tying players are on the same team, that team still wins.
+        // If they are on opposite teams, it's a true Derby (Draw).
+        int teamId = minPlayers[0] % 2;
+        if (minPlayers.every((p) => p % 2 == teamId)) return minPlayers[0];
+        return -1; // Opposing tie = Derby
+      }
+      return -1; // Cut-throat tie = Draw
+    }
+    
+    return pipCounts.indexOf(minPips);
+  }
 
-    return scores.indexOf(minScore);
+  /// Returns true if the board ends are both "Hard" (no more tiles of that suit available).
+  bool get isBoardHard {
+    if (leftEnd == null || rightEnd == null) return false;
+    final counts = suiteCounts;
+    return counts[leftEnd!] == 8 && counts[rightEnd!] == 8;
+  }
+
+  /// Check if the winning move was a Key Bone (+2 points).
+  /// A Key Bone is a non-double that wins on two Hard Ends.
+  bool isKeyBone(PlayAction action) {
+    if (action.tile.isDouble) return false;
+    // We check if the board IS ALREADY hard or BECOMES hard after this play.
+    final counts = suiteCounts;
+    // Note: suiteCounts includes the tile just played if board already updated.
+    // If called BEFORE applyAction, we check if they are at 7.
+    return counts[leftEnd!] == 8 && counts[rightEnd!] == 8;
   }
 
   /// Identifies the "Victim" player in Six-Love mode (exactly one player at 0 wins).
@@ -315,8 +355,11 @@ class MCTSNode {
     double explorationParam, {
     int victimId = -1,
     List<Set<int>>? passedSuits,
+    List<Map<int, double>>? playSpeeds,
     int? currentLeft,
     int? currentRight,
+    PlayStyle playStyle = PlayStyle.cutThroat,
+    List<int>? teamScores,
   }) {
     MCTSNode? bestChild;
     double bestValue = -double.infinity;
@@ -325,31 +368,69 @@ class MCTSNode {
       var child = children[action];
       if (child != null) {
         int ni = child.visits;
-        // In original UCB1, Ni is the total parent visits.
-        // In IS-MCTS, Ni must be the availability count to prevent rare action explosion.
         int Ni = availabilityCount[action] ?? 1;
 
         double ucb1 = (child.wins / ni) + explorationParam * sqrt(log(Ni) / ni);
 
-        // --- ZERO SCORE PROTOCOL: THE SQUEEZE ---
-        // Penalize moves that "Open" the board for the victim.
-        // A move is "Dangerous" if it results in a board where neither end is a victim void.
-        if (victimId != -1 && passedSuits != null && action is PlayAction && currentLeft != null && currentRight != null) {
+        // --- PARTNER HEURISTICS (Phase 2) ---
+        if (playStyle == PlayStyle.partners && action is PlayAction && currentLeft != null && currentRight != null && passedSuits != null) {
+          int partnerId = (player + 2) % 4; // Node's 'player' is the one who MOVED to reach here.
+          // Wait, 'player' is the actor who created THIS node.
+          // The next actor is (player + 1) % 4.
+          // The partner of the NEXT actor is ((player + 1) + 2) % 4 = (player + 3) % 4.
+          // Actually, let's just use the current node's perspective.
+          // if I am Player 0, my partner is 2.
+          
           int? nextLeft = currentLeft;
           int? nextRight = currentRight;
-          
           if (action.side == 'left') {
             nextLeft = (action.tile.end1 == currentLeft) ? action.tile.end2 : action.tile.end1;
           } else {
             nextRight = (action.tile.end1 == currentRight) ? action.tile.end2 : action.tile.end1;
           }
 
-          final voids = passedSuits[victimId];
-          bool isSafe = voids.contains(nextLeft) || voids.contains(nextRight);
+          // 1. THE SHIELD: Don't open for partner's void
+          final partnerVoids = passedSuits[partnerId];
+          if (partnerVoids.contains(nextLeft) || partnerVoids.contains(nextRight)) {
+             // If we are leading in Six-Love, liquidation is catastrophic
+             if (teamScores != null && teamScores[player % 2] > 0) {
+                ucb1 -= 10.0; // THE SHIELD (Lead Protection)
+             } else {
+                ucb1 -= 1.5; // Standard Defensive Shield
+             }
+          }
+
+          // 2. THE SQUEEZE: Open for opponent's void
+          int opp1 = (player + 1) % 4;
+          int opp2 = (player + 3) % 4;
+          if (passedSuits[opp1].contains(nextLeft) || passedSuits[opp1].contains(nextRight) ||
+              passedSuits[opp2].contains(nextLeft) || passedSuits[opp2].contains(nextRight)) {
+            ucb1 += 0.5; // THE SQUEEZE
+          }
           
-          if (!isSafe) {
-            // Apply a "Squeeze Penalty" to the UCT value to discourage this branch
-            ucb1 -= 2.0; 
+          // 3. THE ASSIST: Partner Strength
+          if (playSpeeds != null) {
+             final speeds = playSpeeds[partnerId];
+             // If partner played this suite in < 1 second, they are 'Strong'
+             if ((speeds[nextLeft] != null && speeds[nextLeft]! < 1.0) ||
+                 (speeds[nextRight] != null && speeds[nextRight]! < 1.0)) {
+                ucb1 += 0.2; // THE ASSIST
+             }
+          }
+        }
+
+        // --- ZERO SCORE PROTOCOL (ZSP) ---
+        if (victimId != -1 && passedSuits != null && action is PlayAction && currentLeft != null && currentRight != null) {
+          int? nextLeft = currentLeft;
+          int? nextRight = currentRight;
+          if (action.side == 'left') {
+            nextLeft = (action.tile.end1 == currentLeft) ? action.tile.end2 : action.tile.end1;
+          } else {
+            nextRight = (action.tile.end1 == currentRight) ? action.tile.end2 : action.tile.end1;
+          }
+          final voids = passedSuits[victimId];
+          if (!voids.contains(nextLeft) && !voids.contains(nextRight)) {
+            ucb1 -= 2.0; // ZSP Penalty
           }
         }
 
@@ -586,17 +667,17 @@ class MCTSPlayer {
 
           int victimId = rootState.victimId;
           bool isProtocolActive = (victimId != -1 && victimId != playerId);
-          if (iterations == 1 && node == rootNode) {
-             print("ZSP Active: $isProtocolActive, Victim: $victimId");
-          }
-
+          
           MCTSNode? bestChild = node.getBestChild(
             legalActions,
             explorationParam,
             victimId: isProtocolActive ? victimId : -1,
-            passedSuits: isProtocolActive ? state.passedSuits : null,
+            passedSuits: state.passedSuits,
+            playSpeeds: state.playSpeeds,
             currentLeft: state.leftEnd,
             currentRight: state.rightEnd,
+            playStyle: rootState.playStyle,
+            teamScores: rootState.playStyle == PlayStyle.partners ? rootState.matchScores : null,
           );
           if (bestChild == null) break;
 
@@ -684,6 +765,7 @@ class MCTSPlayer {
       int winner = state.winner;
       int victimId = rootState.victimId;
       bool isProtocolActive = (victimId != -1 && victimId != playerId);
+      bool isPartnerMode = rootState.playStyle == PlayStyle.partners;
 
       MCTSNode? currentNode = node;
       while (currentNode != null) {
@@ -692,22 +774,34 @@ class MCTSPlayer {
 
         if (winner == -1) {
           result = 0.5; // Draw
+        } else if (isPartnerMode) {
+          // --- PARTNER REWARD POOLING ---
+          if (winner % 2 == movingPlayer % 2) {
+             result = 1.0; 
+             // Bonus for Key Bone in simulation (if the actual winner made the play)
+             if (winner == state.currentPlayer && state.board.isNotEmpty) {
+                 // Check if the last action in simulation was a Key Bone
+                 // For now, we'll use a simplified check: isBoardHard
+                 if (state.isBoardHard) result += 0.5;
+             }
+          } else {
+             // Liquidator Penalty: If partner team leads and opponents win, massive negative
+             if (rootState.matchScores[movingPlayer % 2] > 0) {
+                result = -10.0; 
+             } else {
+                result = 0.0;
+             }
+          }
         } else if (winner == movingPlayer) {
           result = 1.0; // Simple Win
         } else if (isProtocolActive && winner == victimId) {
-          // --- ZERO SCORE PROTOCOL: THE COLLISION ---
-          // Harsh penalty for letting the victim win
           result = -100.0;
         } else if (isProtocolActive && winner != victimId) {
-          // --- ZERO SCORE PROTOCOL: COALITION REWARD ---
-          // Reward ally wins to prevent a match reset
           result = 0.5;
         } else if (rootState.scoringMode == ScoringMode.traditional) {
-          // 100-Point Mode: Focus on pip efficiency for losses
           int myPips = state.hands[movingPlayer].fold(0, (sum, t) => sum + t.score);
           result = 0.4 * (1.0 - (myPips / rootState.matchTarget.toDouble())).clamp(0.0, 1.0);
         } else {
-          // Six-Love Normal Coalition: Identify the leader
           int maxScore = 0;
           int leaderIndex = -1;
           for (int i = 0; i < 4; i++) {
@@ -802,33 +896,67 @@ class MatchModel {
   int nextStarter = 0; // 0 for human, 1-3 for AI
   int targetScore;
   ScoringMode mode;
+  PlayStyle playStyle;
+  int pendingBonus = 0; // Cumulative bonus for Derbys
   GameModel? currentRound;
 
-  MatchModel({this.targetScore = 100, this.mode = ScoringMode.traditional});
+  MatchModel({
+    this.targetScore = 100,
+    this.mode = ScoringMode.traditional,
+    this.playStyle = PlayStyle.cutThroat,
+  });
 
   bool get isMatchOver {
     if (mode == ScoringMode.sixLove) {
-      // Match only ends when winner reaches 6 AND at least one opponent remains with zero wins.
-      int winner = matchWinner;
-      if (winner == -1) return false;
-      // Someone must be at zero for the match to end
-      return scores.asMap().entries.any((e) => e.key != winner && e.value == 0);
+      if (playStyle == PlayStyle.partners) {
+        int winner = matchWinner;
+        if (winner == -1) return false;
+        // Team 1 (0,2) or Team 2 (1,3). 
+        // Opponents are at other parity.
+        int opp1 = winner == 0 ? 1 : 0;
+        int opp2 = winner == 0 ? 3 : 2;
+        return scores[opp1] == 0 && scores[opp2] == 0;
+      } else {
+        int winner = matchWinner;
+        if (winner == -1) return false;
+        // Everyone else must be at zero
+        for (int i = 0; i < 4; i++) {
+          if (i != winner && scores[i] > 0) return false;
+        }
+        return true;
+      }
     }
     return scores.any((s) => s >= targetScore);
   }
 
-  /// Returns true if the match winner won with an "Elite Jailer" score of 6-0-0-0.
+  /// Returns true if the match winner won with an "Elite Jailer" score of 6-0-0-0 or team 6-0.
   bool get isEliteJailer {
     if (mode != ScoringMode.sixLove) return false;
     int winner = matchWinner;
     if (winner == -1) return false;
-    // Check if the winner has exactly 6 points and everyone else has 0
-    return scores[winner] == 6 &&
-        scores.asMap().entries.every((e) => e.key == winner || e.value == 0);
+    
+    if (playStyle == PlayStyle.partners) {
+      int winnerTeam = winner % 2; // 0 or 1
+      int opp1 = 1 - winnerTeam;
+      int opp2 = 3 - winnerTeam;
+      return (scores[winnerTeam] + scores[winnerTeam + 2] == 6) && 
+             scores[opp1] == 0 && scores[opp2] == 0;
+    } else {
+      return scores[winner] == 6 &&
+          scores.asMap().entries.every((e) => e.key == winner || e.value == 0);
+    }
   }
 
   int get matchWinner {
     final int target = mode == ScoringMode.sixLove ? 6 : targetScore;
+    if (playStyle == PlayStyle.partners) {
+      // Calculate team scores
+      int team1 = scores[0] + scores[2];
+      int team2 = scores[1] + scores[3];
+      if (team1 >= target) return 0; // Team 1 winner
+      if (team2 >= target) return 1; // Team 2 winner
+      return -1;
+    }
     for (int i = 0; i < scores.length; i++) {
       if (scores[i] >= target) return i;
     }
@@ -844,18 +972,33 @@ class MatchModel {
       return {'adjustments': adjustments, 'isEliteJailer': false};
     }
 
-    adjustments[winner] += 10;
-    bool allOthersZero = true;
-    for (int i = 0; i < 4; i++) {
-      if (i == winner) continue;
-      if (scores[i] == 0) {
-        adjustments[i] -= 5;
-      } else {
-        adjustments[i] += 2;
-        allOthersZero = false;
+    bool isElite = isEliteJailer;
+
+    if (playStyle == PlayStyle.partners) {
+      int winnerTeam = winner % 2;
+      for (int i = 0; i < 4; i++) {
+        if (i % 2 == winnerTeam) {
+          adjustments[i] += 10;
+        } else {
+          if (isElite) {
+            adjustments[i] -= 5;
+          } else {
+            adjustments[i] += 2;
+          }
+        }
+      }
+    } else {
+      adjustments[winner] += 10;
+      for (int i = 0; i < 4; i++) {
+        if (i == winner) continue;
+        if (scores[i] == 0 && isElite) {
+          adjustments[i] -= 5;
+        } else {
+          adjustments[i] += 2;
+        }
       }
     }
-    return {'adjustments': adjustments, 'isEliteJailer': allOthersZero};
+    return {'adjustments': adjustments, 'isEliteJailer': isElite};
   }
 
   void startNewRound(int roundStarterOverride, {bool isFirstHand = false}) {
@@ -894,6 +1037,7 @@ class MatchModel {
       currentPlayer: startingPlayer,
       isFirstHandOfMatch: isFirstHand,
       scoringMode: mode,
+      playStyle: playStyle,
       matchTarget: targetScore,
       matchScores: List<int>.from(scores),
     );
@@ -906,37 +1050,86 @@ class MatchModel {
     int winner = currentRound!.winner;
 
     if (winner != -1) {
-      if (mode == ScoringMode.sixLove) {
-        // Six-Love: Winner gets 1 win point.
-        scores[winner]++;
-        // The Reset (Game Bruk): If all players now have > 0 wins,
-        // AND no one has hit 6 yet, reset all to zero.
-        if (scores.every((s) => s > 0) && scores.every((s) => s < 6)) {
-          for (int i = 0; i < scores.length; i++) {
-            scores[i] = 0;
+      // Key Bone Check: Winning with a suit whose other 6 tiles are on the board
+      bool isKeyBone = false;
+      if (currentRound!.board.isNotEmpty) {
+        final lastTile = currentRound!.board.last;
+        // Check both suits of the last tile
+        final suits = {lastTile.end1, lastTile.end2};
+        for (int suit in suits) {
+          int countOnBoard =
+              currentRound!.board.where((t) => t.contains(suit)).length;
+          if (countOnBoard == 7) {
+            isKeyBone = true;
+            break;
           }
         }
+      }
+
+      // Derby Check: Sum of open ends is a multiple of 5 (5, 10, 15, 20)
+      bool isDerby = false;
+      int? l = currentRound!.leftEnd;
+      int? r = currentRound!.rightEnd;
+      if (l != null && r != null) {
+        int endsSum = l + r;
+        if (endsSum > 0 && endsSum % 5 == 0) {
+          isDerby = true;
+        }
+      }
+
+      int points = 1 + (isKeyBone ? 1 : 0) + (isDerby ? 1 : 0) + pendingBonus;
+      pendingBonus = 0;
+
+      if (mode == ScoringMode.sixLove) {
+        if (playStyle == PlayStyle.partners) {
+          int winnerTeam = winner % 2;
+          int loserTeam = 1 - winnerTeam;
+
+          // The Reset (Game Bruk): If opponents lead and we win, they reset.
+          int opponentPoints = scores[loserTeam] + scores[loserTeam + 2];
+          if (opponentPoints > 0) {
+            scores[loserTeam] = 0;
+            scores[loserTeam + 2] = 0;
+          }
+          scores[winner] += points;
+        } else {
+          // Six-Love Cut-throat: Winner resets all opponents with points
+          for (int i = 0; i < scores.length; i++) {
+            if (i != winner && scores[i] > 0) {
+              scores[i] = 0;
+            }
+          }
+          scores[winner] += points;
+
+          // Special rule: If every player had reached 1 but none reached 6, 
+          // it's an alternate Bruk (slate wipe), but our Reset logic already wipes opponents.
+          // Wait, if everyone has 1 point, and I win, I now have 2, and they are back to 0.
+        }
       } else {
-        // Winner gets sum of all OTHER players' pips
+        // Traditional mode (Score based on pips)
         int totalPipsRound = 0;
         for (int i = 0; i < 4; i++) {
-          if (i != winner) {
-            totalPipsRound += currentRound!.hands[i].fold(
-              0,
-              (sum, t) => sum + t.score,
-            );
+          if (i != winner &&
+              (playStyle != PlayStyle.partners || i % 2 != winner % 2)) {
+            totalPipsRound +=
+                currentRound!.hands[i].fold(0, (sum, t) => sum + t.score);
           }
         }
         scores[winner] += totalPipsRound;
+      }
+    } else {
+      // Tie (Drawn Game)
+      if (mode == ScoringMode.sixLove) {
+        pendingBonus += 1;
       }
     }
 
     roundNumber++;
     // Set next starter based on previous round winner
     if (winner != -1) {
-      nextStarter = winner; // Winner starts next round
+      nextStarter = winner; 
     } else {
-      nextStarter = (nextStarter + 1) % 4; // Tie: rotate starter clockwise
+      nextStarter = (nextStarter + 1) % 4; 
     }
     return winner;
   }
@@ -948,6 +1141,8 @@ class MatchModel {
       'targetScore': targetScore,
       'nextStarter': nextStarter,
       'mode': mode.name,
+      'playStyle': playStyle.name,
+      'pendingBonus': pendingBonus,
     };
   }
 
@@ -970,6 +1165,13 @@ class MatchModel {
       (m) => m.name == modeName,
       orElse: () => ScoringMode.traditional,
     );
+
+    match.playStyle = PlayStyle.values.firstWhere(
+      (p) => p.name == json['playStyle'],
+      orElse: () => PlayStyle.cutThroat,
+    );
+    match.pendingBonus = json['pendingBonus'] ?? 0;
+
     return match;
   }
 }

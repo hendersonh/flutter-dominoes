@@ -239,8 +239,9 @@ class GameController extends ChangeNotifier {
 
   void _updateStatusMessage() {
     if (_match.isMatchOver) {
-      if (_match.matchWinner == 0) {
-        _statusMessage = "MATCH OVER: ${playerNames[0]} Wins!";
+      if (_match.playStyle == PlayStyle.partners) {
+        int winnerTeam = _match.matchWinner % 2;
+        _statusMessage = "MATCH OVER: TEAM ${winnerTeam + 1} Wins!";
       } else {
         _statusMessage = "MATCH OVER: ${playerNames[_match.matchWinner]} Wins!";
       }
@@ -251,12 +252,17 @@ class GameController extends ChangeNotifier {
       _statusMessage = ""; // Clear turn status
       if (_match.currentRound != null) {
         int winner = _match.currentRound!.winner;
-        if (winner == 0) {
-          _bottomOverlayMessage = "${playerNames[0]} Wins Round!";
-        } else if (winner != -1) {
-          _bottomOverlayMessage = "${playerNames[winner]} Wins Round!";
+        if (_match.playStyle == PlayStyle.partners) {
+          int winnerTeam = winner % 2;
+          _bottomOverlayMessage = "TEAM ${winnerTeam + 1} Wins Round!";
         } else {
-          _bottomOverlayMessage = "Round Drawn!";
+          if (winner == 0) {
+            _bottomOverlayMessage = "${playerNames[0]} Wins Round!";
+          } else if (winner != -1) {
+            _bottomOverlayMessage = "${playerNames[winner]} Wins Round!";
+          } else {
+            _bottomOverlayMessage = "Round Drawn!";
+          }
         }
       } else {
         _statusMessage = "Starting match...";
@@ -391,6 +397,16 @@ class GameController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setPlayStyle(PlayStyle style) {
+    if (isMatchStarted) return;
+    _match.playStyle = style;
+    if (_match.currentRound != null) {
+      _match.currentRound!.playStyle = style;
+    }
+    _saveMatch();
+    notifyListeners();
+  }
+
   DifficultyLevel get currentDifficulty => _currentDifficulty;
 
   void setDifficulty(DifficultyLevel level) {
@@ -519,11 +535,22 @@ class GameController extends ChangeNotifier {
           if (!_matchStatsSaved) {
             _matchStatsSaved = true;
             int winner = _match.matchWinner;
-            for (int i = 0; i < 4; i++) {
-              if (i == winner) {
-                _lifetimeMatchWins[i]++;
-              } else {
-                _lifetimeMatchLosses[i]++;
+            if (_match.playStyle == PlayStyle.partners) {
+              int winnerTeam = winner % 2;
+              for (int i = 0; i < 4; i++) {
+                if (i % 2 == winnerTeam) {
+                  _lifetimeMatchWins[i]++;
+                } else {
+                  _lifetimeMatchLosses[i]++;
+                }
+              }
+            } else {
+              for (int i = 0; i < 4; i++) {
+                if (i == winner) {
+                  _lifetimeMatchWins[i]++;
+                } else {
+                  _lifetimeMatchLosses[i]++;
+                }
               }
             }
 
@@ -539,7 +566,13 @@ class GameController extends ChangeNotifier {
               }
 
               if (winner != -1) {
-                _lifetimeDishCounts[winner]++;
+                if (_match.playStyle == PlayStyle.partners) {
+                  int winnerTeam = winner % 2;
+                  _lifetimeDishCounts[winnerTeam]++; 
+                  _lifetimeDishCounts[winnerTeam + 2]++;
+                } else {
+                  _lifetimeDishCounts[winner]++;
+                }
               }
             } else {
               _lastMatchSocialAdjustments = null;
@@ -556,7 +589,10 @@ class GameController extends ChangeNotifier {
         }
 
         if (_match.isMatchOver) {
-          if (_match.matchWinner == 0) {
+          if (_match.playStyle == PlayStyle.partners) {
+            int winnerTeam = _match.matchWinner % 2;
+            _bottomOverlayMessage = "MATCH OVER: TEAM ${winnerTeam + 1} Wins!";
+          } else if (_match.matchWinner == 0) {
             _bottomOverlayMessage = "MATCH OVER: ${playerNames[0]} Wins!";
           } else if (_match.matchWinner != -1) {
             _bottomOverlayMessage =
@@ -578,7 +614,12 @@ class GameController extends ChangeNotifier {
                 }
               }
             }
-            _statusMessage = "${playerNames[roundWinner]} gets +$points";
+            if (_match.playStyle == PlayStyle.partners) {
+              int winnerTeam = roundWinner % 2;
+              _statusMessage = "TEAM ${winnerTeam + 1} gets +$points";
+            } else {
+              _statusMessage = "${playerNames[roundWinner]} gets +$points";
+            }
             _bottomOverlayMessage = _statusMessage;
           } else {
             _statusMessage = "Round Drawn!";
@@ -944,10 +985,13 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                     child: _EdgeScore(
                                       name: 'Hendy',
                                       tiles: game.hands[0].length,
-                                      score: controller.match.scores[0],
+                                      score: controller.match.playStyle == PlayStyle.partners
+                                          ? controller.match.scores[0] + controller.match.scores[2]
+                                          : controller.match.scores[0],
                                       isActive: game.currentPlayer == 0,
                                       isKnocking:
                                           controller.knockingPlayerIndex == 0,
+                                      teamName: controller.match.playStyle == PlayStyle.partners ? 'TEAM 1' : null,
                                     ),
                                   ),
                                   AnimatedPositioned(
@@ -961,11 +1005,14 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                     child: _EdgeScore(
                                       name: 'Ed',
                                       tiles: game.hands[1].length,
-                                      score: controller.match.scores[1],
+                                      score: controller.match.playStyle == PlayStyle.partners
+                                          ? controller.match.scores[1] + controller.match.scores[3]
+                                          : controller.match.scores[1],
                                       isActive: game.currentPlayer == 1,
                                       isKnocking:
                                           controller.knockingPlayerIndex == 1,
                                       isThinking: game.currentPlayer == 1,
+                                      teamName: controller.match.playStyle == PlayStyle.partners ? 'TEAM 2' : null,
                                     ),
                                   ),
                                   Align(
@@ -975,11 +1022,14 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                       child: _EdgeScore(
                                         name: 'Paul',
                                         tiles: game.hands[2].length,
-                                        score: controller.match.scores[2],
+                                        score: controller.match.playStyle == PlayStyle.partners
+                                            ? controller.match.scores[0] + controller.match.scores[2]
+                                            : controller.match.scores[2],
                                         isActive: game.currentPlayer == 2,
                                         isKnocking:
                                             controller.knockingPlayerIndex == 2,
                                         isThinking: game.currentPlayer == 2,
+                                        teamName: controller.match.playStyle == PlayStyle.partners ? 'TEAM 1' : null,
                                       ),
                                     ),
                                   ),
@@ -994,11 +1044,14 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                     child: _EdgeScore(
                                       name: 'Tim',
                                       tiles: game.hands[3].length,
-                                      score: controller.match.scores[3],
+                                      score: controller.match.playStyle == PlayStyle.partners
+                                          ? controller.match.scores[1] + controller.match.scores[3]
+                                          : controller.match.scores[3],
                                       isActive: game.currentPlayer == 3,
                                       isKnocking:
                                           controller.knockingPlayerIndex == 3,
                                       isThinking: game.currentPlayer == 3,
+                                      teamName: controller.match.playStyle == PlayStyle.partners ? 'TEAM 2' : null,
                                     ),
                                   ),
 
@@ -2716,6 +2769,7 @@ class _EdgeScore extends StatefulWidget {
   final bool isActive;
   final bool isKnocking;
   final bool isThinking;
+  final String? teamName;
 
   const _EdgeScore({
     required this.name,
@@ -2724,6 +2778,7 @@ class _EdgeScore extends StatefulWidget {
     required this.isActive,
     required this.isKnocking,
     this.isThinking = false,
+    this.teamName,
   });
 
   @override
@@ -2822,17 +2877,35 @@ class _EdgeScoreState extends State<_EdgeScore> with TickerProviderStateMixin {
                       ),
                     ),
                   ),
-                Text(
-                  widget.name,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: widget.isActive || widget.isKnocking
-                        ? const Color(0xFF2BEE4B)
-                        : Colors.white,
-                    fontWeight: widget.isActive || widget.isKnocking
-                        ? FontWeight.bold
-                        : FontWeight.w400,
-                  ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (widget.teamName != null)
+                      Text(
+                        widget.teamName!,
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: (widget.isActive || widget.isKnocking)
+                              ? const Color(0xFF2BEE4B).withOpacity(0.8)
+                              : Colors.white70,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    Text(
+                      widget.name,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: widget.isActive || widget.isKnocking
+                            ? const Color(0xFF2BEE4B)
+                            : Colors.white,
+                        fontWeight: widget.isActive || widget.isKnocking
+                            ? FontWeight.bold
+                            : FontWeight.w400,
+                      ),
+                    ),
+                  ],
                 ),
                 if ((context.watch<GameController>().scoringMode == ScoringMode.sixLove &&
                         context.watch<GameController>().sixLoveChampionIndex ==
@@ -3241,6 +3314,47 @@ class _MatchSetupViewState extends State<_MatchSetupView> {
                   }),
                 ),
               ),
+              const SizedBox(height: 16),
+              const Text(
+                'Play Style',
+                style: TextStyle(fontSize: 14, color: Colors.white70),
+              ),
+              const SizedBox(height: 8),
+              SegmentedButton<PlayStyle>(
+                showSelectedIcon: false,
+                segments: const [
+                  ButtonSegment(
+                    value: PlayStyle.cutThroat,
+                    label: Text('Cut-Throat'),
+                    icon: Icon(Icons.person),
+                  ),
+                  ButtonSegment(
+                    value: PlayStyle.partners,
+                    label: Text('Partners'),
+                    icon: Icon(Icons.group),
+                  ),
+                ],
+                selected: {widget.controller.match.playStyle},
+                onSelectionChanged: (Set<PlayStyle> selection) {
+                  if (_isInteractable) {
+                    widget.controller.setPlayStyle(selection.first);
+                  }
+                },
+                style: ButtonStyle(
+                  backgroundColor: WidgetStateProperty.resolveWith((states) {
+                    if (states.contains(WidgetState.selected)) {
+                      return const Color(0xFF2BEE4B);
+                    }
+                    return null;
+                  }),
+                  foregroundColor: WidgetStateProperty.resolveWith((states) {
+                    if (states.contains(WidgetState.selected)) {
+                      return Colors.black;
+                    }
+                    return Colors.white70;
+                  }),
+                ),
+              ),
               if (widget.controller.scoringMode == ScoringMode.traditional) ...[
                 const SizedBox(height: 16),
                 const Text(
@@ -3484,6 +3598,7 @@ class ReviewBoardOverlay extends StatelessWidget {
                     name: playerNames[2],
                     tiles: game.hands[2],
                     position: 'North',
+                    teamName: controller.match.playStyle == PlayStyle.partners ? 'TEAM 1' : null,
                   ),
 
                   // Middle Row: West Player | Board | East Player
@@ -3494,6 +3609,7 @@ class ReviewBoardOverlay extends StatelessWidget {
                           name: playerNames[1],
                           tiles: game.hands[1],
                           position: 'West',
+                          teamName: controller.match.playStyle == PlayStyle.partners ? 'TEAM 2' : null,
                         ),
                         Expanded(
                           child: LayoutBuilder(
@@ -3514,12 +3630,18 @@ class ReviewBoardOverlay extends StatelessWidget {
                           name: playerNames[3],
                           tiles: game.hands[3],
                           position: 'East',
+                          teamName: controller.match.playStyle == PlayStyle.partners ? 'TEAM 2' : null,
                         ),
                       ],
                     ),
                   ),
 
-                  // Bottom Player (Human) info or extra space
+                  _MiniHand(
+                    name: playerNames[0],
+                    tiles: game.hands[0],
+                    position: 'South',
+                    teamName: controller.match.playStyle == PlayStyle.partners ? 'TEAM 1' : null,
+                  ),
                   Padding(
                     padding: const EdgeInsets.only(bottom: 20),
                     child: Text(
@@ -3567,11 +3689,13 @@ class _MiniHand extends StatelessWidget {
   final String name;
   final List<DominoTile> tiles;
   final String position;
+  final String? teamName;
 
   const _MiniHand({
     required this.name,
     required this.tiles,
     required this.position,
+    this.teamName,
   });
 
   @override
@@ -3593,13 +3717,28 @@ class _MiniHand extends StatelessWidget {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                name,
-                style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (teamName != null)
+                    Text(
+                      teamName!,
+                      style: const TextStyle(
+                        color: Color(0xFF2BEE4B),
+                        fontSize: 9,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  Text(
+                    name,
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
               ),
               if ((context.watch<GameController>().scoringMode ==
                           ScoringMode.sixLove &&
