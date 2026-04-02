@@ -17,7 +17,10 @@ const List<String> playerNames = ['Hendy', 'Ed', 'Paul', 'Tim'];
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  SoundService().initialize();
+
+  // Initialize the sound service
+  final soundService = SoundService();
+  await soundService.initialize();
 
   final updateService = UpdateService();
   unawaited(updateService.initialize());
@@ -991,7 +994,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                       isActive: game.currentPlayer == 0,
                                       isKnocking:
                                           controller.knockingPlayerIndex == 0,
-                                      teamName: controller.match.playStyle == PlayStyle.partners ? 'TEAM 1' : null,
+                                      teamName: null,
                                     ),
                                   ),
                                   AnimatedPositioned(
@@ -1012,7 +1015,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                       isKnocking:
                                           controller.knockingPlayerIndex == 1,
                                       isThinking: game.currentPlayer == 1,
-                                      teamName: controller.match.playStyle == PlayStyle.partners ? 'TEAM 2' : null,
+                                      teamName: null,
                                     ),
                                   ),
                                   Align(
@@ -1029,7 +1032,6 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                         isKnocking:
                                             controller.knockingPlayerIndex == 2,
                                         isThinking: game.currentPlayer == 2,
-                                        teamName: controller.match.playStyle == PlayStyle.partners ? 'TEAM 1' : null,
                                       ),
                                     ),
                                   ),
@@ -1051,7 +1053,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                       isKnocking:
                                           controller.knockingPlayerIndex == 3,
                                       isThinking: game.currentPlayer == 3,
-                                      teamName: controller.match.playStyle == PlayStyle.partners ? 'TEAM 2' : null,
+                                      teamName: null,
                                     ),
                                   ),
 
@@ -1743,6 +1745,24 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                       ),
                                     ),
 
+                                  // Match Settings Icon (Top Left)
+                                  Positioned(
+                                    top: 12,
+                                    left: 12,
+                                    child: IconButton(
+                                      tooltip: 'Match Settings',
+                                      icon: const Icon(
+                                        Icons.settings,
+                                        color: Color(0xFF2BEE4B),
+                                        size: 24,
+                                      ),
+                                      onPressed: () => _showResetConfirmation(
+                                        context,
+                                        controller,
+                                      ),
+                                    ),
+                                  ),
+
                                   // Match Info Overlay (Top Center)
                                   Positioned(
                                     top: 8,
@@ -1750,49 +1770,76 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                     right: 0,
                                     child: Align(
                                       alignment: Alignment.topCenter,
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 12,
-                                          vertical: 8,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: Colors.black.withAlpha(100),
-                                          borderRadius: BorderRadius.circular(
-                                            20,
-                                          ),
-                                        ),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Text(
-                                              controller.scoringMode ==
-                                                      ScoringMode.sixLove
-                                                  ? 'SIX-LOVE'
-                                                  : 'Trgt=${controller.match.targetScore}',
-                                              style: const TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.bold,
+                                      child: Builder(
+                                        builder: (context) {
+                                          final double screenWidth = MediaQuery.of(context).size.width;
+                                          final bool isNarrow = screenWidth < 600;
+                                          
+                                          return Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 12,
+                                              vertical: 8,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: Colors.black.withAlpha(100),
+                                              borderRadius: BorderRadius.circular(
+                                                20,
                                               ),
                                             ),
-                                            const SizedBox(width: 8),
-                                            Container(
-                                              width: 1,
-                                              height: 12,
-                                              color: Colors.white24,
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Text(
+                                                  controller.match.playStyle ==
+                                                          PlayStyle.partners
+                                                      ? 'PARTNERS'
+                                                      : (isNarrow ? 'SOLO' : 'CUT-THROAT'),
+                                                  style: const TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.w900,
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Container(
+                                                  width: 1,
+                                                  height: 12,
+                                                  color: Colors.white24,
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Text(
+                                                  controller.scoringMode ==
+                                                          ScoringMode.sixLove
+                                                      ? 'SIX-LOVE'
+                                                      : 'Trgt=${controller.match.targetScore}',
+                                                  style: const TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.bold,
+                                                    letterSpacing: 0.5,
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Container(
+                                                  width: 1,
+                                                  height: 12,
+                                                  color: Colors.white24,
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Text(
+                                                  isNarrow && controller.currentDifficulty == DifficultyLevel.professional
+                                                      ? 'PRO'
+                                                      : controller.currentDifficulty.name.toUpperCase(),
+                                                  style: const TextStyle(
+                                                    color: Color(0xFF2BEE4B),
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.w900,
+                                                  ),
+                                                ),
+                                              ],
                                             ),
-                                            const SizedBox(width: 8),
-                                            Text(
-                                              controller.currentDifficulty.name
-                                                  .toUpperCase(),
-                                              style: const TextStyle(
-                                                color: Color(0xFF2BEE4B),
-                                                fontSize: 10,
-                                                fontWeight: FontWeight.w900,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
+                                          );
+                                        }
                                       ),
                                     ),
                                   ),
@@ -1805,21 +1852,9 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         IconButton(
-                                          padding: const EdgeInsets.all(12),
-                                          tooltip: 'Match Settings',
-                                          icon: const Icon(
-                                            Icons.settings,
-                                            color: Color(0xFF2BEE4B),
-                                            size: 24,
+                                          padding: const EdgeInsets.all(
+                                            12,
                                           ),
-                                          onPressed: () =>
-                                              _showResetConfirmation(
-                                                context,
-                                                controller,
-                                              ),
-                                        ),
-                                        IconButton(
-                                          padding: const EdgeInsets.all(12),
                                           tooltip: 'How to Play',
                                           icon: const Icon(
                                             Icons.help_outline,
@@ -3237,11 +3272,18 @@ class _MatchSetupViewState extends State<_MatchSetupView> {
 
   @override
   Widget build(BuildContext context) {
+    final double screenWidth = MediaQuery.of(context).size.width;
+    final bool isNarrow = screenWidth < 600;
+    final bool hideIcons = screenWidth < 600;
+
     return Center(
       child: Container(
         constraints: const BoxConstraints(maxWidth: 400),
-        margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-        padding: const EdgeInsets.all(16),
+        margin: EdgeInsets.symmetric(
+          horizontal: isNarrow ? 12 : 24,
+          vertical: 16,
+        ),
+        padding: EdgeInsets.all(isNarrow ? 12 : 16),
         decoration: BoxDecoration(
           color: Colors.black.withOpacity(0.6),
           borderRadius: BorderRadius.circular(24),
@@ -3281,16 +3323,16 @@ class _MatchSetupViewState extends State<_MatchSetupView> {
               const SizedBox(height: 16),
               SegmentedButton<ScoringMode>(
                 showSelectedIcon: false,
-                segments: const [
+                segments: [
                   ButtonSegment(
                     value: ScoringMode.traditional,
-                    label: const Text('First to Target'),
-                    icon: Icon(Icons.score),
+                    label: Text(isNarrow ? 'Target' : 'First to Target'),
+                    icon: hideIcons ? null : const Icon(Icons.score),
                   ),
                   ButtonSegment(
                     value: ScoringMode.sixLove,
-                    label: Text('Six-Love'),
-                    icon: Icon(Icons.auto_awesome),
+                    label: const Text('Six-Love'),
+                    icon: hideIcons ? null : const Icon(Icons.auto_awesome),
                   ),
                 ],
                 selected: {widget.controller.scoringMode},
@@ -3322,16 +3364,16 @@ class _MatchSetupViewState extends State<_MatchSetupView> {
               const SizedBox(height: 8),
               SegmentedButton<PlayStyle>(
                 showSelectedIcon: false,
-                segments: const [
+                segments: [
                   ButtonSegment(
                     value: PlayStyle.cutThroat,
-                    label: Text('Cut-Throat'),
-                    icon: Icon(Icons.person),
+                    label: const Text('Cut-Throat'),
+                    icon: hideIcons ? null : const Icon(Icons.person),
                   ),
                   ButtonSegment(
                     value: PlayStyle.partners,
-                    label: Text('Partners'),
-                    icon: Icon(Icons.group),
+                    label: const Text('Partners'),
+                    icon: hideIcons ? null : const Icon(Icons.group),
                   ),
                 ],
                 selected: {widget.controller.match.playStyle},
@@ -3364,21 +3406,21 @@ class _MatchSetupViewState extends State<_MatchSetupView> {
                 const SizedBox(height: 8),
                 SegmentedButton<int>(
                   showSelectedIcon: false,
-                  segments: const [
+                  segments: [
                     ButtonSegment(
                       value: 100,
-                      label: Text('100'),
-                      icon: Icon(Icons.flash_on),
+                      label: const Text('100'),
+                      icon: hideIcons ? null : const Icon(Icons.flash_on),
                     ),
                     ButtonSegment(
                       value: 150,
-                      label: Text('150'),
-                      icon: Icon(Icons.bolt),
+                      label: const Text('150'),
+                      icon: hideIcons ? null : const Icon(Icons.bolt),
                     ),
                     ButtonSegment(
                       value: 200,
-                      label: Text('200'),
-                      icon: Icon(Icons.auto_awesome),
+                      label: const Text('200'),
+                      icon: hideIcons ? null : const Icon(Icons.auto_awesome),
                     ),
                   ],
                   selected: {widget.controller.match.targetScore},
@@ -3411,22 +3453,22 @@ class _MatchSetupViewState extends State<_MatchSetupView> {
               const SizedBox(height: 8),
               SegmentedButton<DifficultyLevel>(
                 showSelectedIcon: false,
-                segments: const [
+                segments: [
                   ButtonSegment(
                     value: DifficultyLevel.rookie,
-                    label: Text('Rookie'),
+                    label: const Text('Rookie'),
                   ),
                   ButtonSegment(
                     value: DifficultyLevel.casual,
-                    label: Text('Casual'),
+                    label: const Text('Casual'),
                   ),
                   ButtonSegment(
                     value: DifficultyLevel.professional,
-                    label: Text('Pro'),
+                    label: const Text('Pro'),
                   ),
                   ButtonSegment(
                     value: DifficultyLevel.legend,
-                    label: Text('Legend'),
+                    label: const Text('Legend'),
                   ),
                 ],
                 selected: {widget.controller.currentDifficulty},
@@ -3451,22 +3493,32 @@ class _MatchSetupViewState extends State<_MatchSetupView> {
                 ),
               ),
               const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: _ModeDescription(
-                      mode: widget.controller.scoringMode,
-                      targetScore: widget.controller.match.targetScore,
+              if (isNarrow) ...[
+                _ModeDescription(
+                  mode: widget.controller.scoringMode,
+                  targetScore: widget.controller.match.targetScore,
+                ),
+                const SizedBox(height: 8),
+                _DifficultyDescription(
+                  level: widget.controller.currentDifficulty,
+                ),
+              ] else
+                Row(
+                  children: [
+                    Expanded(
+                      child: _ModeDescription(
+                        mode: widget.controller.scoringMode,
+                        targetScore: widget.controller.match.targetScore,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _DifficultyDescription(
-                      level: widget.controller.currentDifficulty,
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _DifficultyDescription(
+                        level: widget.controller.currentDifficulty,
+                      ),
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                ),
               const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,
