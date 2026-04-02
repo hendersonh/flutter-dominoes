@@ -610,9 +610,10 @@ class GameController extends ChangeNotifier {
             int points = 0;
             if (_match.mode == ScoringMode.sixLove) {
               points = 1;
+              // Additional points for Key Bone/Derby calculated by engine and applied during MatchModel.recordRoundResult
             } else {
               for (int i = 0; i < 4; i++) {
-                if (i != roundWinner) {
+                if (i % 2 != roundWinner % 2) {
                   points += game!.hands[i].fold(0, (sum, t) => sum + t.score);
                 }
               }
@@ -994,7 +995,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                       isActive: game.currentPlayer == 0,
                                       isKnocking:
                                           controller.knockingPlayerIndex == 0,
-                                      teamName: null,
+                                      teamName: controller.match.playStyle == PlayStyle.partners ? 'TEAM 1' : null,
                                     ),
                                   ),
                                   AnimatedPositioned(
@@ -1015,7 +1016,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                       isKnocking:
                                           controller.knockingPlayerIndex == 1,
                                       isThinking: game.currentPlayer == 1,
-                                      teamName: null,
+                                      teamName: controller.match.playStyle == PlayStyle.partners ? 'TEAM 2' : null,
                                     ),
                                   ),
                                   Align(
@@ -1032,6 +1033,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                         isKnocking:
                                             controller.knockingPlayerIndex == 2,
                                         isThinking: game.currentPlayer == 2,
+                                        teamName: controller.match.playStyle == PlayStyle.partners ? 'TEAM 1' : null,
                                       ),
                                     ),
                                   ),
@@ -1053,7 +1055,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                       isKnocking:
                                           controller.knockingPlayerIndex == 3,
                                       isThinking: game.currentPlayer == 3,
-                                      teamName: null,
+                                      teamName: controller.match.playStyle == PlayStyle.partners ? 'TEAM 2' : null,
                                     ),
                                   ),
 
@@ -1789,17 +1791,17 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                             child: Row(
                                               mainAxisSize: MainAxisSize.min,
                                               children: [
-                                                Text(
-                                                  controller.match.playStyle ==
-                                                          PlayStyle.partners
-                                                      ? 'PARTNERS'
-                                                      : (isNarrow ? 'SOLO' : 'CUT-THROAT'),
-                                                  style: const TextStyle(
-                                                    color: Colors.white,
-                                                    fontSize: 10,
-                                                    fontWeight: FontWeight.w900,
+                                                  Text(
+                                                    controller.match.playStyle ==
+                                                            PlayStyle.partners
+                                                        ? 'PARTNERS'
+                                                        : 'SOLO',
+                                                    style: const TextStyle(
+                                                      color: Colors.white,
+                                                      fontSize: 10,
+                                                      fontWeight: FontWeight.w900,
+                                                    ),
                                                   ),
-                                                ),
                                                 const SizedBox(width: 8),
                                                 Container(
                                                   width: 1,
@@ -2923,7 +2925,9 @@ class _EdgeScoreState extends State<_EdgeScore> with TickerProviderStateMixin {
                           fontSize: 10,
                           color: (widget.isActive || widget.isKnocking)
                               ? const Color(0xFF2BEE4B).withOpacity(0.8)
-                              : Colors.white70,
+                              : widget.teamName == 'TEAM 2' 
+                                  ? const Color(0xFFFFD700).withOpacity(0.7)
+                                  : Colors.white70,
                           fontWeight: FontWeight.bold,
                           letterSpacing: 0.5,
                         ),
@@ -2934,7 +2938,9 @@ class _EdgeScoreState extends State<_EdgeScore> with TickerProviderStateMixin {
                         fontSize: 14,
                         color: widget.isActive || widget.isKnocking
                             ? const Color(0xFF2BEE4B)
-                            : Colors.white,
+                            : widget.teamName == 'TEAM 2'
+                                ? const Color(0xFFFFD700)
+                                : Colors.white,
                         fontWeight: widget.isActive || widget.isKnocking
                             ? FontWeight.bold
                             : FontWeight.w400,
@@ -2955,7 +2961,12 @@ class _EdgeScoreState extends State<_EdgeScore> with TickerProviderStateMixin {
                               ScoringMode.sixLove
                           ? 'Six-Love Champion'
                           : 'Lifetime Leader',
-                      child: const Text('👑', style: TextStyle(fontSize: 12)),
+                      child: Text('👑', 
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: widget.teamName == 'TEAM 2' ? const Color(0xFFFFD700) : null,
+                        )
+                      ),
                     ),
                   ),
                 if (widget.isThinking) const _ThinkingDots(),
@@ -2968,7 +2979,9 @@ class _EdgeScoreState extends State<_EdgeScore> with TickerProviderStateMixin {
                 fontSize: 14,
                 color: widget.isActive || widget.isKnocking
                     ? const Color(0xFF2BEE4B)
-                    : Colors.white.withOpacity(0.8),
+                    : widget.teamName == 'TEAM 2'
+                        ? const Color(0xFFFFD700).withOpacity(0.8)
+                        : Colors.white.withOpacity(0.8),
                 fontWeight: widget.isActive || widget.isKnocking
                     ? FontWeight.bold
                     : FontWeight.w400,
@@ -3278,12 +3291,12 @@ class _MatchSetupViewState extends State<_MatchSetupView> {
 
     return Center(
       child: Container(
-        constraints: const BoxConstraints(maxWidth: 400),
+        constraints: const BoxConstraints(maxWidth: 384),
         margin: EdgeInsets.symmetric(
-          horizontal: isNarrow ? 12 : 24,
+          horizontal: isNarrow ? 8 : 24,
           vertical: 16,
         ),
-        padding: EdgeInsets.all(isNarrow ? 12 : 16),
+        padding: EdgeInsets.all(isNarrow ? 10 : 16),
         decoration: BoxDecoration(
           color: Colors.black.withOpacity(0.6),
           borderRadius: BorderRadius.circular(24),
@@ -3326,12 +3339,18 @@ class _MatchSetupViewState extends State<_MatchSetupView> {
                 segments: [
                   ButtonSegment(
                     value: ScoringMode.traditional,
-                    label: Text(isNarrow ? 'Target' : 'First to Target'),
+                    label: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(isNarrow ? 'Target' : 'First to Target'),
+                    ),
                     icon: hideIcons ? null : const Icon(Icons.score),
                   ),
                   ButtonSegment(
                     value: ScoringMode.sixLove,
-                    label: const Text('Six-Love'),
+                    label: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(isNarrow ? '6-Love' : 'Six-Love'),
+                    ),
                     icon: hideIcons ? null : const Icon(Icons.auto_awesome),
                   ),
                 ],
@@ -3354,6 +3373,12 @@ class _MatchSetupViewState extends State<_MatchSetupView> {
                     }
                     return Colors.white70;
                   }),
+                  padding: WidgetStateProperty.all(
+                    isNarrow ? EdgeInsets.zero : const EdgeInsets.symmetric(horizontal: 12),
+                  ),
+                  textStyle: WidgetStateProperty.all(
+                    TextStyle(fontSize: isNarrow ? 12 : 14),
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
@@ -3367,12 +3392,18 @@ class _MatchSetupViewState extends State<_MatchSetupView> {
                 segments: [
                   ButtonSegment(
                     value: PlayStyle.cutThroat,
-                    label: const Text('Cut-Throat'),
+                    label: const FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text('Solo'),
+                    ),
                     icon: hideIcons ? null : const Icon(Icons.person),
                   ),
                   ButtonSegment(
                     value: PlayStyle.partners,
-                    label: const Text('Partners'),
+                    label: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(isNarrow ? 'Prtnr' : 'Partners'),
+                    ),
                     icon: hideIcons ? null : const Icon(Icons.group),
                   ),
                 ],
@@ -3456,19 +3487,31 @@ class _MatchSetupViewState extends State<_MatchSetupView> {
                 segments: [
                   ButtonSegment(
                     value: DifficultyLevel.rookie,
-                    label: const Text('Rookie'),
+                    label: const FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text('Rookie'),
+                    ),
                   ),
                   ButtonSegment(
                     value: DifficultyLevel.casual,
-                    label: const Text('Casual'),
+                    label: const FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text('Casual'),
+                    ),
                   ),
                   ButtonSegment(
                     value: DifficultyLevel.professional,
-                    label: const Text('Pro'),
+                    label: const FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text('Pro'),
+                    ),
                   ),
                   ButtonSegment(
                     value: DifficultyLevel.legend,
-                    label: const Text('Legend'),
+                    label: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(isNarrow ? 'Lgd' : 'Legend'),
+                    ),
                   ),
                 ],
                 selected: {widget.controller.currentDifficulty},
@@ -3490,6 +3533,12 @@ class _MatchSetupViewState extends State<_MatchSetupView> {
                     }
                     return Colors.white70;
                   }),
+                  padding: WidgetStateProperty.all(
+                    isNarrow ? EdgeInsets.zero : const EdgeInsets.symmetric(horizontal: 12),
+                  ),
+                  textStyle: WidgetStateProperty.all(
+                    TextStyle(fontSize: isNarrow ? 12 : 14),
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
@@ -3570,7 +3619,9 @@ class _ModeDescription extends StatelessWidget {
         : 'First to 6 points wins. All scores reset (Game Bruk) if EVERY player wins at least 1 round.';
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(
+        MediaQuery.of(context).size.width < 600 ? 12 : 16,
+      ),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.05),
         borderRadius: BorderRadius.circular(12),
@@ -3776,16 +3827,20 @@ class _MiniHand extends StatelessWidget {
                   if (teamName != null)
                     Text(
                       teamName!,
-                      style: const TextStyle(
-                        color: Color(0xFF2BEE4B),
+                      style: TextStyle(
+                        color: teamName == 'TEAM 2' 
+                            ? const Color(0xFFFFD700) 
+                            : const Color(0xFF2BEE4B),
                         fontSize: 9,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                   Text(
                     name,
-                    style: const TextStyle(
-                      color: Colors.white70,
+                    style: TextStyle(
+                      color: teamName == 'TEAM 2' 
+                          ? const Color(0xFFFFD700) 
+                          : Colors.white70,
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
                     ),
@@ -4133,19 +4188,19 @@ class _DifficultyDescription extends StatelessWidget {
     switch (level) {
       case DifficultyLevel.rookie:
         title = 'Rookie AI';
-        desc = 'Prone to mistakes. Prioritizes high-value tiles.';
+        desc = 'Learning the ropes. Focuses on playing high-value tiles.';
         break;
       case DifficultyLevel.casual:
         title = 'Casual AI';
-        desc = 'Basic strategy. Awareness of open ends but limited foresight.';
+        desc = 'Standard strategy with awareness of basic board states.';
         break;
       case DifficultyLevel.professional:
         title = 'Professional AI';
-        desc = 'Balanced strategy with deep look-ahead.';
+        desc = 'Skilled strategy with opportunistic plays and strong defense.';
         break;
       case DifficultyLevel.legend:
         title = 'Legend AI';
-        desc = 'MCTS with mode-aware rewards and tile tracking.';
+        desc = 'Uses advanced tactical search and tile tracking to dominate.';
         break;
     }
 

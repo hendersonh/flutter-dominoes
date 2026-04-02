@@ -157,28 +157,40 @@ class GameModel {
         if (hands[i].isEmpty) return i;
     }
 
-    // Blocked game: find individual with lowest pip count
+    // Blocked game: compare pip counts
     List<int> pipCounts = hands.map((h) => h.fold(0, (sum, t) => sum + t.score)).toList();
-    int minPips = pipCounts.reduce(min);
     
-    // Check for ties (Derby)
-    List<int> minPlayers = [];
-    for (int i = 0; i < 4; i++) {
-      if (pipCounts[i] == minPips) minPlayers.add(i);
-    }
-    
-    if (minPlayers.length > 1) {
-      if (playStyle == PlayStyle.partners) {
-        // In partners, if the two tying players are on the same team, that team still wins.
-        // If they are on opposite teams, it's a true Derby (Draw).
-        int teamId = minPlayers[0] % 2;
-        if (minPlayers.every((p) => p % 2 == teamId)) return minPlayers[0];
-        return -1; // Opposing tie = Derby
+    if (playStyle == PlayStyle.partners) {
+      // TEAM TOTALS: Team 1 (0+2) vs Team 2 (1+3)
+      int team1Pips = pipCounts[0] + pipCounts[2];
+      int team2Pips = pipCounts[1] + pipCounts[3];
+
+      if (team1Pips < team2Pips) {
+        // Individual winner on Team 1 is the one with fewer pips
+        return pipCounts[0] <= pipCounts[2] ? 0 : 2;
+      } else if (team2Pips < team1Pips) {
+        // Individual winner on Team 2 is the one with fewer pips
+        return pipCounts[1] <= pipCounts[3] ? 1 : 3;
+      } else {
+        // EXACT TIE in team totals = Derby (Draw)
+        return -1;
       }
-      return -1; // Cut-throat tie = Draw
+    } else {
+      // Cut-throat: find individual with lowest pip count
+      int minPips = pipCounts.reduce(min);
+      
+      // Check for ties (Derby)
+      List<int> minPlayers = [];
+      for (int i = 0; i < 4; i++) {
+        if (pipCounts[i] == minPips) minPlayers.add(i);
+      }
+      
+      if (minPlayers.length > 1) {
+        return -1; // Cut-throat tie = Draw
+      }
+      
+      return pipCounts.indexOf(minPips);
     }
-    
-    return pipCounts.indexOf(minPips);
   }
 
   /// Returns true if the board ends are both "Hard" (no more tiles of that suit available).
@@ -1077,10 +1089,10 @@ class MatchModel {
         }
       }
 
-      int points = 1 + (isKeyBone ? 1 : 0) + (isDerby ? 1 : 0) + pendingBonus;
-      pendingBonus = 0;
-
       if (mode == ScoringMode.sixLove) {
+        int points = 1 + (isKeyBone ? 1 : 0) + (isDerby ? 1 : 0) + pendingBonus;
+        pendingBonus = 0;
+
         if (playStyle == PlayStyle.partners) {
           int winnerTeam = winner % 2;
           int loserTeam = 1 - winnerTeam;
@@ -1100,22 +1112,18 @@ class MatchModel {
             }
           }
           scores[winner] += points;
-
-          // Special rule: If every player had reached 1 but none reached 6, 
-          // it's an alternate Bruk (slate wipe), but our Reset logic already wipes opponents.
-          // Wait, if everyone has 1 point, and I win, I now have 2, and they are back to 0.
         }
       } else {
         // Traditional mode (Score based on pips)
         int totalPipsRound = 0;
         for (int i = 0; i < 4; i++) {
-          if (i != winner &&
-              (playStyle != PlayStyle.partners || i % 2 != winner % 2)) {
+          if (i % 2 != winner % 2) {
             totalPipsRound +=
                 currentRound!.hands[i].fold(0, (sum, t) => sum + t.score);
           }
         }
         scores[winner] += totalPipsRound;
+        pendingBonus = 0; // Clear it just in case modes were switched
       }
     } else {
       // Tie (Drawn Game)
