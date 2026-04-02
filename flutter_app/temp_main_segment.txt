@@ -1,0 +1,300 @@
+                                  // Match Controls Overlay (Top Right - Highest Z-Index)
+                                  Positioned(
+                                    top: 8,
+                                    right: 8,
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        IconButton(
+                                          padding: const EdgeInsets.all(
+                                            12,
+                                          ),
+                                          tooltip: 'How to Play',
+                                          icon: const Icon(
+                                            Icons.help_outline,
+                                            color: Colors.white70,
+                                            size: 24,
+                                          ),
+                                          onPressed: () => _showHelpModal(
+                                            context,
+                                            controller,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+
+                                  // Review Board Overlay
+                                  if (controller.showReviewBoard &&
+                                      !controller.showNextRoundButton)
+                                    Positioned.fill(
+                                      child: ReviewBoardOverlay(
+                                        controller: controller,
+                                      ),
+                                    ),
+
+                                  // Resume Overlay
+                                  if (controller.needsResume)
+                                    Positioned.fill(
+                                      child: GestureDetector(
+                                        onTap: () => controller.resumeGame(),
+                                        child: Container(
+                                          color: Colors.black.withOpacity(0.85),
+                                          child: Center(
+                                            child: Column(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                const Icon(
+                                                  Icons.volume_up,
+                                                  color: Color(0xFF2BEE4B),
+                                                  size: 64,
+                                                ),
+                                                const SizedBox(height: 24),
+                                                Text(
+                                                  'RESUME TO PLAY',
+                                                  style: GoogleFonts.outfit(
+                                                    fontSize: 32,
+                                                    fontWeight: FontWeight.w900,
+                                                    color: Colors.white,
+                                                    letterSpacing: 2,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 12),
+                                                Text(
+                                                  'Tap anywhere to restore audio',
+                                                  style: TextStyle(
+                                                    color: Colors.white
+                                                        .withOpacity(0.6),
+                                                    fontSize: 16,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                                             );
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+        ),
+        const _UpdateBanner(),
+      ],
+    );
+  }
+);
+  }
+
+  Widget _buildHandRow(
+    GameModel game,
+    GameController controller,
+    double tileScale,
+  ) {
+    return Row(
+      children: game.hands[0].asMap().entries.map((entry) {
+        final index = entry.key;
+        final tile = entry.value;
+        final isPlayable =
+            !game.isGameOver &&
+            game.currentPlayer == 0 &&
+            (game.board.isEmpty ||
+                tile.contains(game.leftEnd!) ||
+                tile.contains(game.rightEnd!));
+
+        return Padding(
+          padding: EdgeInsets.only(right: 12.0 * tileScale),
+          child: GestureDetector(
+            onTap:
+                game.isGameOver ||
+                    !isPlayable ||
+                    controller.knockingPlayerIndex == 0
+                ? null
+                : () => controller.selectTile(tile),
+            child: Opacity(
+              opacity: game.isGameOver || game.currentPlayer != 0 || isPlayable
+                  ? 1.0
+                  : 0.4,
+              child: Hero(
+                tag: 'tile-$index',
+                child: DominoTileWidget(
+                  tile: tile,
+                  isVertical: true,
+                  isHighlight: isPlayable,
+                  isSelected: controller.selectedTile == tile,
+                  scale: tileScale,
+                ),
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+  Widget _buildMatchGradeBadge(DifficultyLevel difficulty) {
+    String grade;
+    String label;
+    Color color;
+
+    switch (difficulty) {
+      case DifficultyLevel.legend:
+        grade = 'A';
+        label = 'LEGENDARY';
+        color = const Color(0xFF64FFDA);
+        break;
+      case DifficultyLevel.professional:
+        grade = 'B';
+        label = 'PROFESSIONAL';
+        color = const Color(0xFF2BEE4B);
+        break;
+      case DifficultyLevel.casual:
+        grade = 'C';
+        label = 'CASUAL';
+        color = Colors.orangeAccent;
+        break;
+      case DifficultyLevel.rookie:
+        grade = 'D';
+        label = 'NOVICE';
+        color = Colors.white54;
+        break;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              grade,
+              style: const TextStyle(
+                color: Colors.black,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            'MATCH INTENSITY: $label',
+            style: TextStyle(
+              color: color,
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVictoryQualityRow(List<int> winsByDiff) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'VICTORY QUALITY',
+          style: TextStyle(
+            fontSize: 10,
+            color: Colors.white54,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 2,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _buildQualityBadge('A', winsByDiff[3], const Color(0xFF64FFDA)),
+            _buildQualityBadge('B', winsByDiff[2], const Color(0xFF2BEE4B)),
+            _buildQualityBadge('C', winsByDiff[1], Colors.orangeAccent),
+            _buildQualityBadge('D', winsByDiff[0], Colors.white54),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildQualityBadge(String grade, int count, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withOpacity(0.2)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            grade,
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.bold,
+              fontSize: 12,
+            ),
+          ),
+          const SizedBox(width: 4),
+          Text(
+            '×$count',
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class DominoTileWidget extends StatelessWidget {
+  final DominoTile tile;
+  final bool isVertical;
+  final bool isHighlight;
+  final bool isSelected;
+  final bool isFlipped;
+  final double scale;
+
+  const DominoTileWidget({
+    super.key,
+    required this.tile,
+    this.isVertical = false,
+    this.isHighlight = false,
+    this.isSelected = false,
+    this.isFlipped = false,
+    this.scale = 1.0,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        Container(
+          width: (isVertical ? 50 : 102) * scale,
+          height: (isVertical ? 102 : 50) * scale,
+          decoration: BoxDecoration(
+            gradient: const RadialGradient(
+              center: Alignment(-0.2, -0.4),
+              radius: 1.2,
+              colors: [
+                Color(0xFFFFFFFF), // Highlight
+                Color(0xFFFDFBF7), // Mid
+                Color(0xFFF3F0E8), // Shadow side
+              ],
+            ),

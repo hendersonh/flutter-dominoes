@@ -1,0 +1,201 @@
+                                                    style: const TextStyle(
+                                                      color: Colors.white,
+                                                      fontSize: 10,
+                                                      fontWeight: FontWeight.w900,
+                                                    ),
+                                                  ),
+                                                const SizedBox(width: 8),
+                                                Container(
+                                                  width: 1,
+                                                  height: 12,
+                                                  color: Colors.white24,
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Text(
+                                                  controller.scoringMode ==
+                                                          ScoringMode.sixLove
+                                                      ? 'SIX-LOVE'
+                                                      : 'Trgt=${controller.match.targetScore}',
+                                                  style: const TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.bold,
+                                                    letterSpacing: 0.5,
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Container(
+                                                  width: 1,
+                                                  height: 12,
+                                                  color: Colors.white24,
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Text(
+                                                  isNarrow && controller.currentDifficulty == DifficultyLevel.professional
+                                                      ? 'PRO'
+                                                      : controller.currentDifficulty.name.toUpperCase(),
+                                                  style: const TextStyle(
+                                                    color: Color(0xFF2BEE4B),
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.w900,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          );
+                                        }
+                                      ),
+                                    ),
+                                  ),
+
+                                  // Match Controls Overlay (Top Right - Highest Z-Index)
+                                  Positioned(
+                                    top: 8,
+                                    right: 8,
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        IconButton(
+                                          padding: const EdgeInsets.all(
+                                            12,
+                                          ),
+                                          tooltip: 'How to Play',
+                                          icon: const Icon(
+                                            Icons.help_outline,
+                                            color: Colors.white70,
+                                            size: 24,
+                                          ),
+                                          onPressed: () => _showHelpModal(
+                                            context,
+                                            controller,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+
+                                  // Review Board Overlay
+                                  if (controller.showReviewBoard &&
+                                      !controller.showNextRoundButton)
+                                    Positioned.fill(
+                                      child: ReviewBoardOverlay(
+                                        controller: controller,
+                                      ),
+                                    ),
+
+                                  // Resume Overlay
+                                  if (controller.needsResume)
+                                    Positioned.fill(
+                                      child: GestureDetector(
+                                        onTap: () => controller.resumeGame(),
+                                        child: Container(
+                                          color: Colors.black.withOpacity(0.85),
+                                          child: Center(
+                                            child: Column(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                const Icon(
+                                                  Icons.volume_up,
+                                                  color: Color(0xFF2BEE4B),
+                                                  size: 64,
+                                                ),
+                                                const SizedBox(height: 24),
+                                                Text(
+                                                  'RESUME TO PLAY',
+                                                  style: GoogleFonts.outfit(
+                                                    fontSize: 32,
+                                                    fontWeight: FontWeight.w900,
+                                                    color: Colors.white,
+                                                    letterSpacing: 2,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 12),
+                                                Text(
+                                                  'Tap anywhere to restore audio',
+                                                  style: TextStyle(
+                                                    color: Colors.white
+                                                        .withOpacity(0.6),
+                                                    fontSize: 16,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                                             );
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+        ),
+        const _UpdateBanner(),
+      ],
+    );
+  }
+);
+  }
+
+  Widget _buildHandRow(
+    GameModel game,
+    GameController controller,
+    double tileScale,
+  ) {
+    return Row(
+      children: game.hands[0].asMap().entries.map((entry) {
+        final index = entry.key;
+        final tile = entry.value;
+        final isPlayable =
+            !game.isGameOver &&
+            game.currentPlayer == 0 &&
+            (game.board.isEmpty ||
+                tile.contains(game.leftEnd!) ||
+                tile.contains(game.rightEnd!));
+
+        return Padding(
+          padding: EdgeInsets.only(right: 12.0 * tileScale),
+          child: GestureDetector(
+            onTap:
+                game.isGameOver ||
+                    !isPlayable ||
+                    controller.knockingPlayerIndex == 0
+                ? null
+                : () => controller.selectTile(tile),
+            child: Opacity(
+              opacity: game.isGameOver || game.currentPlayer != 0 || isPlayable
+                  ? 1.0
+                  : 0.4,
+              child: Hero(
+                tag: 'tile-$index',
+                child: DominoTileWidget(
+                  tile: tile,
+                  isVertical: true,
+                  isHighlight: isPlayable,
+                  isSelected: controller.selectedTile == tile,
+                  scale: tileScale,
+                ),
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+  Widget _buildMatchGradeBadge(DifficultyLevel difficulty) {
+    String grade;
+    String label;
+    Color color;
+
+    switch (difficulty) {
+      case DifficultyLevel.legend:
+        grade = 'A';
+        label = 'LEGENDARY';
+        color = const Color(0xFF64FFDA);
+        break;
+      case DifficultyLevel.professional:
+        grade = 'B';
+        label = 'PROFESSIONAL';
+        color = const Color(0xFF2BEE4B);
+        break;

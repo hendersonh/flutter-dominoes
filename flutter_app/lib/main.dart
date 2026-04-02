@@ -954,8 +954,10 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                   }
                   controller.clearSelection();
                 },
-                child: SafeArea(
-                  child: Column(
+                child: Stack(
+                  children: [
+                    SafeArea(
+                      child: Column(
                     children: [
                       // Game Board (Now taking full height)
                       Expanded(
@@ -1921,8 +1923,6 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                           ),
                                         ),
                                       ),
-                                    ),
-                                  const _UpdateBanner(),
                                 ],
                               );
                             },
@@ -2028,7 +2028,9 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                   ),
                 ),
               ),
-      ),
+        ),
+        const _UpdateBanner(),
+      ],
     );
   }
 
@@ -3739,12 +3741,8 @@ class ReviewBoardOverlay extends StatelessWidget {
                     ),
                   ),
 
-                  _MiniHand(
-                    name: playerNames[0],
-                    tiles: game.hands[0],
-                    position: 'South',
-                    teamName: controller.match.playStyle == PlayStyle.partners ? 'TEAM 1' : null,
-                  ),
+                  // Removed South player's hand as it is already visible at the bottom of the screen.
+
                   Padding(
                     padding: const EdgeInsets.only(bottom: 20),
                     child: Text(
@@ -3867,10 +3865,10 @@ class _MiniHand extends StatelessWidget {
             spacing: 4,
             children: tiles.map((tile) {
               return SizedBox(
-                width: 35, // Increased from 20 for optimal mobile fit
-                height: 70, // Increased from 40
+                width: 55, // Increased from 45 for maximum visibility
+                height: 110, // Increased from 90
                 child: Transform.scale(
-                  scale: 0.7, // Increased from 0.5 for better visibility
+                  scale: 1.1, // Increased from 0.9 to 1.1 (larger than original widget size)
                   child: DominoTileWidget(tile: tile, isVertical: true),
                 ),
               );
