@@ -1,0 +1,108 @@
+Analyzing flutter_app...                                        
+
+   info - Don't invoke 'print' in production code - bin\ai_simulator.dart:19:3 - avoid_print
+   info - Don't invoke 'print' in production code - bin\ai_simulator.dart:20:3 - avoid_print
+   info - Don't invoke 'print' in production code - bin\ai_simulator.dart:21:3 - avoid_print
+   info - Don't invoke 'print' in production code - bin\ai_simulator.dart:22:3 - avoid_print
+   info - Don't invoke 'print' in production code - bin\ai_simulator.dart:23:3 - avoid_print
+   info - Don't invoke 'print' in production code - bin\ai_simulator.dart:24:3 - avoid_print
+   info - Don't invoke 'print' in production code - bin\ai_simulator.dart:25:3 - avoid_print
+   info - Don't invoke 'print' in production code - bin\ai_simulator.dart:26:3 - avoid_print
+   info - Don't invoke 'print' in production code - bin\ai_simulator.dart:27:3 - avoid_print
+   info - Don't invoke 'print' in production code - bin\ai_simulator.dart:46:18 - avoid_print
+   info - Don't invoke 'print' in production code - bin\ai_simulator.dart:60:11 - avoid_print
+   info - Don't invoke 'print' in production code - bin\ai_simulator.dart:67:18 - avoid_print
+   info - Don't invoke 'print' in production code - bin\ai_simulator.dart:83:7 - avoid_print
+   info - Don't invoke 'print' in production code - bin\ai_simulator.dart:88:3 - avoid_print
+   info - Don't invoke 'print' in production code - bin\ai_simulator.dart:89:3 - avoid_print
+   info - Don't invoke 'print' in production code - bin\ai_simulator.dart:90:3 - avoid_print
+   info - Don't invoke 'print' in production code - bin\ai_simulator.dart:92:5 - avoid_print
+   info - Don't invoke 'print' in production code - bin\ai_simulator.dart:93:5 - avoid_print
+   info - Don't invoke 'print' in production code - bin\ai_simulator.dart:98:7 - avoid_print
+   info - Don't invoke 'print' in production code - bin\ai_simulator.dart:101:3 - avoid_print
+   info - Don't invoke 'print' in production code - lib\engine\audio_engine_web.dart:14:7 - avoid_print
+   info - The variable name 'Ni' isn't a lowerCamelCase identifier - lib\engine\dominoes_ai.dart:383:13 - non_constant_identifier_names
+   info - Don't invoke 'print' in production code - lib\engine\dominoes_ai.dart:596:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\engine\dominoes_ai.dart:633:13 - avoid_print
+   info - Don't invoke 'print' in production code - lib\engine\dominoes_ai.dart:850:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\engine\dominoes_ai.dart:880:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\engine\dominoes_ai.dart:886:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\engine\dominoes_ai.dart:889:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\engine\sound_service_base.dart:21:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\engine\sound_service_unsupported.dart:11:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\engine\sound_service_unsupported.dart:16:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\engine\sound_service_unsupported.dart:21:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\engine\sound_service_unsupported.dart:26:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\engine\sound_service_web.dart:15:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\engine\sound_service_web.dart:18:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\engine\sound_service_web.dart:33:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\engine\sound_service_web.dart:43:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\engine\sound_service_web.dart:56:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\engine\sound_service_web.dart:58:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\engine\sound_service_web.dart:66:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\engine\sound_service_web.dart:73:13 - avoid_print
+   info - Don't invoke 'print' in production code - lib\engine\sound_service_web.dart:79:13 - avoid_print
+   info - Don't invoke 'print' in production code - lib\engine\sound_service_web.dart:90:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\engine\sound_service_web.dart:98:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\engine\sound_service_web.dart:106:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\engine\sound_service_web.dart:112:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\engine\sound_service_web.dart:115:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\engine\sound_service_web.dart:117:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\engine\sound_service_web.dart:124:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\engine\sound_service_web.dart:139:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\engine\sound_service_web.dart:145:13 - avoid_print
+   info - Don't invoke 'print' in production code - lib\engine\sound_service_web.dart:150:9 - avoid_print
+   info - Empty catch block - lib\main.dart:204:17 - empty_catches
+   info - Don't invoke 'print' in production code - lib\main.dart:286:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:299:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:338:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:421:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:493:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:728:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\main.dart:745:7 - avoid_print
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:971:51 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:1141:65 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:1150:49 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:1183:65 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:1192:49 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:1214:61 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:1242:57 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:1585:85 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:1588:94 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:1894:63 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:1919:58 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:2119:22 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:2121:41 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:2188:22 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:2190:41 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:2257:52 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:2261:52 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:2268:50 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:2275:39 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:2281:39 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:2330:37 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:2335:39 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:2427:34 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:2436:34 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:2742:54 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:2746:58 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:2778:54 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:2782:58 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:2935:57 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:2937:61 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:2991:51 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:2992:40 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:3148:47 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:3156:34 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:3309:31 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:3311:50 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:3314:46 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:3590:51 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:3634:29 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:3780:49 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:4035:47 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:4121:44 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:4126:37 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\main.dart:4214:29 - deprecated_member_use
+   info - Don't invoke 'print' in production code - test\zsp_test.dart:40:7 - avoid_print
+

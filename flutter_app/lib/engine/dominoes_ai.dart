@@ -1,9 +1,11 @@
 import 'dart:math';
 import 'dart:isolate';
+
 // Use a pure Dart way to detect web, removing the dependency on package:flutter
 const bool kIsWeb = bool.fromEnvironment('dart.library.js_util');
 
 enum DifficultyLevel { rookie, casual, professional, legend }
+
 enum PlayStyle { cutThroat, partners }
 
 /// Represents a single Domino tile.
@@ -98,7 +100,7 @@ class GameModel {
   PlayStyle playStyle;
   List<int> matchScores;
   int matchTarget;
-  
+
   // Inference markers for Partner Mode
   List<Map<int, double>> playSpeeds; // [player][suit] -> seconds
 
@@ -151,15 +153,17 @@ class GameModel {
 
   int get winner {
     if (!isGameOver) return -1;
-    
+
     // Check if anyone played their last tile
     for (int i = 0; i < 4; i++) {
-        if (hands[i].isEmpty) return i;
+      if (hands[i].isEmpty) return i;
     }
 
     // Blocked game: compare pip counts
-    List<int> pipCounts = hands.map((h) => h.fold(0, (sum, t) => sum + t.score)).toList();
-    
+    List<int> pipCounts = hands
+        .map((h) => h.fold(0, (sum, t) => sum + t.score))
+        .toList();
+
     if (playStyle == PlayStyle.partners) {
       // TEAM TOTALS: Team 1 (0+2) vs Team 2 (1+3)
       int team1Pips = pipCounts[0] + pipCounts[2];
@@ -172,23 +176,23 @@ class GameModel {
         // Individual winner on Team 2 is the one with fewer pips
         return pipCounts[1] <= pipCounts[3] ? 1 : 3;
       } else {
-        // EXACT TIE in team totals = Derby (Draw)
+        // EXACT TIE in team totals = Draw (Tie)
         return -1;
       }
     } else {
       // Cut-throat: find individual with lowest pip count
       int minPips = pipCounts.reduce(min);
-      
-      // Check for ties (Derby)
+
+      // Check for ties (Draw)
       List<int> minPlayers = [];
       for (int i = 0; i < 4; i++) {
         if (pipCounts[i] == minPips) minPlayers.add(i);
       }
-      
+
       if (minPlayers.length > 1) {
         return -1; // Cut-throat tie = Draw
       }
-      
+
       return pipCounts.indexOf(minPips);
     }
   }
@@ -385,60 +389,81 @@ class MCTSNode {
         double ucb1 = (child.wins / ni) + explorationParam * sqrt(log(Ni) / ni);
 
         // --- PARTNER HEURISTICS (Phase 2) ---
-        if (playStyle == PlayStyle.partners && action is PlayAction && currentLeft != null && currentRight != null && passedSuits != null) {
-          int partnerId = (player + 2) % 4; // Node's 'player' is the one who MOVED to reach here.
+        if (playStyle == PlayStyle.partners &&
+            action is PlayAction &&
+            currentLeft != null &&
+            currentRight != null &&
+            passedSuits != null) {
+          int partnerId =
+              (player + 2) %
+              4; // Node's 'player' is the one who MOVED to reach here.
           // Wait, 'player' is the actor who created THIS node.
           // The next actor is (player + 1) % 4.
           // The partner of the NEXT actor is ((player + 1) + 2) % 4 = (player + 3) % 4.
           // Actually, let's just use the current node's perspective.
           // if I am Player 0, my partner is 2.
-          
+
           int? nextLeft = currentLeft;
           int? nextRight = currentRight;
           if (action.side == 'left') {
-            nextLeft = (action.tile.end1 == currentLeft) ? action.tile.end2 : action.tile.end1;
+            nextLeft = (action.tile.end1 == currentLeft)
+                ? action.tile.end2
+                : action.tile.end1;
           } else {
-            nextRight = (action.tile.end1 == currentRight) ? action.tile.end2 : action.tile.end1;
+            nextRight = (action.tile.end1 == currentRight)
+                ? action.tile.end2
+                : action.tile.end1;
           }
 
           // 1. THE SHIELD: Don't open for partner's void
           final partnerVoids = passedSuits[partnerId];
-          if (partnerVoids.contains(nextLeft) || partnerVoids.contains(nextRight)) {
-             // If we are leading in Six-Love, liquidation is catastrophic
-             if (teamScores != null && teamScores[player % 2] > 0) {
-                ucb1 -= 10.0; // THE SHIELD (Lead Protection)
-             } else {
-                ucb1 -= 1.5; // Standard Defensive Shield
-             }
+          if (partnerVoids.contains(nextLeft) ||
+              partnerVoids.contains(nextRight)) {
+            // If we are leading in Six-Love, liquidation is catastrophic
+            if (teamScores != null && teamScores[player % 2] > 0) {
+              ucb1 -= 10.0; // THE SHIELD (Lead Protection)
+            } else {
+              ucb1 -= 1.5; // Standard Defensive Shield
+            }
           }
 
           // 2. THE SQUEEZE: Open for opponent's void
           int opp1 = (player + 1) % 4;
           int opp2 = (player + 3) % 4;
-          if (passedSuits[opp1].contains(nextLeft) || passedSuits[opp1].contains(nextRight) ||
-              passedSuits[opp2].contains(nextLeft) || passedSuits[opp2].contains(nextRight)) {
+          if (passedSuits[opp1].contains(nextLeft) ||
+              passedSuits[opp1].contains(nextRight) ||
+              passedSuits[opp2].contains(nextLeft) ||
+              passedSuits[opp2].contains(nextRight)) {
             ucb1 += 0.5; // THE SQUEEZE
           }
-          
+
           // 3. THE ASSIST: Partner Strength
           if (playSpeeds != null) {
-             final speeds = playSpeeds[partnerId];
-             // If partner played this suite in < 1 second, they are 'Strong'
-             if ((speeds[nextLeft] != null && speeds[nextLeft]! < 1.0) ||
-                 (speeds[nextRight] != null && speeds[nextRight]! < 1.0)) {
-                ucb1 += 0.2; // THE ASSIST
-             }
+            final speeds = playSpeeds[partnerId];
+            // If partner played this suite in < 1 second, they are 'Strong'
+            if ((speeds[nextLeft] != null && speeds[nextLeft]! < 1.0) ||
+                (speeds[nextRight] != null && speeds[nextRight]! < 1.0)) {
+              ucb1 += 0.2; // THE ASSIST
+            }
           }
         }
 
         // --- ZERO SCORE PROTOCOL (ZSP) ---
-        if (victimId != -1 && passedSuits != null && action is PlayAction && currentLeft != null && currentRight != null) {
+        if (victimId != -1 &&
+            passedSuits != null &&
+            action is PlayAction &&
+            currentLeft != null &&
+            currentRight != null) {
           int? nextLeft = currentLeft;
           int? nextRight = currentRight;
           if (action.side == 'left') {
-            nextLeft = (action.tile.end1 == currentLeft) ? action.tile.end2 : action.tile.end1;
+            nextLeft = (action.tile.end1 == currentLeft)
+                ? action.tile.end2
+                : action.tile.end1;
           } else {
-            nextRight = (action.tile.end1 == currentRight) ? action.tile.end2 : action.tile.end1;
+            nextRight = (action.tile.end1 == currentRight)
+                ? action.tile.end2
+                : action.tile.end1;
           }
           final voids = passedSuits[victimId];
           if (!voids.contains(nextLeft) && !voids.contains(nextRight)) {
@@ -471,7 +496,7 @@ class MCTSPlayer {
     List<DominoTile> unknownTiles = [];
     List<int> needed = List.filled(4, 0);
     List<Set<int>> voids = List.generate(4, (_) => <int>{});
-    
+
     // --- DIFFICULTY-BASED MEMORY (HISTORY AWARENESS) ---
     // Rookie: 0% memory of passes
     // Casual: 50% memory of passes
@@ -505,13 +530,13 @@ class MCTSPlayer {
     // If not Legend, we just shuffle randomly.
     // If Legend, we track which tiles are more likely to be in which hands.
     if (difficulty == DifficultyLevel.legend) {
-      // In this IS-MCTS, we don't have deep history here, 
+      // In this IS-MCTS, we don't have deep history here,
       // but detState.passedSuits IS the history we have.
       // We already use passedSuits to filter absolutely impossible tiles.
       // For Legend, we could also track 'strategic skips' if we had a move history.
-      // Since we don't have move history in GameModel yet, 
+      // Since we don't have move history in GameModel yet,
       // we'll focus on the absolute constraints (passedSuits) which are already handled in assignTilesRec.
-      // Optimization: We will prioritize the search in assignTilesRec 
+      // Optimization: We will prioritize the search in assignTilesRec
       // to find 'valid' determinizations faster.
     }
 
@@ -622,15 +647,19 @@ class MCTSPlayer {
     while (sw.elapsedMilliseconds < effectiveTimeLimit &&
         iterations < iterationLimit) {
       iterations++;
-      
+
       // Early Exit Logic for Legend
-      if (difficulty == DifficultyLevel.legend && iterations > 1000 && sw.elapsedMilliseconds > 1500) {
+      if (difficulty == DifficultyLevel.legend &&
+          iterations > 1000 &&
+          sw.elapsedMilliseconds > 1500) {
         // Simple check if one move is significantly better (2x visits)
         List<MCTSNode> children = rootNode.children.values.toList();
         if (children.length > 1) {
           children.sort((a, b) => b.visits.compareTo(a.visits));
           if (children[0].visits > children[1].visits * 2) {
-            print("AI [$playerId LEGEND]: Early Exit! Convergence achieved after $iterations iterations.");
+            print(
+              "AI [$playerId LEGEND]: Early Exit! Convergence achieved after $iterations iterations.",
+            );
             break;
           }
         }
@@ -655,7 +684,7 @@ class MCTSPlayer {
         if (untried.isNotEmpty) {
           // 3. Expansion
           if (nodeCount > 1000000) break; // Memory Guard
-          
+
           Action actionToTry = untried[random.nextInt(untried.length)];
           int movingPlayer = state.currentPlayer;
           state.applyAction(actionToTry);
@@ -674,12 +703,13 @@ class MCTSPlayer {
           double explorationParam = 1.414;
           if (difficulty == DifficultyLevel.legend) {
             double progress = sw.elapsedMilliseconds / effectiveTimeLimit;
-            explorationParam = 1.414 - (0.714 * progress); // Decay from 1.414 to 0.7
+            explorationParam =
+                1.414 - (0.714 * progress); // Decay from 1.414 to 0.7
           }
 
           int victimId = rootState.victimId;
           bool isProtocolActive = (victimId != -1 && victimId != playerId);
-          
+
           MCTSNode? bestChild = node.getBestChild(
             legalActions,
             explorationParam,
@@ -689,7 +719,9 @@ class MCTSPlayer {
             currentLeft: state.leftEnd,
             currentRight: state.rightEnd,
             playStyle: rootState.playStyle,
-            teamScores: rootState.playStyle == PlayStyle.partners ? rootState.matchScores : null,
+            teamScores: rootState.playStyle == PlayStyle.partners
+                ? rootState.matchScores
+                : null,
           );
           if (bestChild == null) break;
 
@@ -704,10 +736,11 @@ class MCTSPlayer {
       for (int i = 0; i < 4; i++) {
         if (i != playerId) unknownTilesCount += state.hands[i].length;
       }
-      
-      bool useEndGameHeuristic = (difficulty == DifficultyLevel.legend && unknownTilesCount < 8);
+
+      bool useEndGameHeuristic =
+          (difficulty == DifficultyLevel.legend && unknownTilesCount < 8);
       bool useRandomSimulation = (difficulty == DifficultyLevel.rookie);
-      
+
       while (!state.isGameOver) {
         List<Action> actions = state.getLegalActions(state.currentPlayer);
         int victimId = rootState.victimId;
@@ -720,31 +753,43 @@ class MCTSPlayer {
         } else if (isProtocolActive) {
           // --- ZERO SCORE PROTOCOL: STARVATION ROLLOUT ---
           // Prioritize moves that "Maintain the Gap" (keep a victim void on the board)
-          List<PlayAction> starvationMoves = actions.whereType<PlayAction>().where((a) {
-            // Predict the ends if we play this tile
-            int? newLeft = state.leftEnd;
-            int? newRight = state.rightEnd;
-            if (a.side == 'left') {
-              newLeft = (a.tile.end1 == state.leftEnd) ? a.tile.end2 : a.tile.end1;
-            } else {
-              newRight = (a.tile.end1 == state.rightEnd) ? a.tile.end2 : a.tile.end1;
-            }
-            
-            // Is the victim void in at least one of the new ends?
-            final voids = state.passedSuits[victimId];
-            return (newLeft != null && voids.contains(newLeft)) || 
-                   (newRight != null && voids.contains(newRight));
-          }).toList();
+          List<PlayAction> starvationMoves = actions
+              .whereType<PlayAction>()
+              .where((a) {
+                // Predict the ends if we play this tile
+                int? newLeft = state.leftEnd;
+                int? newRight = state.rightEnd;
+                if (a.side == 'left') {
+                  newLeft = (a.tile.end1 == state.leftEnd)
+                      ? a.tile.end2
+                      : a.tile.end1;
+                } else {
+                  newRight = (a.tile.end1 == state.rightEnd)
+                      ? a.tile.end2
+                      : a.tile.end1;
+                }
+
+                // Is the victim void in at least one of the new ends?
+                final voids = state.passedSuits[victimId];
+                return (newLeft != null && voids.contains(newLeft)) ||
+                    (newRight != null && voids.contains(newRight));
+              })
+              .toList();
 
           if (starvationMoves.isNotEmpty && random.nextDouble() < 0.9) {
             // Highly likely to choose a starvation move if available
-            chosenAction = starvationMoves[random.nextInt(starvationMoves.length)];
+            chosenAction =
+                starvationMoves[random.nextInt(starvationMoves.length)];
           } else {
             // Standard pip-count heuristic as fallback
-            List<PlayAction> playActions = actions.whereType<PlayAction>().toList();
+            List<PlayAction> playActions = actions
+                .whereType<PlayAction>()
+                .toList();
             if (playActions.isNotEmpty) {
               playActions.sort((a, b) => b.tile.score.compareTo(a.tile.score));
-              chosenAction = (random.nextDouble() < 0.8) ? playActions.first : playActions[random.nextInt(playActions.length)];
+              chosenAction = (random.nextDouble() < 0.8)
+                  ? playActions.first
+                  : playActions[random.nextInt(playActions.length)];
             } else {
               chosenAction = actions[random.nextInt(actions.length)];
             }
@@ -752,20 +797,28 @@ class MCTSPlayer {
         } else if (useEndGameHeuristic) {
           // --- LEGEND END-GAME HEURISTIC ---
           // Prioritize dumping the highest score tiles to reduce hand value immediately
-          List<PlayAction> playActions = actions.whereType<PlayAction>().toList();
+          List<PlayAction> playActions = actions
+              .whereType<PlayAction>()
+              .toList();
           if (playActions.isNotEmpty) {
             playActions.sort((a, b) => b.tile.score.compareTo(a.tile.score));
             // In endgame, we are much more likely to play the best possible move
-            chosenAction = (random.nextDouble() < 0.95) ? playActions.first : playActions[random.nextInt(playActions.length)];
+            chosenAction = (random.nextDouble() < 0.95)
+                ? playActions.first
+                : playActions[random.nextInt(playActions.length)];
           } else {
             chosenAction = actions[random.nextInt(actions.length)];
           }
         } else {
           // Standard simulation (Casual, Professional)
-          List<PlayAction> playActions = actions.whereType<PlayAction>().toList();
+          List<PlayAction> playActions = actions
+              .whereType<PlayAction>()
+              .toList();
           if (playActions.isNotEmpty) {
             playActions.sort((a, b) => b.tile.score.compareTo(a.tile.score));
-            chosenAction = (random.nextDouble() < 0.8) ? playActions.first : playActions[random.nextInt(playActions.length)];
+            chosenAction = (random.nextDouble() < 0.8)
+                ? playActions.first
+                : playActions[random.nextInt(playActions.length)];
           } else {
             chosenAction = actions[random.nextInt(actions.length)];
           }
@@ -789,20 +842,20 @@ class MCTSPlayer {
         } else if (isPartnerMode) {
           // --- PARTNER REWARD POOLING ---
           if (winner % 2 == movingPlayer % 2) {
-             result = 1.0; 
-             // Bonus for Key Bone in simulation (if the actual winner made the play)
-             if (winner == state.currentPlayer && state.board.isNotEmpty) {
-                 // Check if the last action in simulation was a Key Bone
-                 // For now, we'll use a simplified check: isBoardHard
-                 if (state.isBoardHard) result += 0.5;
-             }
+            result = 1.0;
+            // Bonus for Key Bone in simulation (if the actual winner made the play)
+            if (winner == state.currentPlayer && state.board.isNotEmpty) {
+              // Check if the last action in simulation was a Key Bone
+              // For now, we'll use a simplified check: isBoardHard
+              if (state.isBoardHard) result += 0.5;
+            }
           } else {
-             // Liquidator Penalty: If partner team leads and opponents win, massive negative
-             if (rootState.matchScores[movingPlayer % 2] > 0) {
-                result = -10.0; 
-             } else {
-                result = 0.0;
-             }
+            // Liquidator Penalty: If partner team leads and opponents win, massive negative
+            if (rootState.matchScores[movingPlayer % 2] > 0) {
+              result = -10.0;
+            } else {
+              result = 0.0;
+            }
           }
         } else if (winner == movingPlayer) {
           result = 1.0; // Simple Win
@@ -811,8 +864,16 @@ class MCTSPlayer {
         } else if (isProtocolActive && winner != victimId) {
           result = 0.5;
         } else if (rootState.scoringMode == ScoringMode.traditional) {
-          int myPips = state.hands[movingPlayer].fold(0, (sum, t) => sum + t.score);
-          result = 0.4 * (1.0 - (myPips / rootState.matchTarget.toDouble())).clamp(0.0, 1.0);
+          int myPips = state.hands[movingPlayer].fold(
+            0,
+            (sum, t) => sum + t.score,
+          );
+          result =
+              0.4 *
+              (1.0 - (myPips / rootState.matchTarget.toDouble())).clamp(
+                0.0,
+                1.0,
+              );
         } else {
           int maxScore = 0;
           int leaderIndex = -1;
@@ -883,9 +944,7 @@ Future<Action> getBestActionAsync(
     }).timeout(const Duration(seconds: 15));
   } catch (e, stack) {
     // Fallback to main thread if the worker hangs or fails
-    print(
-      'AI Execution failed or timed out: $e. Falling back to main thread.',
-    );
+    print('AI Execution failed or timed out: $e. Falling back to main thread.');
     print('Stack trace: $stack');
     MCTSPlayer ai = MCTSPlayer(playerId, difficulty: difficulty);
     return ai.getBestAction(state, timeLimitMs: timeLimitMs);
@@ -909,7 +968,8 @@ class MatchModel {
   int targetScore;
   ScoringMode mode;
   PlayStyle playStyle;
-  int pendingBonus = 0; // Cumulative bonus for Derbys
+  int pendingBonus = 0; // Cumulative bonus for Draws
+  bool gameBrukOccurred = false;
   GameModel? currentRound;
 
   MatchModel({
@@ -923,7 +983,7 @@ class MatchModel {
       if (playStyle == PlayStyle.partners) {
         int winner = matchWinner;
         if (winner == -1) return false;
-        // Team 1 (0,2) or Team 2 (1,3). 
+        // Team 1 (0,2) or Team 2 (1,3).
         // Opponents are at other parity.
         int opp1 = winner == 0 ? 1 : 0;
         int opp2 = winner == 0 ? 3 : 2;
@@ -946,13 +1006,14 @@ class MatchModel {
     if (mode != ScoringMode.sixLove) return false;
     int winner = matchWinner;
     if (winner == -1) return false;
-    
+
     if (playStyle == PlayStyle.partners) {
       int winnerTeam = winner % 2; // 0 or 1
       int opp1 = 1 - winnerTeam;
       int opp2 = 3 - winnerTeam;
-      return (scores[winnerTeam] + scores[winnerTeam + 2] == 6) && 
-             scores[opp1] == 0 && scores[opp2] == 0;
+      return (scores[winnerTeam] + scores[winnerTeam + 2] == 6) &&
+          scores[opp1] == 0 &&
+          scores[opp2] == 0;
     } else {
       return scores[winner] == 6 &&
           scores.asMap().entries.every((e) => e.key == winner || e.value == 0);
@@ -1014,6 +1075,7 @@ class MatchModel {
   }
 
   void startNewRound(int roundStarterOverride, {bool isFirstHand = false}) {
+    gameBrukOccurred = false;
     List<DominoTile> allTiles = [];
     for (int i = 0; i <= 6; i++) {
       for (int j = i; j <= 6; j++) {
@@ -1056,21 +1118,24 @@ class MatchModel {
   }
 
   /// Records the result of the current round and advances to the next.
-  /// Returns the winner of the round, or -1 for a tie.
-  int recordRoundResult() {
-    if (currentRound == null) return -1;
+  /// Returns a map with detailed result information.
+  Map<String, dynamic> recordRoundResult() {
+    if (currentRound == null) {
+      return {'winner': -1, 'points': 0, 'isKeyBone': false, 'isBruk': false, 'bonusApplied': 0};
+    }
     int winner = currentRound!.winner;
+    int pointsAwarded = 0;
+    bool isKeyBone = false;
+    int bonusApplied = 0;
+    gameBrukOccurred = false; // Reset for this calculation
 
     if (winner != -1) {
       // Key Bone Check: Winning with a suit whose other 6 tiles are on the board
-      bool isKeyBone = false;
       if (currentRound!.board.isNotEmpty) {
         final lastTile = currentRound!.board.last;
-        // Check both suits of the last tile
         final suits = {lastTile.end1, lastTile.end2};
         for (int suit in suits) {
-          int countOnBoard =
-              currentRound!.board.where((t) => t.contains(suit)).length;
+          int countOnBoard = currentRound!.board.where((t) => t.contains(suit)).length;
           if (countOnBoard == 7) {
             isKeyBone = true;
             break;
@@ -1078,19 +1143,9 @@ class MatchModel {
         }
       }
 
-      // Derby Check: Sum of open ends is a multiple of 5 (5, 10, 15, 20)
-      bool isDerby = false;
-      int? l = currentRound!.leftEnd;
-      int? r = currentRound!.rightEnd;
-      if (l != null && r != null) {
-        int endsSum = l + r;
-        if (endsSum > 0 && endsSum % 5 == 0) {
-          isDerby = true;
-        }
-      }
-
       if (mode == ScoringMode.sixLove) {
-        int points = 1 + (isKeyBone ? 1 : 0) + (isDerby ? 1 : 0) + pendingBonus;
+        bonusApplied = pendingBonus;
+        pointsAwarded = 1 + (isKeyBone ? 1 : 0) + pendingBonus;
         pendingBonus = 0;
 
         if (playStyle == PlayStyle.partners) {
@@ -1102,28 +1157,30 @@ class MatchModel {
           if (opponentPoints > 0) {
             scores[loserTeam] = 0;
             scores[loserTeam + 2] = 0;
+            gameBrukOccurred = true;
           }
-          scores[winner] += points;
+          scores[winner] += pointsAwarded;
         } else {
           // Six-Love Cut-throat: Winner resets all opponents with points
           for (int i = 0; i < scores.length; i++) {
             if (i != winner && scores[i] > 0) {
               scores[i] = 0;
+              gameBrukOccurred = true;
             }
           }
-          scores[winner] += points;
+          scores[winner] += pointsAwarded;
         }
       } else {
         // Traditional mode (Score based on pips)
         int totalPipsRound = 0;
         for (int i = 0; i < 4; i++) {
           if (i % 2 != winner % 2) {
-            totalPipsRound +=
-                currentRound!.hands[i].fold(0, (sum, t) => sum + t.score);
+            totalPipsRound += currentRound!.hands[i].fold(0, (sum, t) => sum + t.score);
           }
         }
+        pointsAwarded = totalPipsRound;
         scores[winner] += totalPipsRound;
-        pendingBonus = 0; // Clear it just in case modes were switched
+        pendingBonus = 0;
       }
     } else {
       // Tie (Drawn Game)
@@ -1133,13 +1190,18 @@ class MatchModel {
     }
 
     roundNumber++;
-    // Set next starter based on previous round winner
     if (winner != -1) {
-      nextStarter = winner; 
+      nextStarter = winner;
     } else {
-      nextStarter = (nextStarter + 1) % 4; 
+      nextStarter = (nextStarter + 1) % 4;
     }
-    return winner;
+    return {
+      'winner': winner,
+      'points': pointsAwarded,
+      'isKeyBone': isKeyBone,
+      'isBruk': gameBrukOccurred,
+      'bonusApplied': bonusApplied,
+    };
   }
 
   Map<String, dynamic> toJson() {
@@ -1151,6 +1213,7 @@ class MatchModel {
       'mode': mode.name,
       'playStyle': playStyle.name,
       'pendingBonus': pendingBonus,
+      'gameBrukOccurred': gameBrukOccurred,
     };
   }
 
@@ -1165,10 +1228,10 @@ class MatchModel {
     }
     match.roundNumber = json['roundNumber'] ?? 1;
     match.nextStarter = json['nextStarter'] ?? 0;
-    
+
     String modeName = json['mode'] ?? 'traditional';
     if (modeName == 'points100') modeName = 'traditional';
-    
+
     match.mode = ScoringMode.values.firstWhere(
       (m) => m.name == modeName,
       orElse: () => ScoringMode.traditional,
@@ -1179,6 +1242,7 @@ class MatchModel {
       orElse: () => PlayStyle.cutThroat,
     );
     match.pendingBonus = json['pendingBonus'] ?? 0;
+    match.gameBrukOccurred = json['gameBrukOccurred'] ?? false;
 
     return match;
   }

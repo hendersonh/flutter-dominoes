@@ -63,7 +63,8 @@ void main(List<String> args) async {
         round.applyAction(action);
       }
 
-      int roundWinner = match.recordRoundResult();
+      final result = match.recordRoundResult();
+      int roundWinner = result['winner']!;
       if (debug) print('Round Over! Winner: P$roundWinner. Match Scores: ${match.scores}');
       
       roundStarter = (roundWinner != -1) ? roundWinner : (round.currentPlayer + 1) % 4;
