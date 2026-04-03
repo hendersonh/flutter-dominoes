@@ -1422,7 +1422,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                                     _buildVictoryQualityRow(controller.lifetimeWinsByDifficulty),
                                                   ] else ...[
                                                     const SizedBox(height: 12),
-                                                    _ChampionStatus(
+                                                    if (controller.match.playStyle != PlayStyle.partners) _ChampionStatus(
                                                       championIndex: controller
                                                           .sixLoveChampionIndex,
                                                       dishCounts: controller
