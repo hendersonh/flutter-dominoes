@@ -1152,23 +1152,36 @@ class MatchModel {
           int winnerTeam = winner % 2;
           int loserTeam = 1 - winnerTeam;
 
-          // The Reset (Game Bruk): If opponents lead and we win, they reset.
+          // The Reset (Game Bruk): If opponents lead and we win, everyone resets to 0.
           int opponentPoints = scores[loserTeam] + scores[loserTeam + 2];
           if (opponentPoints > 0) {
-            scores[loserTeam] = 0;
-            scores[loserTeam + 2] = 0;
+            scores[0] = 0;
+            scores[1] = 0;
+            scores[2] = 0;
+            scores[3] = 0;
             gameBrukOccurred = true;
+          } else {
+            // No Bruk, add points normally.
+            scores[winner] += pointsAwarded;
           }
-          scores[winner] += pointsAwarded;
         } else {
           // Six-Love Cut-throat: Winner resets all opponents with points
+          bool brukDetected = false;
           for (int i = 0; i < scores.length; i++) {
             if (i != winner && scores[i] > 0) {
-              scores[i] = 0;
-              gameBrukOccurred = true;
+              brukDetected = true;
+              break;
             }
           }
-          scores[winner] += pointsAwarded;
+
+          if (brukDetected) {
+            for (int i = 0; i < scores.length; i++) {
+              scores[i] = 0;
+            }
+            gameBrukOccurred = true;
+          } else {
+            scores[winner] += pointsAwarded;
+          }
         }
       } else {
         // Traditional mode (Score based on pips)
