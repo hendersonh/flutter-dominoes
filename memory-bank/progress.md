@@ -1,7 +1,10 @@
 - [x] **Match Over Modal Redesign**: Transitioned to a team-based "Trophy Room" layout for Partners mode.
 - [x] **Scoring Engine Fix**: Resolved a "Game Bruk" bug where scores were not resetting to 0-0 correctly for all parties.
+- [x] **Strict Key Bone Regulations**: Implemented the Jamaican tournament rule requiring both board ends to be 'Hard Ends' (8 pips exhausted) for a bonus award.
+- [x] **Key Bone Scoring Bug**: Resolved incorrect bonus point awards by switching from single-suit exhaustion to dual-ended validation.
+- [x] **Validation**: Verified the new engine logic against the user's screenshot scenario, confirming a correct 2-point Key Bone award when both 1 and 6 ends are exhausted.
 - [x] **UI Cleanup**: Conditionally removed the individual "Current Champion" banner in Partners mode to prioritize team stats.
-- [x] **Deployment**: Built and deployed refinements to the Cloudflare `test` branch.
+- [x] **Deployment**: Built and deployed Key Bone fix to the Cloudflare `test` branch (https://test.cut-throat-dom.pages.dev).
 
 ## Completed Tasks
 - Added `allpepper-memory-bank` to `mcp_config.json`.

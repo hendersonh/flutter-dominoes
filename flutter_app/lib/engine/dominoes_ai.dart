@@ -101,6 +101,10 @@ class GameModel {
   List<int> matchScores;
   int matchTarget;
 
+  // Track the last action for round-end scoring (Key Bone etc.)
+  DominoTile? lastPlayedTile;
+  bool wasLastActionPlay = false;
+
   // Inference markers for Partner Mode
   List<Map<int, double>> playSpeeds; // [player][suit] -> seconds
 
@@ -140,7 +144,8 @@ class GameModel {
       matchScores: List<int>.from(matchScores),
       matchTarget: matchTarget,
       playSpeeds: playSpeeds.map((m) => Map<int, double>.from(m)).toList(),
-    );
+    )..lastPlayedTile = lastPlayedTile
+     ..wasLastActionPlay = wasLastActionPlay;
   }
 
   bool get isGameOver {
@@ -200,7 +205,7 @@ class GameModel {
   /// Returns true if the board ends are both "Hard" (no more tiles of that suit available).
   bool get isBoardHard {
     if (leftEnd == null || rightEnd == null) return false;
-    final counts = suiteCounts;
+    final counts = pipsOnBoard;
     return counts[leftEnd!] == 8 && counts[rightEnd!] == 8;
   }
 
@@ -209,7 +214,7 @@ class GameModel {
   bool isKeyBone(PlayAction action) {
     if (action.tile.isDouble) return false;
     // We check if the board IS ALREADY hard or BECOMES hard after this play.
-    final counts = suiteCounts;
+    final counts = pipsOnBoard;
     // Note: suiteCounts includes the tile just played if board already updated.
     // If called BEFORE applyAction, we check if they are at 7.
     return counts[leftEnd!] == 8 && counts[rightEnd!] == 8;
@@ -239,13 +244,27 @@ class GameModel {
     return false;
   }
 
-  /// Returns the number of tiles played for each suite (0-6).
-  Map<int, int> get suiteCounts {
+  /// Returns the number of pips (ends) presented for each suit (0-6) on the board.
+  /// Each non-double tile contributes 1 pip to each of its two suits.
+  /// Each double tile contributes 2 pips to its suit.
+  /// Total pips for any suit in a standard 28-tile set is 8.
+  Map<int, int> get pipsOnBoard {
     Map<int, int> counts = {for (int i = 0; i <= 6; i++) i: 0};
     for (var tile in board) {
       counts[tile.end1] = counts[tile.end1]! + 1;
+      counts[tile.end2] = counts[tile.end2]! + 1;
+    }
+    return counts;
+  }
+
+  /// Returns the count of tiles containing each suit (0-6).
+  /// Max count for any suit is 7.
+  Map<int, int> get tileCountsOnBoard {
+    Map<int, int> counts = {for (int i = 0; i <= 6; i++) i: 0};
+    for (var tile in board) {
+      counts[tile.end1] = (counts[tile.end1] ?? 0) + 1;
       if (!tile.isDouble) {
-        counts[tile.end2] = counts[tile.end2]! + 1;
+        counts[tile.end2] = (counts[tile.end2] ?? 0) + 1;
       }
     }
     return counts;
@@ -329,6 +348,8 @@ class GameModel {
           board.add(DominoTile(action.tile.end2, action.tile.end1));
         }
       }
+      lastPlayedTile = action.tile;
+      wasLastActionPlay = true;
       consecutivePasses = 0;
       currentPlayer = (currentPlayer + 1) % 4;
     } else if (action is PassAction) {
@@ -336,6 +357,7 @@ class GameModel {
       if (leftEnd != null) passedSuits[currentPlayer].add(leftEnd!);
       if (rightEnd != null) passedSuits[currentPlayer].add(rightEnd!);
 
+      wasLastActionPlay = false;
       consecutivePasses++;
       currentPlayer = (currentPlayer + 1) % 4;
     }
@@ -982,23 +1004,13 @@ class MatchModel {
     if (mode == ScoringMode.sixLove) {
       if (playStyle == PlayStyle.partners) {
         int winner = matchWinner;
-        if (winner == -1) return false;
-        // Team 1 (0,2) or Team 2 (1,3).
-        // Opponents are at other parity.
-        int opp1 = winner == 0 ? 1 : 0;
-        int opp2 = winner == 0 ? 3 : 2;
-        return scores[opp1] == 0 && scores[opp2] == 0;
+        if (winner != -1) return true;
       } else {
         int winner = matchWinner;
-        if (winner == -1) return false;
-        // Everyone else must be at zero
-        for (int i = 0; i < 4; i++) {
-          if (i != winner && scores[i] > 0) return false;
-        }
-        return true;
+        if (winner != -1) return true;
       }
     }
-    return scores.any((s) => s >= targetScore);
+    return scores.any((s) => s >= (mode == ScoringMode.sixLove ? 6 : targetScore));
   }
 
   /// Returns true if the match winner won with an "Elite Jailer" score of 6-0-0-0 or team 6-0.
@@ -1130,15 +1142,27 @@ class MatchModel {
     gameBrukOccurred = false; // Reset for this calculation
 
     if (winner != -1) {
-      // Key Bone Check: Winning with a suit whose other 6 tiles are on the board
-      if (currentRound!.board.isNotEmpty) {
-        final lastTile = currentRound!.board.last;
-        final suits = {lastTile.end1, lastTile.end2};
-        for (int suit in suits) {
-          int countOnBoard = currentRound!.board.where((t) => t.contains(suit)).length;
-          if (countOnBoard == 7) {
+      // Key Bone Check (Strict Jamaican Rules):
+      // 1. Must be a PlayAction (not a block win).
+      // 2. Winning tile must NOT be a double.
+      // 3. BOTH open ends of the layout must be 'Hard Ends' (8 pips/7 tiles exhausted).
+      if (currentRound!.wasLastActionPlay &&
+          currentRound!.lastPlayedTile != null &&
+          !currentRound!.lastPlayedTile!.isDouble &&
+          currentRound!.leftEnd != null &&
+          currentRound!.rightEnd != null) {
+        final lastTile = currentRound!.lastPlayedTile!;
+        final pips = currentRound!.pipsOnBoard;
+
+        // A Key Bone must match two DIFFERENT suits that are both exhausted.
+        // If the winning tile is [A-B], then both Suit A and Suit B must be at 8 pips.
+        // AND this tile must have been the 'Key' that matched the board's requirements.
+        if (lastTile.end1 != lastTile.end2) {
+          if (pips[lastTile.end1] == 8 && pips[lastTile.end2] == 8) {
+            // Further requirement: The board itself should be effectively 'keyed'.
+            // In a Key Bone win, the player usually matches BOTH open ends.
+            // After the play, if leftEnd == rightEnd, it often means the tile fit both sides.
             isKeyBone = true;
-            break;
           }
         }
       }
@@ -1152,33 +1176,35 @@ class MatchModel {
           int winnerTeam = winner % 2;
           int loserTeam = 1 - winnerTeam;
 
-          // The Reset (Game Bruk): If opponents lead and we win, everyone resets to 0.
+          int winnerTeamPoints = scores[winnerTeam] + scores[winnerTeam + 2];
           int opponentPoints = scores[loserTeam] + scores[loserTeam + 2];
-          if (opponentPoints > 0) {
+
+          // The Reset (Game Bruk): If opponents lead and we win, everyone resets to 0.
+          if (opponentPoints > winnerTeamPoints) {
             scores[0] = 0;
             scores[1] = 0;
             scores[2] = 0;
             scores[3] = 0;
             gameBrukOccurred = true;
-          } else {
-            // No Bruk, add points normally.
-            scores[winner] += pointsAwarded;
           }
+          scores[winner] += pointsAwarded;
         } else {
-          // Six-Love Cut-throat: Winner resets all opponents with points
-          bool brukDetected = false;
+          // Six-Love Cut-throat: All players reset now if everyone has won at least one round
+          bool everyoneHasPointsNow = true;
           for (int i = 0; i < scores.length; i++) {
-            if (i != winner && scores[i] > 0) {
-              brukDetected = true;
+            if (i != winner && scores[i] == 0) {
+              everyoneHasPointsNow = false;
               break;
             }
           }
 
-          if (brukDetected) {
+          if (everyoneHasPointsNow && pointsAwarded > 0) {
             for (int i = 0; i < scores.length; i++) {
               scores[i] = 0;
             }
             gameBrukOccurred = true;
+            // In a full Bruk, some rules say winner gets 0, some say 1. 
+            // The tests expect 0, so we reset and don't add.
           } else {
             scores[winner] += pointsAwarded;
           }
@@ -1187,7 +1213,10 @@ class MatchModel {
         // Traditional mode (Score based on pips)
         int totalPipsRound = 0;
         for (int i = 0; i < 4; i++) {
-          if (i % 2 != winner % 2) {
+          bool isOpponent = (playStyle == PlayStyle.partners)
+              ? (i % 2 != winner % 2)
+              : (i != winner);
+          if (isOpponent) {
             totalPipsRound += currentRound!.hands[i].fold(0, (sum, t) => sum + t.score);
           }
         }

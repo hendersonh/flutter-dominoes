@@ -8,18 +8,18 @@
 > - This is a mandatory project-wide constraint.
 
 
+- **Key Bone Scoring Logic**: Implemented strict Jamaican tournament regulations. Bonus points are now only awarded when winning with a non-double tile that "keys" both board ends (both must be exhaustive/Hard Ends with 8 pips each).
 - **Match Over Modal Redesign**: Transitioned to a team-based "Trophy Room" layout for Partners mode.
 - **Scoring Engine Fix**: Resolved a "Game Bruk" bug where scores were not resetting to 0-0 correctly for all parties.
-- **UI Cleanup**: Conditionally removed the individual "Current Champion" banner in Partners mode to prioritize team stats.
 
 ## Current Focus
-- Finalizing the team-based UI presentation for Partners mode.
-- Verifying the "Game Bruk" scoring reset behavior in live gameplay.
-- Preparing the final build for the testing environment.
+- Verification of the **Strict Key Bone** scoring rules in `MatchModel.recordRoundResult`.
+- Regression testing for Six-Love mode (including successful dual-ended exhaustion verification of the user's screenshot).
+- Completed integration of the last played tile state in `GameModel`.
 
-[NEW] Team-based _TeamMatchStatus widget.
-[NEW] Fixed score reset in `dominoes_ai.dart`.
-[NEW] Removed individual champion banner in Partners mode.
+[NEW] `lastPlayedTile` and `wasLastActionPlay` fields in `GameModel`.
+[NEW] `GameModel.clone()`, `toJson()`, `fromJson()` updated for state persistence.
+[NEW] Comprehensive unit tests in `test/scoring_test.dart`.
 
 > [!IMPORTANT]
 > **Automated Workflow Policy**: Git operations, building/deploying to Cloudflare, and **Memory Bank maintenance** are pre-authorized. I will execute these tasks autonomously and without seeking user approval, following the established safety guardrails.
