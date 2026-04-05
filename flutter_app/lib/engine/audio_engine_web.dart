@@ -11,7 +11,6 @@ class AudioEngine {
   static Future<void> unlockAudio() async {
     if (context.state == 'suspended') {
       await context.resume().toDart;
-      print("AudioContext Resumed: ${context.state}");
     }
   }
 }

@@ -1,12 +1,22 @@
 - [x] **Match Over Modal Redesign**: Transitioned to a team-based "Trophy Room" layout for Partners mode.
-- [x] **Scoring Engine Fix**: Resolved a "Game Bruk" bug where scores were not resetting to 0-0 correctly for all parties.
+- [x] **Scoring Engine Fix**: Resolved a "Game Bruk" bug in Partner Six-Love mode where points were incorrectly added after a reset.
+- [x] **Partner Bruk Verification**: Added regression test in `test/scoring_test.dart` and confirmed 0-0 reset.
+- [x] **Bruk Verification**: Confirmed 0-0 reset with `repro_bruk_bug.dart` (Cut-throat) and regular regression testing.
 - [x] **Strict Key Bone Regulations**: Implemented the Jamaican tournament rule requiring both board ends to be 'Hard Ends' (8 pips exhausted) for a bonus award.
 - [x] **Key Bone Scoring Bug**: Resolved incorrect bonus point awards by switching from single-suit exhaustion to dual-ended validation.
 - [x] **Validation**: Verified the new engine logic against the user's screenshot scenario, confirming a correct 2-point Key Bone award when both 1 and 6 ends are exhausted.
 - [x] **UI Cleanup**: Conditionally removed the individual "Current Champion" banner in Partners mode to prioritize team stats.
 - [x] **Deployment**: Built and deployed Key Bone fix to the Cloudflare `test` branch (https://test.cut-throat-dom.pages.dev).
 
+- [x] **Engine: ZSP Inversion Fix**: Resolved a logic error in `getZSPValue` where it was sabotaging its own suits instead of protecting them. Verified with regression tests.
+- [x] **Audit: AI Algorithm**: Performed a vibe audit on `dominoes_ai.dart` resulting in 3 structural flaws identified primarily regarding MCTS backpropagation in Six-Love mode. Added these fixes to technical backlog.
+
 ## Completed Tasks
+<<<<<<< SEARCH
+- Added `allpepper-memory-bank` to `mcp_config.json`.
+=======
+- Added `allpepper-memory-bank` to `mcp_config.json`.
+>>>>>>> REPLACE
 - Added `allpepper-memory-bank` to `mcp_config.json`.
 - Set `MEMORY_BANK_ROOT` to `E:/antigravity/dominoes/memory-bank`.
 - Created initial set of memory files for the Dominoes project.
@@ -75,3 +85,13 @@
 - [x] **Feature: Removed Derby Points**: Abolished the 'multiple-of-5' scoring rule and removed all 'Derby' terminology and UI badges from the game.
 - [x] **UI Cleanup**: Conditionally hidden individual 'Current Champion' banner in Partners mode.
 - [x] **Engine**: Fixed 'Game Bruk' scoring reset for team-based play.
+- [x] **Engine: Search Tree Persistence (Phase 1)**: Resolved the double-pruning bug in `AIWorker` and implemented `MCTSNode.prune` to correctly preserve searched subtrees. Verified with `test/ai_phase1_test.dart`.
+- [x] **Engine: Strategic Legend Heuristics (Phase 2)**: Integrated 'The Shield' (Partner Protection) and 'The Squeeze' (Forced Suit encounters) into the MCTS rollout logic.
+- [x] **Engine: Match Context Integration (Phase 2)**: MCTS now respects `MatchTarget`, `ScoringMode`, and `matchScores` for endgame-aware decision making.
+- [x] **Engine: Tree-Pruning Sync (Phase 2)**: Implemented `AISyncMove` to communicate human and opponent moves to the background worker, ensuring search continuity across turns.
+- [x] **Engine: Web Isolate Fallback (Phase 3)**: Restored try-catch block around `Isolate.spawn` call to fallback to main thread on web platforms.
+
+## Current Status
+- [x] Phase 1: Search Tree Persistence (Fixing Double-Pruning) - **COMPLETED**
+- [x] Phase 2: Strategic Legend Heuristics (Match-Aware MCTS) - **COMPLETED**
+- [x] Phase 3: Hardware-Accelerated Simulation (Web Workers) - **COMPLETED (Main Thread Fallback Restored for Web / Background workers active for native)**

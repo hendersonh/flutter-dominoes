@@ -18,7 +18,6 @@ abstract class SoundService {
   /// Factory constructor that returns the correct implementation for the current platform.
   factory SoundService() {
     final service = getSoundService();
-    print("SoundService factory called. Returning: ${service.runtimeType}");
     return service;
   }
 }

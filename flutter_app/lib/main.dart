@@ -494,6 +494,7 @@ class GameController extends ChangeNotifier {
     final action = PlayAction(tile, side, isFirstMove: game!.board.isEmpty);
     if (game != null) {
       game!.applyAction(action);
+      AIWorker.instance.syncMove(action, game!.currentPlayer, game!);
       SoundService().playSfx('assets/sounds/tile_place.wav');
       print("Player played $tile on $side. Board: ${game!.board}");
       _sortPlayerHand();
@@ -515,7 +516,9 @@ class GameController extends ChangeNotifier {
       return;
     }
 
-    game!.applyAction(PassAction());
+    final action = PassAction();
+    game!.applyAction(action);
+    AIWorker.instance.syncMove(action, game!.currentPlayer, game!);
     _checkGameState();
     notifyListeners();
 
@@ -737,9 +740,11 @@ class GameController extends ChangeNotifier {
     if (game != null) {
       if (aiAction is PlayAction) {
         game!.applyAction(aiAction);
+        AIWorker.instance.syncMove(aiAction, game!.currentPlayer, game!);
         SoundService().playSfx('assets/sounds/tile_place.wav');
       } else {
         game!.applyAction(aiAction);
+        AIWorker.instance.syncMove(aiAction, game!.currentPlayer, game!);
       }
       notifyListeners(); // Immediate update to show the tile
       print("Player $cp played ${aiAction.toString()}");

@@ -7,24 +7,16 @@ class UnsupportedSoundService implements SoundService {
   UnsupportedSoundService._internal();
 
   @override
-  Future<void> initialize() async {
-    print("SoundService not supported on this platform.");
-  }
+  Future<void> initialize() async {}
 
   @override
-  void playSfx(String assetPath) {
-    print("Sound cannot be played: $assetPath (Unsupported Platform)");
-  }
+  void playSfx(String assetPath) {}
 
   @override
-  void testPlayTone() {
-    print("testPlayTone not supported on this platform.");
-  }
+  void testPlayTone() {}
 
   @override
-  Future<void> resume() async {
-    print("resume not supported on this platform.");
-  }
+  Future<void> resume() async {}
 }
 
 SoundService getSoundService() => UnsupportedSoundService();

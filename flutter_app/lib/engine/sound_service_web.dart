@@ -12,13 +12,6 @@ class WebSoundService implements SoundService {
 
   @override
   Future<void> initialize() async {
-    print("WebSoundService.initialize() called.");
-
-    // Using centralized AudioEngine.context
-    print(
-      "WebSoundService using AudioEngine.context. State: ${AudioEngine.context.state}",
-    );
-
     // Pre-load all available sounds
     final List<String> sounds = [
       'assets/sounds/draw_tile.wav',
@@ -30,7 +23,6 @@ class WebSoundService implements SoundService {
       'assets/sounds/you_won_round.wav',
     ];
 
-    print("Pre-loading ${sounds.length} sound assets via fetch...");
     await Future.wait(sounds.map((s) => _preload(s)));
   }
 
@@ -40,7 +32,6 @@ class WebSoundService implements SoundService {
     try {
       // For WASM/Web, assets are nested in assets/assets/
       final String webPath = 'assets/$assetPath';
-      print("Fetching asset: $webPath");
 
       final web.Response response = await web.window.fetch(webPath.toJS).toDart;
       if (!response.ok) {
@@ -53,9 +44,8 @@ class WebSoundService implements SoundService {
           .toDart;
 
       _bufferCache[assetPath] = audioBuffer;
-      print("Preloaded sound: $assetPath (webPath: $webPath)");
     } catch (e) {
-      print("Error preloading sound $assetPath: $e");
+      // Ignore preloading errors
     }
   }
 
@@ -63,20 +53,13 @@ class WebSoundService implements SoundService {
   void playSfx(String assetPath) {
     // Check if context is suspended (common on web autoplay)
     if (AudioEngine.context.state == 'suspended') {
-      print(
-        "AudioContext suspended, attempting to resume before playing: $assetPath",
-      );
       AudioEngine.context
           .resume()
           .toDart
           .then((_) {
-            print(
-              "AudioContext resumed successfully. State: ${AudioEngine.context.state}",
-            );
             _doPlay(assetPath);
           })
           .catchError((e) {
-            print("Failed to resume AudioContext: $e");
           });
       return;
     }
@@ -87,41 +70,32 @@ class WebSoundService implements SoundService {
   void _doPlay(String assetPath) {
     final buffer = _bufferCache[assetPath];
     if (buffer == null) {
-      print(
-        "Sound buffer not found in cache for $assetPath. Attempting lazy load...",
-      );
       _preload(assetPath).then((_) => _doPlay(assetPath));
       return;
     }
 
     try {
-      print(
-        "Starting playback for $assetPath (Duration: ${buffer.duration}s, Context: ${AudioEngine.context.state})",
-      );
       final source = AudioEngine.context.createBufferSource();
       source.buffer = buffer;
       source.connect(AudioEngine.context.destination);
       source.start();
     } catch (e) {
-      print("Error in _doPlay for $assetPath: $e");
+      // Ignore playback errors
     }
   }
 
   @override
   Future<void> resume() async {
-    print("WebSoundService: resume() requested. Current state: ${AudioEngine.context.state}");
     try {
       await AudioEngine.context.resume().toDart;
-      print("WebSoundService: AudioContext resumed. New state: ${AudioEngine.context.state}");
     } catch (e) {
-      print("WebSoundService: Error resuming AudioContext: $e");
+      // Ignore resume errors
     }
   }
 
   /// Diagnostic tool to play a 440Hz tone for 0.5 seconds.
   @override
   void testPlayTone() {
-    print("WebSoundService: Triggering diagnostic Sine wave tone...");
     AudioEngine.context.resume().toDart.then((_) {
       try {
         final web.OscillatorNode osc = AudioEngine.context.createOscillator();
@@ -136,18 +110,16 @@ class WebSoundService implements SoundService {
         gain.connect(AudioEngine.context.destination);
 
         osc.start();
-        print("Sine wave started. Context: ${AudioEngine.context.state}");
 
         // Stop after 0.5s
         web.window.setTimeout(
           () {
             osc.stop();
-            print("Sine wave stopped.");
           }.toJS,
           500.toJS,
         );
       } catch (e) {
-        print("Error playing test tone: $e");
+        // Ignore test tone errors
       }
     });
   }

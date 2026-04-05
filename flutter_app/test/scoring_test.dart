@@ -76,6 +76,39 @@ void main() {
       expect(match.scores[3], 0);
     });
 
+    test('sixLove mode: Partner Game Bruk - trailing team wins, score resets to 0-0', () {
+      final match = MatchModel(mode: ScoringMode.sixLove, playStyle: PlayStyle.partners);
+
+      // Setup: Team 1 (P0+P2) is at 2, Team 2 (P1+P3) is at 1
+      match.scores[0] = 1;
+      match.scores[2] = 1; // Team 1 score: 2
+      match.scores[1] = 1;
+      match.scores[3] = 0; // Team 2 score: 1
+
+      // Team 2 (P1) wins this round.
+      // Since Team 2 was trailing (1 < 2), it should trigger a Game Bruk.
+      match.currentRound = GameModel(
+        hands: [
+          [const DominoTile(1, 1)],
+          [], // P1 wins
+          [const DominoTile(2, 2)],
+          [const DominoTile(3, 3)],
+        ],
+        currentPlayer: 1,
+        playStyle: PlayStyle.partners,
+        scoringMode: ScoringMode.sixLove,
+      );
+
+      final result = match.recordRoundResult();
+
+      expect(result['isBruk'], isTrue, reason: 'Game Bruk should be triggered when trailing team wins');
+      // All scores should be reset to 0
+      expect(match.scores[0], 0);
+      expect(match.scores[1], 0);
+      expect(match.scores[2], 0);
+      expect(match.scores[3], 0);
+    });
+
     test('sixLove mode: Target score is 6', () {
       final match = MatchModel(mode: ScoringMode.sixLove);
       match.scores = [5, 1, 0, 0];

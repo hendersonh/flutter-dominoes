@@ -1,0 +1,6 @@
+00:00 +0: loading E:/anitigravity/dominoes/flutter_app/test/ai_phase1_test.dart
+00:00 +0: Phase 1: Tree Pruning & State Caching Tests MCTSNode.prune correctly preserves visited subtrees
+00:00 +1: Phase 1: Tree Pruning & State Caching Tests MCTSNode.prune returns fresh node if action not found
+00:00 +2: Phase 1: Tree Pruning & State Caching Tests MCTSPlayer uses existingRoot to persist search knowledge
+AI Player 0 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [6|6] as first move | Visits: 250
+00:00 +3: All tests passed!

@@ -1,0 +1,548 @@
+=========================================
+   AI MCTS Gauntlet Simulator            
+=========================================
+Player 0: LEGEND
+Player 1: PROFESSIONAL
+Player 2: CASUAL
+Player 3: ROOKIE
+Total Matches: 10
+-----------------------------------------
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [5|6] on left | Visits: 266
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [2|5] on left | Visits: 57
+AI Player 3 | Difficulty: DifficultyLevel.rookie | Iterations: 15 | Best Action: Play [1|6] on right | Visits: 6
+AI [0 LEGEND]: Early Exit! Convergence achieved after 56645 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 56645 | Best Action: Play [1|1] on right | Visits: 53616
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [2|2] on left | Visits: 251
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [2|4] on left | Visits: 30
+AI [3 ROOKIE]: Choosing RANDOM MOVE Play [0|1] on right instead of MCTS.
+AI [0 LEGEND]: Early Exit! Convergence achieved after 71380 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 71380 | Best Action: Play [3|4] on left | Visits: 59902
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [3|6] on left | Visits: 166
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [0|0] on right | Visits: 43
+AI Player 3 | Difficulty: DifficultyLevel.rookie | Iterations: 15 | Best Action: Play [0|5] on right | Visits: 8
+AI [0 LEGEND]: Early Exit! Convergence achieved after 80691 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 80691 | Best Action: Play [5|5] on right | Visits: 77033
+AI Player 3 | Difficulty: DifficultyLevel.rookie | Iterations: 15 | Best Action: Play [4|5] on left | Visits: 5
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 200000 | Best Action: Play [0|6] on left | Visits: 193666
+AI [0 LEGEND]: Early Exit! Convergence achieved after 50917 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 50917 | Best Action: Play [4|4] as first move | Visits: 43466
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [4|5] on left | Visits: 36
+AI Player 3 | Difficulty: DifficultyLevel.rookie | Iterations: 15 | Best Action: Play [5|5] on left | Visits: 5
+AI [0 LEGEND]: Early Exit! Convergence achieved after 59256 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 59256 | Best Action: Play [2|4] on right | Visits: 37203
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [3|5] on left | Visits: 174
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [2|3] on left | Visits: 34
+AI [0 LEGEND]: Early Exit! Convergence achieved after 80497 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 80497 | Best Action: Play [1|2] on right | Visits: 42293
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [0|5] on left | Visits: 58
+AI [3 ROOKIE]: Choosing RANDOM MOVE Play [0|3] on left instead of MCTS.
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [6|6] on right | Visits: 134
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [3|4] on left | Visits: 59
+AI [0 LEGEND]: Early Exit! Convergence achieved after 150668 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 150668 | Best Action: Play [2|6] on right | Visits: 97995
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [2|2] on right | Visits: 359
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [0|2] on left | Visits: 275
+AI [3 ROOKIE]: Choosing RANDOM MOVE Play [2|3] as first move instead of MCTS.
+AI [0 LEGEND]: Early Exit! Convergence achieved after 53827 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 53827 | Best Action: Play [3|3] on right | Visits: 40269
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [3|6] on right | Visits: 187
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [6|6] on right | Visits: 37
+AI Player 3 | Difficulty: DifficultyLevel.rookie | Iterations: 15 | Best Action: Play [4|6] on right | Visits: 5
+AI [0 LEGEND]: Early Exit! Convergence achieved after 60312 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 60312 | Best Action: Play [2|2] on left | Visits: 50985
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [4|4] on right | Visits: 186
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [4|5] on right | Visits: 26
+AI [3 ROOKIE]: Choosing RANDOM MOVE Play [1|2] on left instead of MCTS.
+AI [0 LEGEND]: Early Exit! Convergence achieved after 72632 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 72632 | Best Action: Play [1|4] on left | Visits: 44157
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [1|5] on right | Visits: 192
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [2|4] on left | Visits: 35
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [2|6] on left | Visits: 157
+AI [0 LEGEND]: Early Exit! Convergence achieved after 100616 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 100616 | Best Action: Play [0|3] on left | Visits: 71435
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [5|5] on right | Visits: 36
+AI Player 3 | Difficulty: DifficultyLevel.rookie | Iterations: 15 | Best Action: Play [3|5] on right | Visits: 7
+AI [3 ROOKIE]: Choosing RANDOM MOVE Play [4|5] as first move instead of MCTS.
+AI [0 LEGEND]: Early Exit! Convergence achieved after 55413 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 55413 | Best Action: Play [4|6] on left | Visits: 50101
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [0|6] on left | Visits: 201
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [2|5] on right | Visits: 36
+AI [3 ROOKIE]: Choosing RANDOM MOVE Play [2|2] on right instead of MCTS.
+AI [0 LEGEND]: Early Exit! Convergence achieved after 60284 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 60284 | Best Action: Play [2|6] on right | Visits: 52667
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [5|6] on right | Visits: 251
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [0|0] on left | Visits: 50
+AI [3 ROOKIE]: Choosing RANDOM MOVE Play [0|3] on left instead of MCTS.
+AI [0 LEGEND]: Early Exit! Convergence achieved after 73879 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 73879 | Best Action: Play [3|3] on left | Visits: 56560
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [2|3] on left | Visits: 212
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [5|5] on right | Visits: 45
+AI [3 ROOKIE]: Choosing RANDOM MOVE Play [3|5] on right instead of MCTS.
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [2|4] on left | Visits: 53
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [1|3] on right | Visits: 149
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [0|4] on left | Visits: 479
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [3|4] on right | Visits: 241
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [2|5] as first move | Visits: 80
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [5|6] on right | Visits: 34
+AI [3 ROOKIE]: Choosing RANDOM MOVE Play [1|2] on left instead of MCTS.
+AI [0 LEGEND]: Early Exit! Convergence achieved after 94973 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 94973 | Best Action: Play [1|4] on left | Visits: 46639
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [2|4] on left | Visits: 34
+AI Player 3 | Difficulty: DifficultyLevel.rookie | Iterations: 15 | Best Action: Play [1|3] on right | Visits: 8
+AI [0 LEGEND]: Early Exit! Convergence achieved after 63587 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 63587 | Best Action: Play [2|2] on left | Visits: 62551
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [0|1] on right | Visits: 211
+AI [3 ROOKIE]: Choosing RANDOM MOVE Play [0|5] on right instead of MCTS.
+AI [0 LEGEND]: Early Exit! Convergence achieved after 67857 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 67857 | Best Action: Play [4|5] on right | Visits: 47081
+AI [3 ROOKIE]: Choosing RANDOM MOVE Play [0|4] on right instead of MCTS.
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [6|6] on left | Visits: 52
+AI Player 3 | Difficulty: DifficultyLevel.rookie | Iterations: 15 | Best Action: Play [3|4] on right | Visits: 8
+AI [0 LEGEND]: Early Exit! Convergence achieved after 157070 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 157070 | Best Action: Play [2|6] on left | Visits: 156559
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 200000 | Best Action: Play [2|3] on left | Visits: 100000
+AI [0 LEGEND]: Early Exit! Convergence achieved after 53194 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 53194 | Best Action: Play [3|3] as first move | Visits: 48099
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [3|5] on left | Visits: 57
+AI [0 LEGEND]: Early Exit! Convergence achieved after 59241 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 59241 | Best Action: Play [1|5] on left | Visits: 36497
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [1|2] on left | Visits: 262
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [0|0] on right | Visits: 52
+AI Player 3 | Difficulty: DifficultyLevel.rookie | Iterations: 15 | Best Action: Play [0|2] on right | Visits: 4
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [2|2] on right | Visits: 226
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [3|4] on left | Visits: 62
+AI Player 3 | Difficulty: DifficultyLevel.rookie | Iterations: 15 | Best Action: Play [0|4] on left | Visits: 8
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [2|5] on left | Visits: 174
+AI Player 3 | Difficulty: DifficultyLevel.rookie | Iterations: 15 | Best Action: Play [6|6] on right | Visits: 9
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 200000 | Best Action: Play [3|6] on right | Visits: 199816
+AI [3 ROOKIE]: Choosing RANDOM MOVE Play [1|3] as first move instead of MCTS.
+AI [0 LEGEND]: Early Exit! Convergence achieved after 55540 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 55540 | Best Action: Play [3|3] on right | Visits: 35963
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [1|4] on left | Visits: 127
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [2|4] on left | Visits: 38
+AI [3 ROOKIE]: Choosing RANDOM MOVE Play [3|6] on right instead of MCTS.
+AI [0 LEGEND]: Early Exit! Convergence achieved after 64134 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 64134 | Best Action: Play [4|6] on right | Visits: 42175
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [2|3] on left | Visits: 192
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [0|4] on right | Visits: 51
+AI Player 3 | Difficulty: DifficultyLevel.rookie | Iterations: 15 | Best Action: Play [0|6] on right | Visits: 5
+AI [0 LEGEND]: Early Exit! Convergence achieved after 154877 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 154877 | Best Action: Play [1|6] on right | Visits: 103251
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [3|4] on left | Visits: 173
+AI [3 ROOKIE]: Choosing RANDOM MOVE Play [4|5] on left instead of MCTS.
+AI [0 LEGEND]: Early Exit! Convergence achieved after 91274 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 91274 | Best Action: Play [1|5] on left | Visits: 64657
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [1|1] on left | Visits: 272
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [2|6] on right | Visits: 52
+AI [0 LEGEND]: Early Exit! Convergence achieved after 113989 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 113989 | Best Action: Play [5|6] on right | Visits: 110087
+AI Player 3 | Difficulty: DifficultyLevel.rookie | Iterations: 15 | Best Action: Play [0|0] on right | Visits: 7
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 200000 | Best Action: Play [0|1] on right | Visits: 199874
+
+Progress: 10.0% | Legend: 0, Pro: 0, Casual: 0, Rookie: 1
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [0|6] on right | Visits: 27
+AI [3 ROOKIE]: Choosing RANDOM MOVE Play [0|0] on right instead of MCTS.
+AI [0 LEGEND]: Early Exit! Convergence achieved after 59947 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 59947 | Best Action: Play [4|4] on left | Visits: 55849
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [0|3] on right | Visits: 254
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [2|4] on left | Visits: 50
+AI [3 ROOKIE]: Choosing RANDOM MOVE Play [1|2] on left instead of MCTS.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 152583 | Best Action: Play [1|4] on left | Visits: 93308
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [3|3] on right | Visits: 217
+AI [3 ROOKIE]: Choosing RANDOM MOVE Play [3|6] on right instead of MCTS.
+AI [0 LEGEND]: Early Exit! Convergence achieved after 80154 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 80154 | Best Action: Play [2|6] on right | Visits: 74152
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [0|2] on left | Visits: 178
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [2|2] on right | Visits: 457
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [5|6] on left | Visits: 34
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [1|3] on left | Visits: 430
+AI [3 ROOKIE]: Choosing RANDOM MOVE Play [3|5] on left instead of MCTS.
+AI [0 LEGEND]: Early Exit! Convergence achieved after 53269 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 53269 | Best Action: Play [1|1] as first move | Visits: 47498
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [4|5] on left | Visits: 33
+AI [0 LEGEND]: Early Exit! Convergence achieved after 126368 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 126368 | Best Action: Play [4|6] on left | Visits: 84245
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [2|2] on right | Visits: 188
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [6|6] on left | Visits: 53
+AI Player 3 | Difficulty: DifficultyLevel.rookie | Iterations: 15 | Best Action: Play [0|6] on left | Visits: 6
+AI [0 LEGEND]: Early Exit! Convergence achieved after 72505 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 72505 | Best Action: Play [0|3] on left | Visits: 42912
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [2|3] on right | Visits: 151
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [3|4] on left | Visits: 54
+AI Player 3 | Difficulty: DifficultyLevel.rookie | Iterations: 15 | Best Action: Play [3|3] on right | Visits: 9
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [4|4] on left | Visits: 378
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [1|4] on right | Visits: 31
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [0|1] on left | Visits: 69
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [2|4] on left | Visits: 56
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [1|1] as first move | Visits: 124
+AI Player 3 | Difficulty: DifficultyLevel.rookie | Iterations: 15 | Best Action: Play [4|5] on left | Visits: 4
+AI [0 LEGEND]: Early Exit! Convergence achieved after 58411 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 58411 | Best Action: Play [5|5] on left | Visits: 45713
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [5|6] on left | Visits: 251
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [2|6] on left | Visits: 55
+AI [3 ROOKIE]: Choosing RANDOM MOVE Play [1|5] on right instead of MCTS.
+AI [0 LEGEND]: Early Exit! Convergence achieved after 69505 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 69505 | Best Action: Play [3|5] on right | Visits: 52521
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [2|5] on left | Visits: 147
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [3|3] on right | Visits: 53
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [0|4] on right | Visits: 275
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [0|5] on left | Visits: 51
+AI Player 3 | Difficulty: DifficultyLevel.rookie | Iterations: 15 | Best Action: Play [0|1] on left | Visits: 8
+AI [0 LEGEND]: Early Exit! Convergence achieved after 87006 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 87006 | Best Action: Play [4|4] on right | Visits: 76919
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [2|2] on right | Visits: 62
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 200000 | Best Action: Play [3|6] on left | Visits: 102437
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [2|3] on left | Visits: 417
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [5|5] as first move | Visits: 116
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [4|5] on left | Visits: 53
+AI Player 3 | Difficulty: DifficultyLevel.rookie | Iterations: 15 | Best Action: Play [0|4] on left | Visits: 8
+AI [0 LEGEND]: Early Exit! Convergence achieved after 61429 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 61429 | Best Action: Play [1|5] on right | Visits: 35241
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [0|6] on left | Visits: 145
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [4|6] on left | Visits: 32
+AI Player 3 | Difficulty: DifficultyLevel.rookie | Iterations: 15 | Best Action: Play [0|1] on right | Visits: 8
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [1|3] on right | Visits: 176
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [4|4] on left | Visits: 48
+AI [0 LEGEND]: Early Exit! Convergence achieved after 79257 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 79257 | Best Action: Play [1|1] on right | Visits: 62872
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [1|2] on left | Visits: 250
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [5|6] on right | Visits: 413
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [2|6] on right | Visits: 66
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [3|6] on left | Visits: 50
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [3|5] as first move | Visits: 19
+AI [3 ROOKIE]: Choosing RANDOM MOVE Play [2|5] on right instead of MCTS.
+AI [0 LEGEND]: Early Exit! Convergence achieved after 58012 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 58012 | Best Action: Play [2|2] on right | Visits: 47856
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [3|4] on left | Visits: 138
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [4|5] on left | Visits: 53
+AI [0 LEGEND]: Early Exit! Convergence achieved after 67318 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 67318 | Best Action: Play [5|5] on left | Visits: 47974
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [1|1] on right | Visits: 303
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [0|1] on right | Visits: 35
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [0|6] on right | Visits: 138
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [5|6] on right | Visits: 41
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [0|4] on left | Visits: 37
+AI Player 3 | Difficulty: DifficultyLevel.rookie | Iterations: 15 | Best Action: Play [4|4] on left | Visits: 8
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [3|4] as first move | Visits: 21
+AI Player 3 | Difficulty: DifficultyLevel.rookie | Iterations: 15 | Best Action: Play [1|4] on right | Visits: 5
+AI [0 LEGEND]: Early Exit! Convergence achieved after 51069 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 51069 | Best Action: Play [1|1] on right | Visits: 32823
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [3|5] on left | Visits: 192
+AI [3 ROOKIE]: Choosing RANDOM MOVE Play [0|6] on left instead of MCTS.
+AI [0 LEGEND]: Early Exit! Convergence achieved after 109864 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 109864 | Best Action: Play [1|5] on right | Visits: 68981
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [0|5] on left | Visits: 145
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [5|5] on right | Visits: 459
+AI Player 3 | Difficulty: DifficultyLevel.rookie | Iterations: 15 | Best Action: Play [1|6] on left | Visits: 8
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [3|6] on left | Visits: 337
+AI [3 ROOKIE]: Choosing RANDOM MOVE Play [0|4] on left instead of MCTS.
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [0|2] on right | Visits: 281
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [3|3] on left | Visits: 53
+AI [3 ROOKIE]: Choosing RANDOM MOVE Play [2|3] on left instead of MCTS.
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [3|6] as first move | Visits: 91
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [6|6] on right | Visits: 35
+AI Player 3 | Difficulty: DifficultyLevel.rookie | Iterations: 15 | Best Action: Play [1|6] on right | Visits: 8
+AI [0 LEGEND]: Early Exit! Convergence achieved after 57778 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 57778 | Best Action: Play [1|3] on right | Visits: 39109
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [3|5] on left | Visits: 57
+AI Player 3 | Difficulty: DifficultyLevel.rookie | Iterations: 15 | Best Action: Play [5|5] on left | Visits: 5
+AI [0 LEGEND]: Early Exit! Convergence achieved after 61051 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 61051 | Best Action: Play [0|5] on left | Visits: 30401
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [0|0] on left | Visits: 209
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [2|3] on right | Visits: 56
+AI Player 3 | Difficulty: DifficultyLevel.rookie | Iterations: 15 | Best Action: Play [2|5] on right | Visits: 9
+AI [0 LEGEND]: Early Exit! Convergence achieved after 68397 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 68397 | Best Action: Play [0|3] on left | Visits: 62511
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [0|4] on left | Visits: 259
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [2|2] on right | Visits: 31
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 200000 | Best Action: Play [4|6] on right | Visits: 174126
+
+Progress: 20.0% | Legend: 0, Pro: 1, Casual: 0, Rookie: 1
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [4|6] on left | Visits: 57
+AI [3 ROOKIE]: Choosing RANDOM MOVE Play [1|4] on left instead of MCTS.
+AI [0 LEGEND]: Early Exit! Convergence achieved after 58537 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 58537 | Best Action: Play [1|6] on right | Visits: 27791
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [1|5] on left | Visits: 66
+AI [0 LEGEND]: Early Exit! Convergence achieved after 32925 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 32925 | Best Action: Play [0|1] on right | Visits: 25591
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [5|5] on left | Visits: 88
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [4|5] on left | Visits: 38
+AI [3 ROOKIE]: Choosing RANDOM MOVE Play [0|3] on right instead of MCTS.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 85246 | Best Action: Play [1|3] on right | Visits: 44856
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [4|4] on left | Visits: 51
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [3|5] on left | Visits: 64
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [2|5] on left | Visits: 281
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [1|2] on right | Visits: 70
+AI [3 ROOKIE]: Choosing RANDOM MOVE Play [2|6] on left instead of MCTS.
+AI [0 LEGEND]: Early Exit! Convergence achieved after 67332 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 67332 | Best Action: Play [0|6] on left | Visits: 66546
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [0|5] on left | Visits: 104
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [0|0] as first move | Visits: 18
+AI [0 LEGEND]: Early Exit! Convergence achieved after 28662 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 28662 | Best Action: Play [0|4] on right | Visits: 19278
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [2|6] on left | Visits: 137
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [6|6] on left | Visits: 53
+AI Player 3 | Difficulty: DifficultyLevel.rookie | Iterations: 15 | Best Action: Play [1|6] on left | Visits: 4
+AI [0 LEGEND]: Early Exit! Convergence achieved after 28723 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 28723 | Best Action: Play [4|4] on right | Visits: 17025
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [4|5] on right | Visits: 281
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [5|5] on right | Visits: 23
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [0|3] on left | Visits: 142
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [0|5] on left | Visits: 30
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [2|5] on left | Visits: 258
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [3|5] on right | Visits: 66
+AI [3 ROOKIE]: Choosing RANDOM MOVE Play [2|3] on left instead of MCTS.
+AI [3 ROOKIE]: Choosing RANDOM MOVE Play [4|6] on left instead of MCTS.
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [0|6] on left | Visits: 479
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [5|5] as first move | Visits: 98
+AI [3 ROOKIE]: Choosing RANDOM MOVE Play [3|5] on right instead of MCTS.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 60068 | Best Action: Play [1|6] on left | Visits: 31562
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [4|6] on left | Visits: 144
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [2|3] on right | Visits: 35
+AI Player 3 | Difficulty: DifficultyLevel.rookie | Iterations: 15 | Best Action: Play [2|6] on right | Visits: 3
+AI [0 LEGEND]: Early Exit! Convergence achieved after 29528 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 29528 | Best Action: Play [4|4] on left | Visits: 18908
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [3|4] on left | Visits: 173
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [6|6] on right | Visits: 35
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [2|5] on right | Visits: 316
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [1|2] on right | Visits: 56
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [1|4] on right | Visits: 251
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [1|3] on left | Visits: 53
+AI [3 ROOKIE]: Choosing RANDOM MOVE Play [2|2] on right instead of MCTS.
+AI [0 LEGEND]: Early Exit! Convergence achieved after 114746 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 114746 | Best Action: Play [0|4] on left | Visits: 114624
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 200000 | Best Action: Play [0|0] on right | Visits: 199830
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [0|6] on right | Visits: 263
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [2|2] as first move | Visits: 18
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [3|3] on left | Visits: 116
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [0|3] on left | Visits: 58
+AI [0 LEGEND]: Early Exit! Convergence achieved after 97679 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 97679 | Best Action: Play [0|0] on left | Visits: 51777
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [4|6] on right | Visits: 288
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [0|2] on left | Visits: 26
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [1|3] on right | Visits: 215
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [2|6] on left | Visits: 64
+AI Player 3 | Difficulty: DifficultyLevel.rookie | Iterations: 15 | Best Action: Play [5|6] on left | Visits: 6
+AI [0 LEGEND]: Early Exit! Convergence achieved after 51848 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 51848 | Best Action: Play [5|5] on left | Visits: 35516
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [1|1] on right | Visits: 234
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [0|5] on left | Visits: 43
+AI [0 LEGEND]: Early Exit! Convergence achieved after 62449 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 62449 | Best Action: Play [1|4] on right | Visits: 53544
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [2|4] on right | Visits: 345
+AI [0 LEGEND]: Early Exit! Convergence achieved after 96093 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 96093 | Best Action: Play [4|4] on left | Visits: 68151
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [1|2] as first move | Visits: 17
+AI [0 LEGEND]: Early Exit! Convergence achieved after 30368 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 30368 | Best Action: Play [2|6] on right | Visits: 20245
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [1|1] on left | Visits: 186
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [1|6] on right | Visits: 31
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [1|4] on right | Visits: 281
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [0|3] on left | Visits: 50
+AI [3 ROOKIE]: Choosing RANDOM MOVE Play [3|4] on right instead of MCTS.
+AI [0 LEGEND]: Early Exit! Convergence achieved after 57207 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 57207 | Best Action: Play [0|5] on left | Visits: 27463
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [2|5] on left | Visits: 302
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [2|3] on right | Visits: 35
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [2|4] on left | Visits: 339
+AI [3 ROOKIE]: Choosing RANDOM MOVE Play [4|5] on left instead of MCTS.
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [3|6] on left | Visits: 255
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [0|1] on right | Visits: 72
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [1|5] on left | Visits: 50
+
+Progress: 30.0% | Legend: 0, Pro: 1, Casual: 1, Rookie: 1
+AI [0 LEGEND]: Early Exit! Convergence achieved after 47489 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 47489 | Best Action: Play [1|6] on left | Visits: 31659
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [1|4] on left | Visits: 250
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [0|6] on right | Visits: 58
+AI [3 ROOKIE]: Choosing RANDOM MOVE Play [2|4] on left instead of MCTS.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 67311 | Best Action: Play [0|4] on right | Visits: 28808
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [3|4] on right | Visits: 316
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [2|5] on left | Visits: 33
+AI [3 ROOKIE]: Choosing RANDOM MOVE Play [3|6] on right instead of MCTS.
+AI [0 LEGEND]: Early Exit! Convergence achieved after 32173 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 32173 | Best Action: Play [2|6] on right | Visits: 23667
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [3|5] on left | Visits: 229
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [2|2] on right | Visits: 37
+AI [0 LEGEND]: Early Exit! Convergence achieved after 33377 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 33377 | Best Action: Play [3|3] on left | Visits: 29969
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [2|3] on right | Visits: 262
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [1|5] on left | Visits: 295
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [2|4] as first move | Visits: 95
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [0|4] on right | Visits: 32
+AI Player 3 | Difficulty: DifficultyLevel.rookie | Iterations: 15 | Best Action: Play [2|2] on left | Visits: 6
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 60703 | Best Action: Play [2|5] on left | Visits: 33088
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [0|0] on right | Visits: 215
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [5|5] on left | Visits: 59
+AI [3 ROOKIE]: Choosing RANDOM MOVE Play [0|3] on right instead of MCTS.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 68071 | Best Action: Play [1|5] on left | Visits: 25302
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [3|5] on right | Visits: 205
+AI [0 LEGEND]: Early Exit! Convergence achieved after 31079 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 31079 | Best Action: Play [3|6] on left | Visits: 19762
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [6|6] on left | Visits: 240
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [2|6] on left | Visits: 53
+AI [0 LEGEND]: Early Exit! Convergence achieved after 42816 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 42816 | Best Action: Play [5|6] on right | Visits: 31094
+AI Player 3 | Difficulty: DifficultyLevel.rookie | Iterations: 15 | Best Action: Play [1|3] on right | Visits: 6
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [4|4] on right | Visits: 51
+AI [3 ROOKIE]: Choosing RANDOM MOVE Play [1|4] on right instead of MCTS.
+AI [0 LEGEND]: Early Exit! Convergence achieved after 113842 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 113842 | Best Action: Play [1|1] on right | Visits: 90129
+AI [3 ROOKIE]: Choosing RANDOM MOVE Play [4|6] on left instead of MCTS.
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [3|3] as first move | Visits: 91
+AI [3 ROOKIE]: Choosing RANDOM MOVE Play [2|3] on right instead of MCTS.
+AI [0 LEGEND]: Early Exit! Convergence achieved after 26455 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 26455 | Best Action: Play [4|4] on left | Visits: 20883
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [4|6] on left | Visits: 168
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [6|6] on left | Visits: 52
+AI [3 ROOKIE]: Choosing RANDOM MOVE Play [1|2] on right instead of MCTS.
+AI [0 LEGEND]: Early Exit! Convergence achieved after 52658 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 52658 | Best Action: Play [3|6] on left | Visits: 35105
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [1|4] on right | Visits: 117
+AI [0 LEGEND]: Early Exit! Convergence achieved after 41374 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 41374 | Best Action: Play [2|5] on left | Visits: 35099
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [0|1] on right | Visits: 57
+AI [3 ROOKIE]: Choosing RANDOM MOVE Play [5|6] on left instead of MCTS.
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [0|6] on right | Visits: 52
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [5|5] as first move | Visits: 81
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [1|5] on left | Visits: 41
+AI Player 3 | Difficulty: DifficultyLevel.rookie | Iterations: 15 | Best Action: Play [1|2] on left | Visits: 6
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 62738 | Best Action: Play [4|5] on right | Visits: 27007
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [2|4] on right | Visits: 251
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [2|2] on left | Visits: 58
+AI [3 ROOKIE]: Choosing RANDOM MOVE Play [0|2] on left instead of MCTS.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 94828 | Best Action: Play [0|0] on left | Visits: 55618
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [0|3] on left | Visits: 258
+AI [0 LEGEND]: Early Exit! Convergence achieved after 42640 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 42640 | Best Action: Play [4|6] on left | Visits: 23695
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [0|4] on left | Visits: 39
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [5|6] on left | Visits: 62
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [3|3] on left | Visits: 440
+AI Player 3 | Difficulty: DifficultyLevel.rookie | Iterations: 15 | Best Action: Play [1|6] on right | Visits: 8
+AI [0 LEGEND]: Early Exit! Convergence achieved after 172546 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 172546 | Best Action: Play [3|4] on left | Visits: 167163
+AI [3 ROOKIE]: Choosing RANDOM MOVE Play [1|4] on left instead of MCTS.
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [2|2] as first move | Visits: 111
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 55146 | Best Action: Play [2|3] on left | Visits: 32562
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [3|5] on left | Visits: 96
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [5|6] on left | Visits: 55
+AI Player 3 | Difficulty: DifficultyLevel.rookie | Iterations: 15 | Best Action: Play [4|6] on left | Visits: 8
+AI [0 LEGEND]: Early Exit! Convergence achieved after 31585 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 31585 | Best Action: Play [4|5] on left | Visits: 24447
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [2|5] on left | Visits: 133
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [2|4] on right | Visits: 129
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [6|6] on left | Visits: 34
+AI Player 3 | Difficulty: DifficultyLevel.rookie | Iterations: 15 | Best Action: Play [0|4] on right | Visits: 4
+AI [0 LEGEND]: Early Exit! Convergence achieved after 43759 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 43759 | Best Action: Play [0|3] on right | Visits: 40891
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [3|6] on right | Visits: 309
+AI Player 3 | Difficulty: DifficultyLevel.rookie | Iterations: 15 | Best Action: Play [1|5] on left | Visits: 8
+AI [3 ROOKIE]: Choosing RANDOM MOVE Play [0|5] on left instead of MCTS.
+
+Progress: 40.0% | Legend: 0, Pro: 2, Casual: 1, Rookie: 1
+AI Player 3 | Difficulty: DifficultyLevel.rookie | Iterations: 15 | Best Action: Play [0|6] on left | Visits: 6
+AI [0 LEGEND]: Early Exit! Convergence achieved after 32704 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 32704 | Best Action: Play [4|6] on right | Visits: 21971
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [2|4] on right | Visits: 293
+AI [3 ROOKIE]: Choosing RANDOM MOVE Play [2|3] on right instead of MCTS.
+AI [0 LEGEND]: Early Exit! Convergence achieved after 36289 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 36289 | Best Action: Play [3|3] on right | Visits: 27958
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [3|5] on right | Visits: 265
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [1|5] on right | Visits: 55
+AI [3 ROOKIE]: Choosing RANDOM MOVE Play [0|4] on left instead of MCTS.
+AI [0 LEGEND]: Early Exit! Convergence achieved after 65753 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 65753 | Best Action: Play [3|4] on left | Visits: 43835
+AI [0 LEGEND]: Early Exit! Convergence achieved after 44488 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 44488 | Best Action: Play [0|2] on left | Visits: 43580
+AI [0 LEGEND]: Early Exit! Convergence achieved after 78626 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 78626 | Best Action: Play [0|5] on left | Visits: 52417
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [2|5] on left | Visits: 275
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [2|2] on left | Visits: 309
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [2|6] on left | Visits: 333
+AI [0 LEGEND]: Early Exit! Convergence achieved after 32888 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 32888 | Best Action: Play [5|5] as first move | Visits: 17037
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [3|5] on left | Visits: 268
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [3|3] on left | Visits: 54
+AI [3 ROOKIE]: Choosing RANDOM MOVE Play [3|6] on left instead of MCTS.
+AI [0 LEGEND]: Early Exit! Convergence achieved after 36299 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 36299 | Best Action: Play [0|5] on right | Visits: 31770
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [4|6] on left | Visits: 262
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [2|4] on left | Visits: 21
+AI [3 ROOKIE]: Choosing RANDOM MOVE Play [0|6] on right instead of MCTS.
+AI [0 LEGEND]: Early Exit! Convergence achieved after 42710 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 42710 | Best Action: Play [2|2] on left | Visits: 39082
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [6|6] on right | Visits: 225
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [2|6] on right | Visits: 54
+AI [0 LEGEND]: Early Exit! Convergence achieved after 51292 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 51292 | Best Action: Play [0|0] on left | Visits: 47068
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [2|3] on right | Visits: 263
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [0|1] on left | Visits: 45
+AI [3 ROOKIE]: Choosing RANDOM MOVE Play [1|6] on left instead of MCTS.
+AI [3 ROOKIE]: Choosing RANDOM MOVE Play [5|6] on left instead of MCTS.
+AI [0 LEGEND]: Early Exit! Convergence achieved after 129216 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 129216 | Best Action: Play [4|5] on right | Visits: 129157
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 200000 | Best Action: Play [1|2] on left | Visits: 100000
+AI [0 LEGEND]: Early Exit! Convergence achieved after 25504 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 25504 | Best Action: Play [2|2] as first move | Visits: 20856
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [2|6] on left | Visits: 263
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [2|3] on right | Visits: 40
+AI [3 ROOKIE]: Choosing RANDOM MOVE Play [3|3] on right instead of MCTS.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 70703 | Best Action: Play [3|6] on right | Visits: 32461
+AI Player 3 | Difficulty: DifficultyLevel.rookie | Iterations: 15 | Best Action: Play [5|6] on right | Visits: 5
+AI [0 LEGEND]: Early Exit! Convergence achieved after 39486 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 39486 | Best Action: Play [4|4] on left | Visits: 35705
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [3|5] on right | Visits: 222
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [1|3] on right | Visits: 56
+AI Player 3 | Difficulty: DifficultyLevel.rookie | Iterations: 15 | Best Action: Play [3|4] on left | Visits: 4
+AI [3 ROOKIE]: Choosing RANDOM MOVE Play [0|4] on left instead of MCTS.
+AI [0 LEGEND]: Early Exit! Convergence achieved after 66925 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 66925 | Best Action: Play [2|4] on left | Visits: 65864
+AI Player 3 | Difficulty: DifficultyLevel.rookie | Iterations: 15 | Best Action: Play [1|5] on left | Visits: 8
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [0|5] on left | Visits: 255
+AI [0 LEGEND]: Early Exit! Convergence achieved after 32183 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 32183 | Best Action: Play [1|1] as first move | Visits: 20291
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [1|6] on left | Visits: 293
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [4|6] on left | Visits: 39
+AI [0 LEGEND]: Early Exit! Convergence achieved after 37052 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 37052 | Best Action: Play [3|3] on right | Visits: 35350
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [4|4] on left | Visits: 191
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [2|4] on left | Visits: 29
+AI [3 ROOKIE]: Choosing RANDOM MOVE Play [2|3] on right instead of MCTS.
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [2|6] on right | Visits: 182
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [0|6] on right | Visits: 61
+AI [0 LEGEND]: Early Exit! Convergence achieved after 47294 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 47294 | Best Action: Play [3|5] on right | Visits: 24042
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [0|3] on right | Visits: 322
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [0|1] on right | Visits: 54
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [4|5] on right | Visits: 29
+AI Player 3 | Difficulty: DifficultyLevel.rookie | Iterations: 15 | Best Action: Play [6|6] on right | Visits: 8
+
+Progress: 50.0% | Legend: 1, Pro: 2, Casual: 1, Rookie: 1
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [1|1] on left | Visits: 203
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [5|6] on right | Visits: 56
+AI [0 LEGEND]: Early Exit! Convergence achieved after 36490 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 36490 | Best Action: Play [2|2] on left | Visits: 30412
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [5|5] on right | Visits: 161
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [2|5] on left | Visits: 28
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [4|5] on left | Visits: 312
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [1|4] on left | Visits: 44
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 153653 | Best Action: Play [1|3] on left | Visits: 89268
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [3|5] on left | Visits: 52
+AI [3 ROOKIE]: Choosing RANDOM MOVE Play [0|0] on left instead of MCTS.
+AI [0 LEGEND]: Early Exit! Convergence achieved after 125518 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 125518 | Best Action: Play [4|4] on right | Visits: 121840
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [0|2] on left | Visits: 53
+AI Player 3 | Difficulty: DifficultyLevel.rookie | Iterations: 15 | Best Action: Play [0|6] on right | Visits: 5
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [0|3] on left | Visits: 50
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [1|6] as first move | Visits: 20
+AI [3 ROOKIE]: Choosing RANDOM MOVE Play [1|4] on left instead of MCTS.
+AI [0 LEGEND]: Early Exit! Convergence achieved after 74274 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 74274 | Best Action: Play [4|6] on left | Visits: 42953
+AI Player 2 | Difficulty: DifficultyLevel.casual | Iterations: 100 | Best Action: Play [2|6] on right | Visits: 35
+AI [3 ROOKIE]: Choosing RANDOM MOVE Play [2|2] on right instead of MCTS.
+AI [0 LEGEND]: Early Exit! Convergence achieved after 85393 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 85393 | Best Action: Play [3|5] on left | Visits: 72623
+AI Player 1 | Difficulty: DifficultyLevel.professional | Iterations: 500 | Best Action: Play [2|3] on left | Visits: 153
+AI [0 LEGEND]: Early Exit! Convergence achieved after 93083 iterations.
+AI Player 0 | Difficulty: DifficultyLevel.legend | Iterations: 93083 | Best Action: Play [1|3] on left | Visits: 76553
+AI Player 3 | Difficulty: DifficultyLevel.rookie | Iterations: 15 | Best Action: Play [3|6] on left | Visits: 8

@@ -1,6 +1,5 @@
 import 'dart:math';
 import 'dart:isolate';
-import 'dart:async';
 
 // Use a pure Dart way to detect web, removing the dependency on package:flutter
 const bool kIsWeb = bool.fromEnvironment('dart.library.js_util');
@@ -102,10 +101,6 @@ class GameModel {
   List<int> matchScores;
   int matchTarget;
 
-  // Track the last action for round-end scoring (Key Bone etc.)
-  DominoTile? lastPlayedTile;
-  bool wasLastActionPlay = false;
-
   // Inference markers for Partner Mode
   List<Map<int, double>> playSpeeds; // [player][suit] -> seconds
 
@@ -131,23 +126,21 @@ class GameModel {
 
   GameModel clone() {
     return GameModel(
-        hands: hands.map((h) => List<DominoTile>.from(h)).toList(),
-        passedSuits: passedSuits.map((s) => Set<int>.from(s)).toList(),
-        leftEnd: leftEnd,
-        rightEnd: rightEnd,
-        currentPlayer: currentPlayer,
-        consecutivePasses: consecutivePasses,
-        rootIndex: rootIndex,
-        board: List.from(board),
-        isFirstHandOfMatch: isFirstHandOfMatch,
-        scoringMode: scoringMode,
-        playStyle: playStyle,
-        matchScores: List<int>.from(matchScores),
-        matchTarget: matchTarget,
-        playSpeeds: playSpeeds.map((m) => Map<int, double>.from(m)).toList(),
-      )
-      ..lastPlayedTile = lastPlayedTile
-      ..wasLastActionPlay = wasLastActionPlay;
+      hands: hands.map((h) => List<DominoTile>.from(h)).toList(),
+      passedSuits: passedSuits.map((s) => Set<int>.from(s)).toList(),
+      leftEnd: leftEnd,
+      rightEnd: rightEnd,
+      currentPlayer: currentPlayer,
+      consecutivePasses: consecutivePasses,
+      rootIndex: rootIndex,
+      board: List.from(board),
+      isFirstHandOfMatch: isFirstHandOfMatch,
+      scoringMode: scoringMode,
+      playStyle: playStyle,
+      matchScores: List<int>.from(matchScores),
+      matchTarget: matchTarget,
+      playSpeeds: playSpeeds.map((m) => Map<int, double>.from(m)).toList(),
+    );
   }
 
   bool get isGameOver {
@@ -207,7 +200,7 @@ class GameModel {
   /// Returns true if the board ends are both "Hard" (no more tiles of that suit available).
   bool get isBoardHard {
     if (leftEnd == null || rightEnd == null) return false;
-    final counts = pipsOnBoard;
+    final counts = suiteCounts;
     return counts[leftEnd!] == 8 && counts[rightEnd!] == 8;
   }
 
@@ -216,7 +209,7 @@ class GameModel {
   bool isKeyBone(PlayAction action) {
     if (action.tile.isDouble) return false;
     // We check if the board IS ALREADY hard or BECOMES hard after this play.
-    final counts = pipsOnBoard;
+    final counts = suiteCounts;
     // Note: suiteCounts includes the tile just played if board already updated.
     // If called BEFORE applyAction, we check if they are at 7.
     return counts[leftEnd!] == 8 && counts[rightEnd!] == 8;
@@ -246,27 +239,13 @@ class GameModel {
     return false;
   }
 
-  /// Returns the number of pips (ends) presented for each suit (0-6) on the board.
-  /// Each non-double tile contributes 1 pip to each of its two suits.
-  /// Each double tile contributes 2 pips to its suit.
-  /// Total pips for any suit in a standard 28-tile set is 8.
-  Map<int, int> get pipsOnBoard {
+  /// Returns the number of tiles played for each suite (0-6).
+  Map<int, int> get suiteCounts {
     Map<int, int> counts = {for (int i = 0; i <= 6; i++) i: 0};
     for (var tile in board) {
       counts[tile.end1] = counts[tile.end1]! + 1;
-      counts[tile.end2] = counts[tile.end2]! + 1;
-    }
-    return counts;
-  }
-
-  /// Returns the count of tiles containing each suit (0-6).
-  /// Max count for any suit is 7.
-  Map<int, int> get tileCountsOnBoard {
-    Map<int, int> counts = {for (int i = 0; i <= 6; i++) i: 0};
-    for (var tile in board) {
-      counts[tile.end1] = (counts[tile.end1] ?? 0) + 1;
       if (!tile.isDouble) {
-        counts[tile.end2] = (counts[tile.end2] ?? 0) + 1;
+        counts[tile.end2] = counts[tile.end2]! + 1;
       }
     }
     return counts;
@@ -350,8 +329,6 @@ class GameModel {
           board.add(DominoTile(action.tile.end2, action.tile.end1));
         }
       }
-      lastPlayedTile = action.tile;
-      wasLastActionPlay = true;
       consecutivePasses = 0;
       currentPlayer = (currentPlayer + 1) % 4;
     } else if (action is PassAction) {
@@ -359,18 +336,16 @@ class GameModel {
       if (leftEnd != null) passedSuits[currentPlayer].add(leftEnd!);
       if (rightEnd != null) passedSuits[currentPlayer].add(rightEnd!);
 
-      wasLastActionPlay = false;
       consecutivePasses++;
       currentPlayer = (currentPlayer + 1) % 4;
     }
   }
 }
 
-
 /// Information Set MCTS Node
 class MCTSNode {
   final Action? action;
-  MCTSNode? parent;
+  final MCTSNode? parent;
   final int player; // Player who made the move resulting in this node
 
   int visits = 0;
@@ -387,18 +362,6 @@ class MCTSNode {
   void update(double result) {
     visits++;
     wins += result;
-  }
-
-  /// Prunes the tree, returning the child node for the given action and detaching it from the parent.
-  /// If no child exists for the action, returns a fresh node.
-  MCTSNode prune(Action action, int nextPlayer) {
-    var child = children[action];
-    if (child != null) {
-      child.parent = null;
-      return child;
-    }
-    // Fallback: entire tree is invalid for this move (rare if search was deep)
-    return MCTSNode(action: action, player: nextPlayer);
   }
 
   /// Selects the best child using the UCB1 formula modified for Information Sets.
@@ -425,7 +388,7 @@ class MCTSNode {
 
         double ucb1 = (child.wins / ni) + explorationParam * sqrt(log(Ni) / ni);
 
-        // --- PARTNER HEURISTICS ---
+        // --- PARTNER HEURISTICS (Phase 2) ---
         if (playStyle == PlayStyle.partners &&
             action is PlayAction &&
             currentLeft != null &&
@@ -474,17 +437,12 @@ class MCTSNode {
             ucb1 += 0.5; // THE SQUEEZE
           }
 
-          // 3. THE ASSIST / THE TELL: Partner Weakness or Strength
+          // 3. THE ASSIST: Partner Strength
           if (playSpeeds != null) {
             final speeds = playSpeeds[partnerId];
-            // Tell 1: Snap Play (< 1.5s). Means they had no choices (only one valid tile). Weak.
-            if ((speeds[nextLeft] != null && speeds[nextLeft]! < 1.5) ||
-                (speeds[nextRight] != null && speeds[nextRight]! < 1.5)) {
-              ucb1 -= 0.3; // Avoid leading back to a 'snap play' end
-            }
-            // Tell 2: Hesitation (> 3.0s). Means they weighed multiple choices. Strong.
-            else if ((speeds[nextLeft] != null && speeds[nextLeft]! > 3.0) ||
-                     (speeds[nextRight] != null && speeds[nextRight]! > 3.0)) {
+            // If partner played this suite in < 1 second, they are 'Strong'
+            if ((speeds[nextLeft] != null && speeds[nextLeft]! < 1.0) ||
+                (speeds[nextRight] != null && speeds[nextRight]! < 1.0)) {
               ucb1 += 0.2; // THE ASSIST
             }
           }
@@ -648,18 +606,7 @@ class MCTSPlayer {
     return detState;
   }
 
-
-  MCTSNode? lastRoot;
-
-  Action getBestAction(
-    GameModel rootState, {
-    int timeLimitMs = 1500,
-    MCTSNode? existingRoot,
-    List<int>? matchScores,
-    int? matchTarget,
-    ScoringMode? scoringMode,
-  }) {
-    lastRoot = existingRoot ?? MCTSNode(player: (playerId + 3) % 4);
+  Action getBestAction(GameModel rootState, {int timeLimitMs = 1500}) {
     List<Action> rootLegalActions = rootState.getLegalActions(playerId);
     if (rootLegalActions.length == 1) return rootLegalActions[0];
 
@@ -691,9 +638,7 @@ class MCTSPlayer {
       iterationLimit = 500;
     }
 
-    MCTSNode rootNode = existingRoot ?? MCTSNode(player: (rootState.currentPlayer - 1 + 4) % 4);
-    lastRoot = rootNode;
-
+    MCTSNode rootNode = MCTSNode(player: (rootState.currentPlayer - 1 + 4) % 4);
     Stopwatch sw = Stopwatch()..start();
     int iterations = 0;
     int nodeCount = 0;
@@ -884,6 +829,7 @@ class MCTSPlayer {
       // 5. Backpropagation
       int winner = state.winner;
       int victimId = rootState.victimId;
+      bool isProtocolActive = (victimId != -1 && victimId != playerId);
       bool isPartnerMode = rootState.playStyle == PlayStyle.partners;
 
       MCTSNode? currentNode = node;
@@ -913,23 +859,10 @@ class MCTSPlayer {
           }
         } else if (winner == movingPlayer) {
           result = 1.0; // Simple Win
-        } else if (rootState.scoringMode == ScoringMode.sixLove && victimId != -1) {
-          // --- SIX-LOVE / ZSP REWARDS ---
-          if (winner == victimId) {
-            // Victim won (the player at 0)
-            if (winner == playerId) {
-              result = 10.0; // SUCCESS: I was the victim and I won!
-            } else {
-              result = -100.0; // FAILURE: I was a jailer and let the victim win!
-            }
-          } else {
-            // Non-victim won
-            if (winner == playerId) {
-              result = 1.0; // I won (good) but wasn't the victim (already handled above but double-check)
-            } else {
-              result = 0.2; // Enemy won
-            }
-          }
+        } else if (isProtocolActive && winner == victimId) {
+          result = -100.0;
+        } else if (isProtocolActive && winner != victimId) {
+          result = 0.5;
         } else if (rootState.scoringMode == ScoringMode.traditional) {
           int myPips = state.hands[movingPlayer].fold(
             0,
@@ -992,216 +925,29 @@ Future<Action> getBestActionAsync(
   int matchTarget,
   ScoringMode scoringMode,
 ) async {
+  // Inject match context into the state before starting search
+  state.matchScores = matchScores;
+  state.matchTarget = matchTarget;
+  state.scoringMode = scoringMode;
+
   try {
-    // Use the global worker for persistent search and tree pruning
-    return await AIWorker.instance.think(
-      state,
-      playerId,
-      timeLimitMs,
-      difficulty,
-      matchScores,
-      matchTarget,
-      scoringMode,
-    );
-  } catch (e) {
-    print('AI Worker failed: $e. Falling back to main thread.');
+    // Attempt to run in a background worker with a 15s timeout
+    return await Isolate.run(() {
+      try {
+        MCTSPlayer ai = MCTSPlayer(playerId, difficulty: difficulty);
+        return ai.getBestAction(state, timeLimitMs: timeLimitMs);
+      } catch (e, stack) {
+        // Log error and rethrow to be caught by the outer try-catch
+        print('Error in Isolate: $e\n$stack');
+        rethrow;
+      }
+    }).timeout(const Duration(seconds: 15));
+  } catch (e, stack) {
+    // Fallback to main thread if the worker hangs or fails
+    print('AI Execution failed or timed out: $e. Falling back to main thread.');
+    print('Stack trace: $stack');
     MCTSPlayer ai = MCTSPlayer(playerId, difficulty: difficulty);
-    return ai.getBestAction(
-      state,
-      timeLimitMs: timeLimitMs,
-      matchScores: matchScores,
-      matchTarget: matchTarget,
-      scoringMode: scoringMode,
-    );
-  }
-}
-
-// --- AI WORKER PROTOCOL ---
-
-abstract class AIWorkerMessage {}
-
-class AIThinkMessage extends AIWorkerMessage {
-  final GameModel state;
-  final int playerId;
-  final int timeLimitMs;
-  final DifficultyLevel difficulty;
-  final List<int> matchScores;
-  final int matchTarget;
-  final ScoringMode scoringMode;
-
-  AIThinkMessage(
-    this.state,
-    this.playerId,
-    this.timeLimitMs,
-    this.difficulty,
-    this.matchScores,
-    this.matchTarget,
-    this.scoringMode,
-  );
-}
-
-class AIBeginThink extends AIWorkerMessage {
-  final GameModel state;
-  final Duration timeLimit;
-  final int playerId;
-  final DifficultyLevel difficulty;
-  final PlayStyle playStyle;
-
-  AIBeginThink({
-    required this.state,
-    required this.timeLimit,
-    required this.playerId,
-    required this.difficulty,
-    this.playStyle = PlayStyle.cutThroat,
-  });
-}
-
-class AISyncMove extends AIWorkerMessage {
-  final Action action;
-  final int nextPlayer;
-  final GameModel state;
-
-  AISyncMove({
-    required this.action,
-    required this.nextPlayer,
-    required this.state,
-  });
-}
-
-class AIRootReset extends AIWorkerMessage {}
-
-class AIResponseMessage extends AIWorkerMessage {
-  final Action action;
-  AIResponseMessage(this.action);
-}
-
-class AIStopMessage extends AIWorkerMessage {}
-
-/// A long-lived background worker for the AI.
-/// It maintains a persistent MCTS search tree that is pruned as the game progresses.
-class AIWorker {
-  static final AIWorker instance = AIWorker._internal();
-  AIWorker._internal();
-
-  Isolate? _isolate;
-  SendPort? _sendPort;
-  Completer<Action>? _thinkCompleter;
-
-  bool get isActive => _isolate != null;
-
-  Future<void> _ensureStarted() async {
-    if (isActive) return;
-
-    final receivePort = ReceivePort();
-    _isolate = await Isolate.spawn(_workerEntryPoint, receivePort.sendPort);
-
-    final events = receivePort.asBroadcastStream();
-    _sendPort = await events.first as SendPort;
-
-    events.listen((message) {
-      if (message is AIResponseMessage) {
-        _thinkCompleter?.complete(message.action);
-        _thinkCompleter = null;
-      }
-    });
-  }
-
-  void beginThink(
-    GameModel state,
-    Duration timeLimit,
-    int playerId,
-    DifficultyLevel difficulty,
-    PlayStyle playStyle,
-  ) {
-    _sendPort?.send(
-      AIBeginThink(
-        state: state,
-        timeLimit: timeLimit,
-        playerId: playerId,
-        difficulty: difficulty,
-        playStyle: playStyle,
-      ),
-    );
-  }
-
-  void syncMove(Action action, int nextPlayer, GameModel state) {
-    _sendPort?.send(AISyncMove(action: action, nextPlayer: nextPlayer, state: state));
-  }
-
-  void resetRoot() {
-    _sendPort?.send(AIRootReset());
-  }
-
-  /// Commands the worker to perform MCTS search and returns the best action.
-  Future<Action> think(
-    GameModel state,
-    int playerId,
-    int timeLimitMs,
-    DifficultyLevel difficulty,
-    List<int> matchScores,
-    int matchTarget,
-    ScoringMode scoringMode,
-  ) async {
-    await _ensureStarted();
-    _thinkCompleter = Completer<Action>();
-    _sendPort?.send(AIThinkMessage(
-      state,
-      playerId,
-      timeLimitMs,
-      difficulty,
-      matchScores,
-      matchTarget,
-      scoringMode,
-    ));
-    return _thinkCompleter!.future;
-  }
-
-  void stop() {
-    _isolate?.kill();
-    _isolate = null;
-    _sendPort = null;
-  }
-
-  static void _workerEntryPoint(SendPort mainSendPort) {
-    final receivePort = ReceivePort();
-    mainSendPort.send(receivePort.sendPort);
-
-    MCTSNode? lastRoot;
-    int lastPlayerId = -1;
-
-    receivePort.listen((message) {
-      if (message is AIRootReset) {
-        lastRoot = null;
-      } else if (message is AISyncMove) {
-        if (lastRoot != null) {
-          lastRoot = lastRoot!.prune(message.action, message.nextPlayer);
-        }
-      } else if (message is AIThinkMessage) {
-        final state = message.state;
-        final playerId = message.playerId;
-
-        if (lastRoot == null || lastPlayerId != playerId) {
-          lastRoot = MCTSNode(player: (playerId + 3) % 4);
-        }
-        lastPlayerId = playerId;
-
-        final player = MCTSPlayer(playerId, difficulty: message.difficulty);
-        final action = player.getBestAction(
-          state,
-          timeLimitMs: message.timeLimitMs,
-          existingRoot: lastRoot,
-          matchScores: message.matchScores,
-          matchTarget: message.matchTarget,
-          scoringMode: message.scoringMode,
-        );
-
-        mainSendPort.send(AIResponseMessage(action));
-        // Update persistent root to the one used for search
-        lastRoot = player.lastRoot;
-      } else if (message is AIStopMessage) {
-        Isolate.exit();
-      }
-    });
+    return ai.getBestAction(state, timeLimitMs: timeLimitMs);
   }
 }
 
@@ -1236,15 +982,23 @@ class MatchModel {
     if (mode == ScoringMode.sixLove) {
       if (playStyle == PlayStyle.partners) {
         int winner = matchWinner;
-        if (winner != -1) return true;
+        if (winner == -1) return false;
+        // Team 1 (0,2) or Team 2 (1,3).
+        // Opponents are at other parity.
+        int opp1 = winner == 0 ? 1 : 0;
+        int opp2 = winner == 0 ? 3 : 2;
+        return scores[opp1] == 0 && scores[opp2] == 0;
       } else {
         int winner = matchWinner;
-        if (winner != -1) return true;
+        if (winner == -1) return false;
+        // Everyone else must be at zero
+        for (int i = 0; i < 4; i++) {
+          if (i != winner && scores[i] > 0) return false;
+        }
+        return true;
       }
     }
-    return scores.any(
-      (s) => s >= (mode == ScoringMode.sixLove ? 6 : targetScore),
-    );
+    return scores.any((s) => s >= targetScore);
   }
 
   /// Returns true if the match winner won with an "Elite Jailer" score of 6-0-0-0 or team 6-0.
@@ -1321,7 +1075,6 @@ class MatchModel {
   }
 
   void startNewRound(int roundStarterOverride, {bool isFirstHand = false}) {
-    AIWorker.instance.resetRoot();
     gameBrukOccurred = false;
     List<DominoTile> allTiles = [];
     for (int i = 0; i <= 6; i++) {
@@ -1368,13 +1121,7 @@ class MatchModel {
   /// Returns a map with detailed result information.
   Map<String, dynamic> recordRoundResult() {
     if (currentRound == null) {
-      return {
-        'winner': -1,
-        'points': 0,
-        'isKeyBone': false,
-        'isBruk': false,
-        'bonusApplied': 0,
-      };
+      return {'winner': -1, 'points': 0, 'isKeyBone': false, 'isBruk': false, 'bonusApplied': 0};
     }
     int winner = currentRound!.winner;
     int pointsAwarded = 0;
@@ -1383,27 +1130,15 @@ class MatchModel {
     gameBrukOccurred = false; // Reset for this calculation
 
     if (winner != -1) {
-      // Key Bone Check (Strict Jamaican Rules):
-      // 1. Must be a PlayAction (not a block win).
-      // 2. Winning tile must NOT be a double.
-      // 3. BOTH open ends of the layout must be 'Hard Ends' (8 pips/7 tiles exhausted).
-      if (currentRound!.wasLastActionPlay &&
-          currentRound!.lastPlayedTile != null &&
-          !currentRound!.lastPlayedTile!.isDouble &&
-          currentRound!.leftEnd != null &&
-          currentRound!.rightEnd != null) {
-        final lastTile = currentRound!.lastPlayedTile!;
-        final pips = currentRound!.pipsOnBoard;
-
-        // A Key Bone must match two DIFFERENT suits that are both exhausted.
-        // If the winning tile is [A-B], then both Suit A and Suit B must be at 8 pips.
-        // AND this tile must have been the 'Key' that matched the board's requirements.
-        if (lastTile.end1 != lastTile.end2) {
-          if (pips[lastTile.end1] == 8 && pips[lastTile.end2] == 8) {
-            // Further requirement: The board itself should be effectively 'keyed'.
-            // In a Key Bone win, the player usually matches BOTH open ends.
-            // After the play, if leftEnd == rightEnd, it often means the tile fit both sides.
+      // Key Bone Check: Winning with a suit whose other 6 tiles are on the board
+      if (currentRound!.board.isNotEmpty) {
+        final lastTile = currentRound!.board.last;
+        final suits = {lastTile.end1, lastTile.end2};
+        for (int suit in suits) {
+          int countOnBoard = currentRound!.board.where((t) => t.contains(suit)).length;
+          if (countOnBoard == 7) {
             isKeyBone = true;
+            break;
           }
         }
       }
@@ -1417,36 +1152,33 @@ class MatchModel {
           int winnerTeam = winner % 2;
           int loserTeam = 1 - winnerTeam;
 
-          int winnerTeamPoints = scores[winnerTeam] + scores[winnerTeam + 2];
-          int opponentPoints = scores[loserTeam] + scores[loserTeam + 2];
-
           // The Reset (Game Bruk): If opponents lead and we win, everyone resets to 0.
-          if (opponentPoints > winnerTeamPoints) {
+          int opponentPoints = scores[loserTeam] + scores[loserTeam + 2];
+          if (opponentPoints > 0) {
             scores[0] = 0;
             scores[1] = 0;
             scores[2] = 0;
             scores[3] = 0;
             gameBrukOccurred = true;
           } else {
+            // No Bruk, add points normally.
             scores[winner] += pointsAwarded;
           }
         } else {
-          // Six-Love Cut-throat: All players reset now if everyone has won at least one round
-          bool everyoneHasPointsNow = true;
+          // Six-Love Cut-throat: Winner resets all opponents with points
+          bool brukDetected = false;
           for (int i = 0; i < scores.length; i++) {
-            if (i != winner && scores[i] == 0) {
-              everyoneHasPointsNow = false;
+            if (i != winner && scores[i] > 0) {
+              brukDetected = true;
               break;
             }
           }
 
-          if (everyoneHasPointsNow && pointsAwarded > 0) {
+          if (brukDetected) {
             for (int i = 0; i < scores.length; i++) {
               scores[i] = 0;
             }
             gameBrukOccurred = true;
-            // In a full Bruk, some rules say winner gets 0, some say 1.
-            // The tests expect 0, so we reset and don't add.
           } else {
             scores[winner] += pointsAwarded;
           }
@@ -1455,14 +1187,8 @@ class MatchModel {
         // Traditional mode (Score based on pips)
         int totalPipsRound = 0;
         for (int i = 0; i < 4; i++) {
-          bool isOpponent = (playStyle == PlayStyle.partners)
-              ? (i % 2 != winner % 2)
-              : (i != winner);
-          if (isOpponent) {
-            totalPipsRound += currentRound!.hands[i].fold(
-              0,
-              (sum, t) => sum + t.score,
-            );
+          if (i % 2 != winner % 2) {
+            totalPipsRound += currentRound!.hands[i].fold(0, (sum, t) => sum + t.score);
           }
         }
         pointsAwarded = totalPipsRound;

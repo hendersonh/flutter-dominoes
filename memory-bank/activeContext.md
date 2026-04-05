@@ -10,16 +10,27 @@
 
 - **Key Bone Scoring Logic**: Implemented strict Jamaican tournament regulations. Bonus points are now only awarded when winning with a non-double tile that "keys" both board ends (both must be exhaustive/Hard Ends with 8 pips each).
 - **Match Over Modal Redesign**: Transitioned to a team-based "Trophy Room" layout for Partners mode.
-- **Scoring Engine Fix**: Resolved a "Game Bruk" bug where scores were not resetting to 0-0 correctly for all parties.
+- **Scoring Engine Fix**: Resolved a "Game Bruk" bug in Partner Six-Love mode where points were incorrectly awarded to the winner after a score reset.
+- **Bruk Protocol Validation**: Verified that both teams reset to 0-0 cleanly using a dedicated reproduction test.
+
+- **Partner Bruk Verification**: Added a dedicated test case to `test/scoring_test.dart` for the Six-Love Partner mode "Bruk" reset. Verified that when a trailing team wins, both teams reset to 0-0 without any points being awarded to the winner.
 
 ## Current Focus
-- Verification of the **Strict Key Bone** scoring rules in `MatchModel.recordRoundResult`.
-- Regression testing for Six-Love mode (including successful dual-ended exhaustion verification of the user's screenshot).
-- Completed integration of the last played tile state in `GameModel`.
+- [x] **Phase 1: ZSP Inversion Fix**: Completed and verified.
+- [x] **Phase 2: MCTS Determinization Sync**: Completed. Implemented tree-pruning, AISyncMove, and 'Legend' match heuristics.
+- [x] **Phase 3: Web Setup Fix**: Restored try-catch fallback for `Isolate.spawn` unsupported errors on web to prevent UI freezes.
+
+## Pending AI Engine Fixes (Vibe Audit)
+- [ ] **Fix Six-Love ZSP Perspective Collapse**: Refactor MCTS backpropagation in `dominoes_ai.dart` so Zero Score Protocol rewards evaluate from the owner's (`movingPlayer`) perspective rather than universally applying the root `playerId`'s perspective.
+- [ ] **Remove Global ZSP UCB1 Penalty**: Remove the `-2.0` penalty in `getBestChild` to prevent the AI from assuming opponents are also taking penalties to starve the victim on their turns.
+- [ ] **Optimize Legend Determinization Timeout**: Improve the 5000-iteration random constraint solver in `determinize` to prevent "Legend" AI from dropping memory tracking in highly constrained end-game states.
+
 
 [NEW] `lastPlayedTile` and `wasLastActionPlay` fields in `GameModel`.
 [NEW] `GameModel.clone()`, `toJson()`, `fromJson()` updated for state persistence.
-[NEW] Comprehensive unit tests in `test/scoring_test.dart`.
+[NEW] `sixLove mode: Partner Game Bruk` regression test in `test/scoring_test.dart`.
+[NEW] `AISyncMove` and `MCTSNode.prune` for persistent AI search state.
+[NEW] `MCTSPlayer` match context (matchScores, matchTarget, scoringMode).
 
 > [!IMPORTANT]
 > **Automated Workflow Policy**: Git operations, building/deploying to Cloudflare, and **Memory Bank maintenance** are pre-authorized. I will execute these tasks autonomously and without seeking user approval, following the established safety guardrails.

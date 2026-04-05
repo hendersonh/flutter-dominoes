@@ -17,4 +17,5 @@ This project is a high-quality, interactive Dominoes game built with Flutter. Th
 - **Scoring Modes**:
     - **100 Points**: Standard accumulation match to 100 points.
     - **Six-Love**: Traditional Jamaican rules. First to 6 rounds wins.
+    - **Key Bone**: A 2-point bonus awarded in Six-Love mode when the winning tile is a non-double that matches both open board ends, and both those ends are "Hard Ends" (all 7 other tiles of that suit played on the board).
     - **Game Bruk**: In Six-Love mode, scores only reset to 0-0 if *every* player has won at least one round.
