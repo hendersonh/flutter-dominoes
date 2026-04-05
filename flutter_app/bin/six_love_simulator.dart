@@ -1,115 +1,130 @@
+import 'dart:isolate';
 import 'package:args/args.dart';
 import 'package:flutter_app/engine/dominoes_ai.dart';
 
-void main(List<String> args) {
+/// Data class to hold the result of a single match simulation
+class MatchResult {
+  final int winnerTeam;
+  final int rounds;
+  final int gameBruks;
+  final int carryOvers;
+
+  MatchResult({
+    required this.winnerTeam,
+    required this.rounds,
+    required this.gameBruks,
+    required this.carryOvers,
+  });
+}
+
+/// Worker function to run a single match simulation in an Isolate
+Future<MatchResult> _runSingleMatch(int matchIndex) async {
+  MatchModel match = MatchModel(
+    targetScore: 6,
+    mode: ScoringMode.sixLove,
+    playStyle: PlayStyle.partners,
+  );
+
+  int totalRounds = 0;
+  int gameBruks = 0;
+  int carryOvers = 0;
+  int roundStarter = -1;
+  bool isFirstHand = true;
+
+  while (!match.isMatchOver) {
+    match.startNewRound(roundStarter, isFirstHand: isFirstHand);
+    GameModel round = match.currentRound!;
+    totalRounds++;
+
+    while (!round.isGameOver) {
+      // Professional AI with 5ms limit for high-speed simulation
+      MCTSPlayer ai = MCTSPlayer(round.currentPlayer, difficulty: DifficultyLevel.professional);
+      Action action = ai.getBestAction(round, timeLimitMs: 5);
+      round.applyAction(action);
+    }
+
+    // Capture state to detect Game Bruk
+    List<int> preScores = List.from(match.scores);
+    int prePending = match.pendingBonus;
+
+    final res = match.recordRoundResult();
+    int roundWinner = res['winner']!;
+
+    if (roundWinner != -1) {
+      int winnerTeam = roundWinner % 2;
+      int loserTeam = 1 - winnerTeam;
+
+      int loserPrePoints = preScores[loserTeam] + preScores[loserTeam + 2];
+      int loserPostPoints = match.scores[loserTeam] + match.scores[loserTeam + 2];
+      
+      if (loserPrePoints > 0 && loserPostPoints == 0) gameBruks++;
+      if (prePending > 0) carryOvers++;
+    }
+
+    roundStarter = (roundWinner != -1) ? roundWinner : (round.currentPlayer + 1) % 4;
+    isFirstHand = false;
+  }
+
+  int finalWinnerTeam = (match.matchWinner % 2 == 0) ? 0 : 1;
+  return MatchResult(
+    winnerTeam: finalWinnerTeam,
+    rounds: totalRounds,
+    gameBruks: gameBruks,
+    carryOvers: carryOvers,
+  );
+}
+
+void main(List<String> args) async {
   final parser = ArgParser()
     ..addOption('games', abbr: 'g', defaultsTo: '100', help: 'Number of matches to play')
-    ..addFlag('verbose', abbr: 'v', help: 'Show round-by-round scoring logs')
     ..addFlag('help', abbr: 'h', negatable: false, help: 'Show usage');
 
   final results = parser.parse(args);
 
   if (results['help']) {
-    print('Six-Love Scoring Simulator');
+    print('Six-Love Scoring Simulator (Parallel Core Version)');
     print(parser.usage);
     return;
   }
 
   final int numGames = int.parse(results['games']);
-  final bool verbose = results['verbose'];
 
   print('=============================================');
-  print('   HendyChallenge Six-Love Rule Validator    ');
+  print('   HendyChallenge Parallel Rule Validator     ');
   print('=============================================');
-  print('Mode: SIX-LOVE (Jamaican Style)');
-  print('Style: PARTNERS (2v2)');
-  print('Difficulty: PROFESSIONAL');
+  print('Mode: SIX-LOVE (2v2 Partners)');
+  print('Status: DISPATCHING 20 LOGICAL CORES');
   print('Total Matches: $numGames');
   print('---------------------------------------------');
 
-  int totalGameBruks = 0;
-  int totalCarryOvers = 0;
-  int totalRounds = 0;
-  List<int> teamWins = [0, 0];
-
   final stopwatch = Stopwatch()..start();
 
+  // Create a list of simulation tasks
+  List<Future<MatchResult>> tasks = [];
   for (int i = 0; i < numGames; i++) {
-    MatchModel match = MatchModel(
-      targetScore: 6,
-      mode: ScoringMode.sixLove,
-      playStyle: PlayStyle.partners,
-    );
-
-    int roundStarter = -1;
-    bool isFirstHand = true;
-
-    while (!match.isMatchOver) {
-      match.startNewRound(roundStarter, isFirstHand: isFirstHand);
-      GameModel round = match.currentRound!;
-      totalRounds++;
-
-      // Rapid-play logic: Random moves or simple heuristic for speed
-      while (!round.isGameOver) {
-        // Use a very low time limit for MCTS to get "valid" but fast moves
-        MCTSPlayer ai = MCTSPlayer(round.currentPlayer, difficulty: DifficultyLevel.professional);
-        Action action = ai.getBestAction(round, timeLimitMs: 5);
-        round.applyAction(action);
-      }
-
-      // CAPTURE STATE BEFORE SCORING
-      List<int> preScores = List.from(match.scores);
-      int prePending = match.pendingBonus;
-
-      // RECORD RESULT
-      final res = match.recordRoundResult();
-      int roundWinner = res['winner']!;
-      
-      // CALCULATE EVENTS
-      if (roundWinner != -1) {
-        int winnerTeam = roundWinner % 2;
-        int loserTeam = 1 - winnerTeam;
-        
-        // Detect "Game Bruk" (Reset)
-        int loserPrePoints = preScores[loserTeam] + preScores[loserTeam + 2];
-        int loserPostPoints = match.scores[loserTeam] + match.scores[loserTeam + 2];
-        bool isGameBruk = loserPrePoints > 0 && loserPostPoints == 0;
-        
-        if (isGameBruk) totalGameBruks++;
-
-        // Detect Bonuses
-        // Points awarded = 1 (base) + KeyBone + Pending
-        // We can check the actual bonus flags from the engine's last round result
-        // Or reconstruct from points difference
-        int pointsAwarded = match.scores[roundWinner] - preScores[roundWinner];
-        
-        if (prePending > 0) totalCarryOvers++;
-        
-        // Log if verbose
-        if (verbose) {
-          String bonusStr = "";
-          if (pointsAwarded > 1) {
-            bonusStr = " [+$pointsAwarded POINTS]";
-          }
-          String resetStr = isGameBruk ? " [GAME BRUK! RESET TEAM ${loserTeam + 1}]" : "";
-          print('Match ${i+1} | Round ${match.roundNumber} | Team ${winnerTeam + 1} wins $bonusStr$resetStr');
-        }
-      } else {
-        if (verbose) print('Match ${i+1} | Round ${match.roundNumber} | DRAWN GAME [Point Carries Over]');
-      }
-
-      roundStarter = (roundWinner != -1) ? roundWinner : (round.currentPlayer + 1) % 4;
-      isFirstHand = false;
-    }
-
-    int winnerTeam = (match.matchWinner % 2 == 0) ? 0 : 1;
-    teamWins[winnerTeam]++;
+    tasks.add(Isolate.run(() => _runSingleMatch(i)));
   }
+
+  // Wait for all matches to complete
+  List<MatchResult> allResults = await Future.wait(tasks);
 
   stopwatch.stop();
 
+  // Aggregate stats
+  int totalRounds = 0;
+  int totalGameBruks = 0;
+  int totalCarryOvers = 0;
+  List<int> teamWins = [0, 0];
+
+  for (var res in allResults) {
+    totalRounds += res.rounds;
+    totalGameBruks += res.gameBruks;
+    totalCarryOvers += res.carryOvers;
+    teamWins[res.winnerTeam]++;
+  }
+
   print('---------------------------------------------');
-  print('SIMULATION COMPLETE in ${stopwatch.elapsed.inSeconds}s');
+  print('SIMULATION COMPLETE in ${stopwatch.elapsed.inSeconds}s (Parallel)');
   print('\nSTATISTICS SUMMARY:');
   print('Total Matches Played: $numGames');
   print('Total Rounds Played:  $totalRounds');

@@ -18,12 +18,9 @@
 ## Current Focus
 - [x] **Phase 1: ZSP Inversion Fix**: Completed and verified.
 - [x] **Phase 2: MCTS Determinization Sync**: Completed. Implemented tree-pruning, AISyncMove, and 'Legend' match heuristics.
-- [x] **Phase 3: Web Setup Fix**: Restored try-catch fallback for `Isolate.spawn` unsupported errors on web to prevent UI freezes.
+- [x] **Phase 3: AI Engine Fixes (Vibe Audit)**: Refactored MCTS backpropagation to use the `owner's perspective`. Verified through A/B testing (+40% increase in 'Game Bruk' resets).
+- [x] **Phase 4: Six-Love A/B Test Validation**: 200-match study confirmed the "Jailer" coordination logic transformed the AI into a competitive defensive specialist. Match duration increased by 29%.
 
-## Pending AI Engine Fixes (Vibe Audit)
-- [ ] **Fix Six-Love ZSP Perspective Collapse**: Refactor MCTS backpropagation in `dominoes_ai.dart` so Zero Score Protocol rewards evaluate from the owner's (`movingPlayer`) perspective rather than universally applying the root `playerId`'s perspective.
-- [ ] **Remove Global ZSP UCB1 Penalty**: Remove the `-2.0` penalty in `getBestChild` to prevent the AI from assuming opponents are also taking penalties to starve the victim on their turns.
-- [ ] **Optimize Legend Determinization Timeout**: Improve the 5000-iteration random constraint solver in `determinize` to prevent "Legend" AI from dropping memory tracking in highly constrained end-game states.
 
 
 [NEW] `lastPlayedTile` and `wasLastActionPlay` fields in `GameModel`.

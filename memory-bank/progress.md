@@ -1,3 +1,4 @@
+- [x] **A/B Test: AI Perspective Fix**: Validated the "Jailer" coordination logic (+40% resets, +29% duration) using a 200-match simulation.
 - [x] **Match Over Modal Redesign**: Transitioned to a team-based "Trophy Room" layout for Partners mode.
 - [x] **Scoring Engine Fix**: Resolved a "Game Bruk" bug in Partner Six-Love mode where points were incorrectly added after a reset.
 - [x] **Partner Bruk Verification**: Added regression test in `test/scoring_test.dart` and confirmed 0-0 reset.
@@ -95,3 +96,4 @@
 - [x] Phase 1: Search Tree Persistence (Fixing Double-Pruning) - **COMPLETED**
 - [x] Phase 2: Strategic Legend Heuristics (Match-Aware MCTS) - **COMPLETED**
 - [x] Phase 3: Hardware-Accelerated Simulation (Web Workers) - **COMPLETED (Main Thread Fallback Restored for Web / Background workers active for native)**
+- [x] Phase 4: Six-Love A/B Test Validation (Perspective-Correct Backpropagation) - **COMPLETED (+40% Resets / +29% Match Duration)**

@@ -886,78 +886,80 @@ class MCTSPlayer {
       int victimId = rootState.victimId;
       bool isPartnerMode = rootState.playStyle == PlayStyle.partners;
 
-      MCTSNode? currentNode = node;
-      while (currentNode != null) {
-        double result = 0.0;
-        int movingPlayer = currentNode.player;
-
+      // --- PRE-COMPUTED REWARD MAP (Brainstormed Perspective Shift) ---
+      // This builds a fixed reward for every player BEFORE climbing the tree,
+      // moving complex branching out of the performance-critical climb.
+      final List<double> rewardMap = List.filled(4, 0.0);
+      for (int p = 0; p < 4; p++) {
         if (winner == -1) {
-          result = 0.5; // Draw
+          rewardMap[p] = 0.5; // Draw
         } else if (isPartnerMode) {
           // --- PARTNER REWARD POOLING ---
-          if (winner % 2 == movingPlayer % 2) {
-            result = 1.0;
-            // Bonus for Key Bone in simulation (if the actual winner made the play)
-            if (winner == state.currentPlayer && state.board.isNotEmpty) {
-              // Check if the last action in simulation was a Key Bone
-              // For now, we'll use a simplified check: isBoardHard
-              if (state.isBoardHard) result += 0.5;
-            }
+          if (winner % 2 == p % 2) {
+            rewardMap[p] = 1.0;
+            // Bonus for Key Bone (Hard Board at end of simulation)
+            if (state.isBoardHard) rewardMap[p] += 0.5;
           } else {
-            // Liquidator Penalty: If partner team leads and opponents win, massive negative
-            if (rootState.matchScores[movingPlayer % 2] > 0) {
-              result = -10.0;
+            // Liquidator Penalty: If partner team leads and opponents win
+            if (rootState.matchScores[p % 2] > 0) {
+              rewardMap[p] = -10.0;
             } else {
-              result = 0.0;
+              rewardMap[p] = 0.0;
             }
           }
-        } else if (winner == movingPlayer) {
-          result = 1.0; // Simple Win
-        } else if (rootState.scoringMode == ScoringMode.sixLove && victimId != -1) {
+        } else if (rootState.scoringMode == ScoringMode.sixLove &&
+            victimId != -1) {
           // --- SIX-LOVE / ZSP REWARDS ---
-          if (winner == victimId) {
-            // Victim won (the player at 0)
-            if (winner == playerId) {
-              result = 10.0; // SUCCESS: I was the victim and I won!
-            } else {
-              result = -100.0; // FAILURE: I was a jailer and let the victim win!
-            }
+          if (p == victimId) {
+            // I am the victim. Survival (Bruk or Win) is my only goal.
+            rewardMap[p] = (winner == p) ? 10.0 : 0.0;
           } else {
-            // Non-victim won
-            if (winner == playerId) {
-              result = 1.0; // I won (good) but wasn't the victim (already handled above but double-check)
+            // I am a Jailer. COORDINATION matters more than personal glory.
+            if (winner == victimId) {
+              rewardMap[p] = -100.0; // FAILURE: Victim escaped!
             } else {
-              result = 0.2; // Enemy won
+              // SUCCESS: Any jailer won, victim lost.
+              // We use 1.0 for all jailers to simulate pure cooperation.
+              rewardMap[p] = 1.0;
             }
           }
         } else if (rootState.scoringMode == ScoringMode.traditional) {
-          int myPips = state.hands[movingPlayer].fold(
-            0,
-            (sum, t) => sum + t.score,
-          );
-          result =
-              0.4 *
-              (1.0 - (myPips / rootState.matchTarget.toDouble())).clamp(
-                0.0,
-                1.0,
-              );
+          // --- TRADITIONAL SCORE (Pip-based distance) ---
+          if (winner == p) {
+            rewardMap[p] = 1.0;
+          } else {
+            int myPips = state.hands[p].fold(0, (sum, t) => sum + t.score);
+            rewardMap[p] = 0.4 *
+                (1.0 - (myPips / rootState.matchTarget.toDouble()))
+                    .clamp(0.0, 1.0);
+          }
         } else {
-          int maxScore = 0;
-          int leaderIndex = -1;
-          for (int i = 0; i < 4; i++) {
-            if (rootState.matchScores[i] > maxScore) {
-              maxScore = rootState.matchScores[i];
-              leaderIndex = i;
+          // --- MATCH LEADERBOARD AWARENESS (Neutral Mode) ---
+          if (winner == p) {
+            rewardMap[p] = 1.0;
+          } else {
+            // Neutral loss logic: scale by how dangerous the leader is
+            int leaderIdx = -1;
+            int maxScore = 0;
+            for (int i = 0; i < 4; i++) {
+              if (rootState.matchScores[i] > maxScore) {
+                maxScore = rootState.matchScores[i];
+                leaderIdx = i;
+              }
+            }
+            if (leaderIdx != -1 && winner == leaderIdx) {
+              rewardMap[p] = (maxScore >= 5) ? 0.0 : 0.1;
+            } else {
+              rewardMap[p] = 0.3; // Neutral loss
             }
           }
-
-          if (leaderIndex != -1 && winner == leaderIndex) {
-            result = (rootState.matchScores[leaderIndex] >= 5) ? 0.0 : 0.1;
-          } else {
-            result = 0.3; // Neutral loss
-          }
         }
+      }
 
+      MCTSNode? currentNode = node;
+      while (currentNode != null) {
+        // PER-PLAYER PERSPECTIVE: Extract reward for the player who owned this decision
+        double result = rewardMap[currentNode.player];
         currentNode.update(result);
         currentNode = currentNode.parent;
       }
