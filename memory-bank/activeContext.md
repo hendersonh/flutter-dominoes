@@ -20,6 +20,7 @@
 - [x] **Phase 2: MCTS Determinization Sync**: Completed. Implemented tree-pruning, AISyncMove, and 'Legend' match heuristics.
 - [x] **Phase 3: AI Engine Fixes (Vibe Audit)**: Refactored MCTS backpropagation to use the `owner's perspective`. Verified through A/B testing (+40% increase in 'Game Bruk' resets).
 - [x] **Phase 4: Six-Love A/B Test Validation**: 200-match study confirmed the "Jailer" coordination logic transformed the AI into a competitive defensive specialist. Match duration increased by 29%.
+- [/] **Phase 5: Legend Determinization Solver**: Optimization of the recursive backtracking solver with CSP heuristics (MRV, Forward Checking). Finalized implementation plan and verification strategy (A/B Gauntlet + Precision Tests).
 
 
 
