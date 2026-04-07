@@ -97,4 +97,4 @@
 - [x] Phase 2: Strategic Legend Heuristics (Match-Aware MCTS) - **COMPLETED**
 - [x] Phase 3: Hardware-Accelerated Simulation (Web Workers) - **COMPLETED (Main Thread Fallback Restored for Web)**
 - [x] Phase 4: Six-Love A/B Test Validation (Perspective-Correct Backpropagation) - **COMPLETED (+40% Resets / +29% Match Duration)**
-- [/] **Phase 5: Legend Determinization Solver (MRV / CSP Heuristics)** - **IN PROGRESS**
+- [ ] **Phase 5: Legend Determinization Solver (MRV / CSP / Bitmasking)** - **DISCARDED (Failure)**
