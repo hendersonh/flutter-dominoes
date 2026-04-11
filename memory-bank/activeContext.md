@@ -11,6 +11,8 @@
 - **Key Bone Scoring Logic**: Implemented strict Jamaican tournament regulations. Bonus points are now only awarded when winning with a non-double tile that "keys" both board ends (both must be exhaustive/Hard Ends with 8 pips each).
 - **Match Over Modal Redesign**: Transitioned to a team-based "Trophy Room" layout for Partners mode.
 - **Scoring Engine Fix**: Resolved a "Game Bruk" bug in Partner Six-Love mode where points were incorrectly awarded to the winner after a score reset.
+- **New Project Deployment**: Successfully deployed to a brand new Cloudflare Pages project: `hendy-dominoes`.
+- **Branding Update**: Formally renamed the application to **"HendyDominoes"** across all mobile/web configuration files.
 - **Bruk Protocol Validation**: Verified that both teams reset to 0-0 cleanly using a dedicated reproduction test.
 
 - **Partner Bruk Verification**: Added a dedicated test case to `test/scoring_test.dart` for the Six-Love Partner mode "Bruk" reset. Verified that when a trailing team wins, both teams reset to 0-0 without any points being awarded to the winner.
@@ -20,7 +22,8 @@
 - [x] **Phase 2: MCTS Determinization Sync**: Completed. Implemented tree-pruning, AISyncMove, and 'Legend' match heuristics.
 - [x] **Phase 3: AI Engine Fixes (Vibe Audit)**: Refactored MCTS backpropagation to use the `owner's perspective`. Verified through A/B testing (+40% increase in 'Game Bruk' resets).
 - [x] **Phase 4: Six-Love A/B Test Validation**: 200-match study confirmed the "Jailer" coordination logic transformed the AI into a competitive defensive specialist. Match duration increased by 29%.
-- [ ] **Phase 5: Legend Determinization Solver**: DISCARDED. CSP-based optimization (MRV/Bitmasking) failed to outperform baseline in A/B test simulations (20% vs 26.7% win rate).
+- [x] **Phase 5: Brand Migration**: Migrated deployment to `hendy-dominoes` and updated app labels to **HendyDominoes**.
+- [/] **Phase 6: Legend Training (Rewind)**: Implementing a 3-turn human rewind mechanic for Legend difficulty to allow re-playing end-game scenarios.
 
 
 

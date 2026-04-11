@@ -1,3 +1,5 @@
+- [x] **Brand Migration**: Formally renamed the app to **"HendyDominoes"** across all config files and user guides.
+- [x] **New Deployment**: Successfully launched the application on a new Cloudflare Pages project: [https://hendy-dominoes.pages.dev](https://hendy-dominoes.pages.dev).
 - [x] **A/B Test: AI Perspective Fix**: Validated the "Jailer" coordination logic (+40% resets, +29% duration) using a 200-match simulation.
 - [x] **Match Over Modal Redesign**: Transitioned to a team-based "Trophy Room" layout for Partners mode.
 - [x] **Scoring Engine Fix**: Resolved a "Game Bruk" bug in Partner Six-Love mode where points were incorrectly added after a reset.

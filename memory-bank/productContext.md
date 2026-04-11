@@ -1,4 +1,4 @@
-# Product Context (Dominoes)
+# Product Context: HendyDominoes
 
 ## The "Why"
 This project is a high-quality, interactive Dominoes game built with Flutter. The goal is to provide a premium, smooth game experience that works seamlessly across Web (WASM) and Android.
