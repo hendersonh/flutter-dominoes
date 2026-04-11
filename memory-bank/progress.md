@@ -56,6 +56,7 @@
 - [x] **AI Pacing Tune-Up**: Optimized AI delay to ~2.3 seconds ("Normal").
 - [x] **Project Infrastructure**: Created a symbolic link in the repository root for memory-bank access.
 - [x] **Production Maintenance**: Resolved WASM production build linting issues and redeployed.
+- [x] **Phase 6: Legend Training (Rewind)**: Implemented 3-turn rewind for Legend difficulty with state restoration, AI search cleanup, and Summary Screen undo buttons. Verified with unit tests.
 - [x] **Review Board Feature**: Implemented a post-round "Review Board" overlay with solid black background and dynamic mobile scaling.
 - [x] **Rookie AI Nerf**: Introduced 50% random move chance and 50ms time limit.
 - [x] **AI Consistency Adjustments**: Difficulty-based iteration capping and "Memory Filters" for forgotten passes.
@@ -99,4 +100,5 @@
 - [x] Phase 2: Strategic Legend Heuristics (Match-Aware MCTS) - **COMPLETED**
 - [x] Phase 3: Hardware-Accelerated Simulation (Web Workers) - **COMPLETED (Main Thread Fallback Restored for Web)**
 - [x] Phase 4: Six-Love A/B Test Validation (Perspective-Correct Backpropagation) - **COMPLETED (+40% Resets / +29% Match Duration)**
-- [ ] **Phase 5: Legend Determinization Solver (MRV / CSP / Bitmasking)** - **DISCARDED (Failure)**
+- [x] **Phase 5: Legend Rewind (State Restoration)** - **COMPLETED** (3-turn history, sync with `AIWorker.instance.resetRoot()`, Summary Screen UI).
+- [x] **UI Polish**: Renamed "START OF ROUND" to **MAX RWIND** and removed redundant SKIP button.

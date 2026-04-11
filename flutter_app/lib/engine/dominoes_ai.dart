@@ -1234,6 +1234,20 @@ class MatchModel {
     this.playStyle = PlayStyle.cutThroat,
   });
 
+  MatchModel clone() {
+    return MatchModel(
+      targetScore: targetScore,
+      mode: mode,
+      playStyle: playStyle,
+    )
+      ..scores = List<int>.from(scores)
+      ..roundNumber = roundNumber
+      ..nextStarter = nextStarter
+      ..pendingBonus = pendingBonus
+      ..gameBrukOccurred = gameBrukOccurred
+      ..currentRound = currentRound?.clone();
+  }
+
   bool get isMatchOver {
     if (mode == ScoringMode.sixLove) {
       if (playStyle == PlayStyle.partners) {

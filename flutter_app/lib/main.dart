@@ -88,6 +88,9 @@ class GameController extends ChangeNotifier {
   bool _matchStatsSaved = false;
   bool _isSetupComplete = false;
   bool _needsResume = false;
+  
+  /// Stores history of MatchModel snapshots for rewind capability.
+  final List<MatchModel> _rewindHistory = [];
 
   GameController() {
     _initMatch();
@@ -102,6 +105,8 @@ class GameController extends ChangeNotifier {
   int? get knockingPlayerIndex => _knockingPlayerIndex;
   bool get showNextRoundButton => _showNextRoundButton;
   bool get showReviewBoard => _showReviewBoard;
+  bool get canRewind => _currentDifficulty == DifficultyLevel.legend && _rewindHistory.isNotEmpty;
+  int get rewindStepCount => _rewindHistory.length;
   bool get isInitialized => _match.currentRound != null;
   DominoTile? get selectedTile => _selectedTile;
   List<int> get lifetimeMatchWins => _lifetimeMatchWins;
@@ -208,6 +213,7 @@ class GameController extends ChangeNotifier {
 
   Future<void> _initMatch() async {
     _match = MatchModel(targetScore: 100);
+    _rewindHistory.clear();
     _topOverlayMessage = null;
     _bottomOverlayMessage = null;
     _selectedTile = null;
@@ -420,10 +426,41 @@ class GameController extends ChangeNotifier {
   void setDifficulty(DifficultyLevel level) {
     if (_currentDifficulty == level) return;
     _currentDifficulty = level;
+    _rewindHistory.clear(); // History is per-difficulty (only for Legend)
+    AIWorker.instance.resetRoot(); // Clear AI search tree
     _saveLifetimeStats();
     _updateStatusMessage();
     notifyListeners();
     print("AI Difficulty set to: ${level.name}");
+  }
+
+  void rewindTo(int turnsBack) {
+    if (_rewindHistory.isEmpty) return;
+    
+    int index = _rewindHistory.length - turnsBack;
+    if (index < 0) index = 0;
+    
+    _match = _rewindHistory[index].clone();
+    
+    // Remove the future states
+    _rewindHistory.removeRange(index, _rewindHistory.length);
+    
+    _isFinishingRound = false;
+    _showNextRoundButton = false;
+    _showReviewBoard = false;
+    _topOverlayMessage = null;
+    _bottomOverlayMessage = null;
+    _knockingPlayerIndex = null;
+    
+    // Clear AI search tree as it's no longer valid for the rewound state
+    AIWorker.instance.resetRoot();
+    
+    _updateStatusMessage();
+    _sortPlayerHand();
+    _saveMatch();
+    
+    notifyListeners();
+    print("Rewound $turnsBack turns. History remaining: ${_rewindHistory.length}");
   }
 
   void selectTile(DominoTile tile) {
@@ -479,8 +516,21 @@ class GameController extends ChangeNotifier {
       } else {
         restartGame();
       }
-      notifyListeners();
+     }
+  }
+
+  void _captureSnapshot() {
+    // Only capture for Legend difficulty
+    if (_currentDifficulty != DifficultyLevel.legend) return;
+    
+    _rewindHistory.add(_match.clone());
+    
+    // We keep up to 4 entries: [t-3, t-2, t-1, current]
+    if (_rewindHistory.length > 4) {
+      _rewindHistory.removeAt(0);
     }
+    
+    print("Snapshot captured. History size: ${_rewindHistory.length}");
   }
 
   void playTile(DominoTile tile, String side) {
@@ -490,6 +540,8 @@ class GameController extends ChangeNotifier {
         _isAiThinking) {
       return;
     }
+
+    _captureSnapshot();
 
     final action = PlayAction(tile, side, isFirstMove: game!.board.isEmpty);
     if (game != null) {
@@ -516,6 +568,8 @@ class GameController extends ChangeNotifier {
       return;
     }
 
+    _captureSnapshot();
+
     final action = PassAction();
     game!.applyAction(action);
     AIWorker.instance.syncMove(action, game!.currentPlayer, game!);
@@ -531,6 +585,8 @@ class GameController extends ChangeNotifier {
     if (game != null && game!.isGameOver) {
       if (_isFinishingRound) return;
       _isFinishingRound = true;
+
+      _captureSnapshot(); // Final state before scoring
 
       // 1. RECORD SCORE IMMEDIATELY to prevent race conditions during UI delays
       // This ensures "Game Bruk" (reset) and points are locked in even if the user skips the summary
@@ -1879,6 +1935,17 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                     child: Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
+                                        if (controller.canRewind)
+                                          IconButton(
+                                            padding: const EdgeInsets.all(12),
+                                            tooltip: 'Rewind Turn',
+                                            icon: const Icon(
+                                              Icons.history,
+                                              color: Colors.orangeAccent,
+                                              size: 24,
+                                            ),
+                                            onPressed: () => controller.rewindTo(1),
+                                          ),
                                         IconButton(
                                           padding: const EdgeInsets.all(
                                             12,
@@ -3709,13 +3776,13 @@ class ReviewBoardOverlay extends StatelessWidget {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Text(
-                          'ROUND SUMMARY',
-                          style: TextStyle(
+                        Text(
+                          controller.match.isMatchOver ? 'MATCH OVER' : 'ROUND SUMMARY',
+                          style: const TextStyle(
                             color: Color(0xFF2BEE4B),
-                            fontSize: 20,
+                            fontSize: 18,
                             fontWeight: FontWeight.bold,
-                            letterSpacing: 2,
+                            letterSpacing: 1.5,
                           ),
                           textAlign: TextAlign.center,
                         ),
@@ -3733,7 +3800,7 @@ class ReviewBoardOverlay extends StatelessWidget {
 
                   // Main Content Area: North Player
                   Expanded(
-                    flex: 1,
+                    flex: 8,
                     child: Center(
                       child: _MiniHand(
                         name: playerNames[2],
@@ -3747,7 +3814,7 @@ class ReviewBoardOverlay extends StatelessWidget {
 
                   // Middle Row: West Player | Board | East Player
                   Expanded(
-                    flex: 3,
+                    flex: 25,
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 4.0),
                       child: Row(
@@ -3800,7 +3867,7 @@ class ReviewBoardOverlay extends StatelessWidget {
                         controller.statusMessage ?? '',
                         style: const TextStyle(
                           color: Color(0xFF2BEE4B),
-                          fontSize: 18,
+                          fontSize: 16,
                           fontWeight: FontWeight.bold,
                         ),
                         textAlign: TextAlign.center,
@@ -3855,32 +3922,62 @@ class ReviewBoardOverlay extends StatelessWidget {
                       ],
                     ],
                   ),
-                  const SizedBox(height: 20),
+                  if (controller.canRewind)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8.0),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          _RewindActionButton(
+                            label: 'REWIND 1 TURN',
+                            onPressed: () => controller.rewindTo(1),
+                          ),
+                          if (controller.rewindStepCount > 1) ...[
+                            const SizedBox(width: 8),
+                            _RewindActionButton(
+                              label: 'MAX RWIND',
+                              onPressed: () => controller.rewindTo(controller.rewindStepCount),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  const SizedBox(height: 8),
                 ],
               ),
             ),
-
-            // Skip button at bottom right
-            Positioned(
-              bottom: 24,
-              right: 24,
-              child: TextButton.icon(
-                onPressed: controller.skipReview,
-                icon: const Icon(Icons.skip_next, color: Colors.white),
-                label: const Text(
-                  'SKIP',
-                  style: TextStyle(color: Colors.white),
-                ),
-                style: TextButton.styleFrom(
-                  backgroundColor: Colors.white.withOpacity(0.1),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                ),
-              ),
-            ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RewindActionButton extends StatelessWidget {
+  final String label;
+  final VoidCallback onPressed;
+
+  const _RewindActionButton({required this.label, required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    return TextButton.icon(
+      onPressed: onPressed,
+      icon: const Icon(Icons.history, color: Colors.orangeAccent, size: 20),
+      label: Text(
+        label,
+        style: const TextStyle(
+          color: Colors.orangeAccent,
+          fontSize: 12,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      style: TextButton.styleFrom(
+        backgroundColor: Colors.orangeAccent.withOpacity(0.1),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+          side: BorderSide(color: Colors.orangeAccent.withOpacity(0.3)),
         ),
       ),
     );
