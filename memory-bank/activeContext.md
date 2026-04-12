@@ -23,8 +23,9 @@
 - [x] **Phase 3: AI Engine Fixes (Vibe Audit)**: Refactored MCTS backpropagation to use the `owner's perspective`. Verified through A/B testing (+40% increase in 'Game Bruk' resets).
 - [x] **Phase 4: Six-Love A/B Test Validation**: 200-match study confirmed the "Jailer" coordination logic transformed the AI into a competitive defensive specialist. Match duration increased by 29%.
 - [x] **Phase 5: Brand Migration**: Migrated deployment to `hendy-dominoes` and updated app labels to **HendyDominoes**.
-- [x] **Phase 6: Legend Training (Rewind)**: Implemented 3-turn rewind for Legend difficulty with state restoration, AI search cleanup, and Summary Screen undo buttons. Verified with unit tests.
-- [x] **UI Polish**: Resolved overlap in Round Summary modal by integrating Rewind buttons into the main scrollable Column and reducing header/status font sizes. Removed redundant SKIP button and renamed "START OF ROUND" to **MAX RWIND** for better accuracy (3-turn limit).
+- [x] **Phase 6: Legend Training (Rewind)**: Implemented a smart 10-turn rewind for Legend difficulty.
+- [x] **Fix: Human-Centered Rewind Logic**: Refactored the snapshot system to focus exclusively on "Human Decision Points" (Player 0 turn start). This ensures that every rewind Lands exactly on a playable human turn, clearing AI "future" moves and terminal states.
+- [x] **Fix: Stuck State on Rewind**: Resolved a bug where `_isAiThinking = true` could leak during a rewind, blocking human input. Added logic to forcibly reset UI locks and selections in `rewindTo`.
 - [x] **Project Ops**: Synchronized Cloudflare project names (`hendy-dominoes`) across `deploy.md` and `deploy-test.md` workflows.
 - [x] **Testing Deployment**: Successfully deployed latest build to isolated `test` branch: [https://test.hendy-dominoes.pages.dev](https://test.hendy-dominoes.pages.dev).
 

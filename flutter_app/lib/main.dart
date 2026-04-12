@@ -92,6 +92,10 @@ class GameController extends ChangeNotifier {
   /// Stores history of MatchModel snapshots for rewind capability.
   final List<MatchModel> _rewindHistory = [];
 
+  /// Incremented every time a turn starts or a rewind occurs.
+  /// Used to invalidate stale asynchronous actions (AI thinking, auto-pass delays).
+  int _gameExecutionId = 0;
+
   GameController() {
     _initMatch();
   }
@@ -370,6 +374,7 @@ class GameController extends ChangeNotifier {
     _knockingPlayerIndex = null;
     _isFinishingRound = false;
     _showNextRoundButton = false;
+    _rewindHistory.clear(); // Clear history for the new round
     _match.startNewRound(_match.nextStarter, isFirstHand: false);
     _updateStatusMessage();
     _sortPlayerHand();
@@ -434,6 +439,7 @@ class GameController extends ChangeNotifier {
     print("AI Difficulty set to: ${level.name}");
   }
 
+
   void rewindTo(int turnsBack) {
     if (_rewindHistory.isEmpty) return;
     
@@ -448,6 +454,8 @@ class GameController extends ChangeNotifier {
     _isFinishingRound = false;
     _showNextRoundButton = false;
     _showReviewBoard = false;
+    _isAiThinking = false; // HUMAN-CENTERED FIX: Release the thinking lock
+    _selectedTile = null;   // HUMAN-CENTERED FIX: Clear any stale selections
     _topOverlayMessage = null;
     _bottomOverlayMessage = null;
     _knockingPlayerIndex = null;
@@ -459,8 +467,25 @@ class GameController extends ChangeNotifier {
     _sortPlayerHand();
     _saveMatch();
     
+    _gameExecutionId++; // Invalidate any pending AI tasks from the "future"
+    
     notifyListeners();
     print("Rewound $turnsBack turns. History remaining: ${_rewindHistory.length}");
+
+    // Immediately re-revaluate if the AI needs to move or human needs to pass
+    _evaluateCurrentTurn();
+  }
+
+  /// Evaluates the current state and triggers AI or auto-pass checks.
+  /// Called after rewinds or manual state resets.
+  void _evaluateCurrentTurn() {
+    if (game == null || game!.isGameOver) return;
+
+    if (game!.currentPlayer != 0) {
+      _runAiTurn();
+    } else {
+      _handlePlayerAutoTurn();
+    }
   }
 
   void selectTile(DominoTile tile) {
@@ -523,10 +548,13 @@ class GameController extends ChangeNotifier {
     // Only capture for Legend difficulty
     if (_currentDifficulty != DifficultyLevel.legend) return;
     
+    // HUMAN-CENTERED: Only capture snapshots of states where the human (Player 0) is about to act.
+    if (_match.currentRound?.currentPlayer != 0) return;
+    
     _rewindHistory.add(_match.clone());
     
-    // We keep up to 4 entries: [t-3, t-2, t-1, current]
-    if (_rewindHistory.length > 4) {
+    // Deep Buffer: Keep up to 40 entries to ensure an entire round can be undone.
+    if (_rewindHistory.length > 40) {
       _rewindHistory.removeAt(0);
     }
     
@@ -542,6 +570,7 @@ class GameController extends ChangeNotifier {
     }
 
     _captureSnapshot();
+    _gameExecutionId++;
 
     final action = PlayAction(tile, side, isFirstMove: game!.board.isEmpty);
     if (game != null) {
@@ -569,6 +598,7 @@ class GameController extends ChangeNotifier {
     }
 
     _captureSnapshot();
+    _gameExecutionId++;
 
     final action = PassAction();
     game!.applyAction(action);
@@ -586,7 +616,7 @@ class GameController extends ChangeNotifier {
       if (_isFinishingRound) return;
       _isFinishingRound = true;
 
-      _captureSnapshot(); // Final state before scoring
+      // REMOVED: No longer capturing final terminal state to keep history human-centered.
 
       // 1. RECORD SCORE IMMEDIATELY to prevent race conditions during UI delays
       // This ensures "Game Bruk" (reset) and points are locked in even if the user skips the summary
@@ -715,6 +745,8 @@ class GameController extends ChangeNotifier {
 
   void _handlePlayerAutoTurn() {
     if (game != null && !game!.canPlayerPlay(0)) {
+      final executionId = _gameExecutionId;
+      
       // Contextual Knock for Human
       _knockingPlayerIndex = 0;
       SoundService().playSfx('assets/sounds/tile_knock.wav');
@@ -722,6 +754,8 @@ class GameController extends ChangeNotifier {
       notifyListeners();
 
       Future.delayed(const Duration(milliseconds: 1000), () {
+        if (_gameExecutionId != executionId) return; // Stale turn (e.g. rewound)
+        
         if (game != null && !game!.isGameOver && game!.currentPlayer == 0) {
           passTurn();
         }
@@ -744,6 +778,10 @@ class GameController extends ChangeNotifier {
       return;
     }
 
+    // REMOVED: No longer capturing before AI moves to keep history human-centered.
+
+    final executionId = _gameExecutionId;
+
     int cp = game!.currentPlayer;
     final legalActions = game!.getLegalActions(cp);
     final numPlayOptions = legalActions.whereType<PlayAction>().length;
@@ -762,6 +800,7 @@ class GameController extends ChangeNotifier {
 
     // Natural delay before starting to "think"
     await Future.delayed(Duration(milliseconds: preDelayMs));
+    if (_gameExecutionId != executionId) return;
 
     final thinkingDuration = _getAiThinkingDuration(numPlayOptions);
     final stopwatch = Stopwatch()..start();
@@ -776,12 +815,14 @@ class GameController extends ChangeNotifier {
       _match.targetScore,
       _match.mode,
     );
-    final elapsed = stopwatch.elapsedMilliseconds;
+    if (_gameExecutionId != executionId) return;
 
-    // Wait for the remainder of the randomized thinking time
+    final elapsed = stopwatch.elapsedMilliseconds;
     final remainingDelay = thinkingDuration.inMilliseconds - elapsed;
+
     if (remainingDelay > 0) {
       await Future.delayed(Duration(milliseconds: remainingDelay));
+      if (_gameExecutionId != executionId) return;
     }
 
     print("AI Player $cp Action: $aiAction");
@@ -791,6 +832,7 @@ class GameController extends ChangeNotifier {
       SoundService().playSfx('assets/sounds/tile_knock.wav');
       notifyListeners();
       await Future.delayed(Duration(milliseconds: knockDelayMs));
+      if (_gameExecutionId != executionId) return;
     }
 
     if (game != null) {
@@ -808,6 +850,7 @@ class GameController extends ChangeNotifier {
 
     // Brief pause to allow the user to see the move before turn indicator shifts
     await Future.delayed(Duration(milliseconds: postMoveDelayMs));
+    if (_gameExecutionId != executionId) return;
 
     _isAiThinking = false;
     _checkGameState();
@@ -3929,16 +3972,9 @@ class ReviewBoardOverlay extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           _RewindActionButton(
-                            label: 'REWIND 1 TURN',
-                            onPressed: () => controller.rewindTo(1),
+                            label: 'QUICK REWIND',
+                            onPressed: () => controller.rewindTo(3),
                           ),
-                          if (controller.rewindStepCount > 1) ...[
-                            const SizedBox(width: 8),
-                            _RewindActionButton(
-                              label: 'MAX RWIND',
-                              onPressed: () => controller.rewindTo(controller.rewindStepCount),
-                            ),
-                          ],
                         ],
                       ),
                     ),

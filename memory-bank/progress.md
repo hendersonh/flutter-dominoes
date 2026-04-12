@@ -2,6 +2,8 @@
 - [x] **New Deployment**: Successfully launched the application on a new Cloudflare Pages project: [https://hendy-dominoes.pages.dev](https://hendy-dominoes.pages.dev).
 - [x] **A/B Test: AI Perspective Fix**: Validated the "Jailer" coordination logic (+40% resets, +29% duration) using a 200-match simulation.
 - [x] **Match Over Modal Redesign**: Transitioned to a team-based "Trophy Room" layout for Partners mode.
+- [x] **Human-Centered Rewind Fix**: Refactored `_captureSnapshot` for human-only tracking and implemented state-reset logic in `rewindTo` to prevent "stuck" matches.
+- [x] **Feature: Refined Rewind UX**: Replaced "MAX RWIND" with a "QUICK REWIND" (3-level jump) in the Round Summary modal and enabled sequential (1-level) step-by-step rewinding in the Game HUD via the undo icon. Both now always land on a Human turn.
 - [x] **Scoring Engine Fix**: Resolved a "Game Bruk" bug in Partner Six-Love mode where points were incorrectly added after a reset.
 - [x] **Partner Bruk Verification**: Added regression test in `test/scoring_test.dart` and confirmed 0-0 reset.
 - [x] **Bruk Verification**: Confirmed 0-0 reset with `repro_bruk_bug.dart` (Cut-throat) and regular regression testing.
@@ -56,7 +58,8 @@
 - [x] **AI Pacing Tune-Up**: Optimized AI delay to ~2.3 seconds ("Normal").
 - [x] **Project Infrastructure**: Created a symbolic link in the repository root for memory-bank access.
 - [x] **Production Maintenance**: Resolved WASM production build linting issues and redeployed.
-- [x] **Phase 6: Legend Training (Rewind)**: Implemented 3-turn rewind for Legend difficulty with state restoration, AI search cleanup, and Summary Screen undo buttons. Verified with unit tests.
+- [x] **Phase 6: Legend Training (Rewind)**: Implemented refined sequential rewind logic with a 40-turn Deep Buffer. 
+- [x] **Feature: Refined Rewind UX**: Replaced "MAX RWIND" with a "QUICK REWIND" (3-level jump) in the Round Summary modal and enabled sequential (1-level) step-by-step rewinding in the Game HUD via the undo icon.
 - [x] **Review Board Feature**: Implemented a post-round "Review Board" overlay with solid black background and dynamic mobile scaling.
 - [x] **Rookie AI Nerf**: Introduced 50% random move chance and 50ms time limit.
 - [x] **AI Consistency Adjustments**: Difficulty-based iteration capping and "Memory Filters" for forgotten passes.
@@ -101,4 +104,5 @@
 - [x] Phase 3: Hardware-Accelerated Simulation (Web Workers) - **COMPLETED (Main Thread Fallback Restored for Web)**
 - [x] Phase 4: Six-Love A/B Test Validation (Perspective-Correct Backpropagation) - **COMPLETED (+40% Resets / +29% Match Duration)**
 - [x] **Phase 5: Legend Rewind (State Restoration)** - **COMPLETED** (3-turn history, sync with `AIWorker.instance.resetRoot()`, Summary Screen UI).
-- [x] **UI Polish**: Renamed "START OF ROUND" to **MAX RWIND** and removed redundant SKIP button.
+- [x] **Fix: Round Summary Rewind Bug**: Implemented `rewindToHumanTurn` to find the last playable state. Increased history buffer to 10 entries. Captured snapshots for AI turns.
+- [x] **Final: Human-Centered Rewind Fix**: Refactored `_captureSnapshot` to include a `currentPlayer == 0` guard. Removed snapshots from AI turns and round-end events. Verified that both HUD and Summary rewinds now always return the user to a playable Human state.
