@@ -1872,141 +1872,123 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                       ),
                                     ),
 
-                                  // Match Settings Icon (Top Left)
-                                  Positioned(
-                                    top: 12,
-                                    left: 12,
-                                    child: IconButton(
-                                      tooltip: 'Match Settings',
-                                      icon: const Icon(
-                                        Icons.settings,
-                                        color: Color(0xFF2BEE4B),
-                                        size: 24,
-                                      ),
-                                      onPressed: () => _showResetConfirmation(
-                                        context,
-                                        controller,
-                                      ),
-                                    ),
-                                  ),
+                                   // --- UNIFIED GAME HUD (Top Bar) ---
+                                   Positioned(
+                                     top: 16,
+                                     left: 0,
+                                     right: 0,
+                                     child: Row(
+                                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                       crossAxisAlignment: CrossAxisAlignment.center,
+                                       children: [
+                                         // 1. Setup Icon
+                                         IconButton(
+                                           padding: EdgeInsets.zero,
+                                           constraints: const BoxConstraints(),
+                                           tooltip: 'Match Settings',
+                                           icon: const Icon(
+                                             Icons.settings,
+                                             color: Color(0xFF2BEE4B),
+                                             size: 24,
+                                           ),
+                                           onPressed: () => _showResetConfirmation(
+                                             context,
+                                             controller,
+                                           ),
+                                         ),
 
-                                  // Match Info Overlay (Top Center)
-                                  Positioned(
-                                    top: 8,
-                                    left: 0,
-                                    right: 0,
-                                    child: Align(
-                                      alignment: Alignment.topCenter,
-                                      child: Builder(
-                                        builder: (context) {
-                                          final double screenWidth = MediaQuery.of(context).size.width;
-                                          final bool isNarrow = screenWidth < 600;
-                                          
-                                          return Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 12,
-                                              vertical: 8,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: Colors.black.withAlpha(100),
-                                              borderRadius: BorderRadius.circular(
-                                                20,
-                                              ),
-                                            ),
-                                            child: Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                  Text(
-                                                    controller.match.playStyle ==
-                                                            PlayStyle.partners
-                                                        ? 'PARTNERS'
-                                                        : 'SOLO',
-                                                    style: const TextStyle(
-                                                      color: Colors.white,
-                                                      fontSize: 10,
-                                                      fontWeight: FontWeight.w900,
-                                                    ),
-                                                  ),
-                                                const SizedBox(width: 8),
-                                                Container(
-                                                  width: 1,
-                                                  height: 12,
-                                                  color: Colors.white24,
-                                                ),
-                                                const SizedBox(width: 8),
-                                                Text(
-                                                  controller.scoringMode ==
-                                                          ScoringMode.sixLove
-                                                      ? 'SIX-LOVE'
-                                                      : 'Trgt=${controller.match.targetScore}',
-                                                  style: const TextStyle(
-                                                    color: Colors.white,
-                                                    fontSize: 10,
-                                                    fontWeight: FontWeight.bold,
-                                                    letterSpacing: 0.5,
-                                                  ),
-                                                ),
-                                                const SizedBox(width: 8),
-                                                Container(
-                                                  width: 1,
-                                                  height: 12,
-                                                  color: Colors.white24,
-                                                ),
-                                                const SizedBox(width: 8),
-                                                Text(
-                                                  isNarrow && controller.currentDifficulty == DifficultyLevel.professional
-                                                      ? 'PRO'
-                                                      : controller.currentDifficulty.name.toUpperCase(),
-                                                  style: const TextStyle(
-                                                    color: Color(0xFF2BEE4B),
-                                                    fontSize: 10,
-                                                    fontWeight: FontWeight.w900,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          );
-                                        }
-                                      ),
-                                    ),
-                                  ),
+                                         // 2. Status Indicator Pill (Consolidated Match Info + Live Status)
+                                         Builder(
+                                           builder: (context) {
+                                             final double screenWidth = MediaQuery.of(context).size.width;
+                                             final bool isNarrow = screenWidth < 600;
+                                             final bool hasStatus = controller.statusMessage != null && 
+                                                                  controller.statusMessage!.isNotEmpty;
+                                             
+                                             return Container(
+                                               padding: const EdgeInsets.symmetric(
+                                                 horizontal: 16,
+                                                 vertical: 8,
+                                               ),
+                                               decoration: BoxDecoration(
+                                                 color: Colors.black.withOpacity(0.5),
+                                                 borderRadius: BorderRadius.circular(20),
+                                                 border: Border.all(color: Colors.white12, width: 0.5),
+                                               ),
+                                               child: Column(
+                                                 mainAxisSize: MainAxisSize.min,
+                                                 children: [
+                                                   Row(
+                                                     mainAxisSize: MainAxisSize.min,
+                                                     children: [
+                                                       Text(
+                                                         controller.match.playStyle == PlayStyle.partners ? 'PARTNERS' : 'SOLO',
+                                                         style: const TextStyle(color: Colors.white70, fontSize: 9, fontWeight: FontWeight.bold),
+                                                       ),
+                                                       const SizedBox(width: 6),
+                                                       Container(width: 1, height: 8, color: Colors.white24),
+                                                       const SizedBox(width: 6),
+                                                       Text(
+                                                         controller.scoringMode == ScoringMode.sixLove ? '6-0' : 'Target: ${controller.match.targetScore}',
+                                                         style: const TextStyle(color: Colors.white70, fontSize: 9, fontWeight: FontWeight.bold),
+                                                       ),
+                                                       const SizedBox(width: 6),
+                                                       Container(width: 1, height: 8, color: Colors.white24),
+                                                       const SizedBox(width: 6),
+                                                       Text(
+                                                         isNarrow && controller.currentDifficulty == DifficultyLevel.professional 
+                                                           ? 'PRO' 
+                                                           : controller.currentDifficulty.name.toUpperCase(),
+                                                         style: const TextStyle(color: Color(0xFF2BEE4B), fontSize: 9, fontWeight: FontWeight.w900),
+                                                       ),
+                                                     ],
+                                                   ),
+                                                   if (hasStatus) ...[
+                                                     const SizedBox(height: 2),
+                                                     Text(
+                                                       controller.statusMessage!.toUpperCase(),
+                                                       style: const TextStyle(
+                                                         color: Colors.white,
+                                                         fontSize: 11,
+                                                         fontWeight: FontWeight.w900,
+                                                         letterSpacing: 0.5,
+                                                       ),
+                                                     ),
+                                                   ],
+                                                 ],
+                                               ),
+                                             );
+                                           }
+                                         ),
 
-                                  // Match Controls Overlay (Top Right - Highest Z-Index)
-                                  Positioned(
-                                    top: 8,
-                                    right: 8,
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        if (controller.canRewind)
-                                          IconButton(
-                                            padding: const EdgeInsets.all(12),
-                                            tooltip: 'Rewind Turn',
-                                            icon: const Icon(
-                                              Icons.history,
-                                              color: Colors.orangeAccent,
-                                              size: 24,
-                                            ),
-                                            onPressed: () => controller.rewindTo(1),
-                                          ),
-                                        IconButton(
-                                          padding: const EdgeInsets.all(
-                                            12,
-                                          ),
-                                          tooltip: 'How to Play',
-                                          icon: const Icon(
-                                            Icons.help_outline,
-                                            color: Colors.white70,
-                                            size: 24,
-                                          ),
-                                          onPressed: () => _showHelpModal(
-                                            context,
-                                            controller,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
+                                         // 3. Rewind Icon
+                                         IconButton(
+                                           padding: EdgeInsets.zero,
+                                           constraints: const BoxConstraints(),
+                                           tooltip: 'Rewind Turn',
+                                           icon: Icon(
+                                             Icons.history,
+                                             color: controller.canRewind ? Colors.orangeAccent : Colors.white24,
+                                             size: 24,
+                                           ),
+                                           onPressed: controller.canRewind ? () => controller.rewindTo(1) : null,
+                                         ),
+
+                                         // 4. Help Icon
+                                         IconButton(
+                                           padding: EdgeInsets.zero,
+                                           constraints: const BoxConstraints(),
+                                           tooltip: 'How to Play',
+                                           icon: const Icon(
+                                             Icons.help_outline,
+                                             color: Colors.white70,
+                                             size: 24,
+                                           ),
+                                           onPressed: () => _showHelpModal(context, controller),
+                                         ),
+                                       ],
+                                     ),
+                                   ),
 
                                   // Review Board Overlay
                                   if (controller.showReviewBoard &&

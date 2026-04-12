@@ -106,3 +106,6 @@
 - [x] **Phase 5: Legend Rewind (State Restoration)** - **COMPLETED** (3-turn history, sync with `AIWorker.instance.resetRoot()`, Summary Screen UI).
 - [x] **Fix: Round Summary Rewind Bug**: Implemented `rewindToHumanTurn` to find the last playable state. Increased history buffer to 10 entries. Captured snapshots for AI turns.
 - [x] **Final: Human-Centered Rewind Fix**: Refactored `_captureSnapshot` to include a `currentPlayer == 0` guard. Removed snapshots from AI turns and round-end events. Verified that both HUD and Summary rewinds now always return the user to a playable Human state.
+- [x] **UI: Unified Board HUD**: Consolidated dispersed `Positioned` overlays (Settings, Match Info, Status, Rewind, Help) into a single, cohesive HUD row.
+- [x] **Aesthetic: Premium Status Pill**: Implemented a glassmorphism "Smart Indicator" pill that combines match context and live game status with perfect vertical centering.
+- [x] **Layout: Zero-Footprint Design**: Ensured the HUD remains a transparent overlay that takes no space away from the green board, maintaining equal professional spacing across all devices.
