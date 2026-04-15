@@ -1248,20 +1248,7 @@ class MatchModel {
       ..currentRound = currentRound?.clone();
   }
 
-  bool get isMatchOver {
-    if (mode == ScoringMode.sixLove) {
-      if (playStyle == PlayStyle.partners) {
-        int winner = matchWinner;
-        if (winner != -1) return true;
-      } else {
-        int winner = matchWinner;
-        if (winner != -1) return true;
-      }
-    }
-    return scores.any(
-      (s) => s >= (mode == ScoringMode.sixLove ? 6 : targetScore),
-    );
-  }
+  bool get isMatchOver => matchWinner != -1;
 
   /// Returns true if the match winner won with an "Elite Jailer" score of 6-0-0-0 or team 6-0.
   bool get isEliteJailer {

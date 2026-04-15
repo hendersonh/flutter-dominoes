@@ -1,3 +1,5 @@
+- [x] **Fix: Partners Mode Match End**: Corrected `MatchModel.isMatchOver` to use the `matchWinner` getter, ensuring that in Traditional mode, collective team scores reach the target correctly.
+- [x] **Verification**: Added `repro_partners_100bug_test.dart` and confirmed that a collective team score of 105 ends the match correctly even when individual players are below 100.
 - [x] **UI: Dynamic Player Name Propagation**: Successfully eliminated hardcoded player names across the entire app. Custom names now propagate correctly to the Game HUD, Review Board, background watermark ("HELP <NAME> WIN"), Partners team labels, and Champion Standings.
 - [x] **Brand Migration**: Formally renamed the app to **"HendyDominoes"** across all config files and user guides.
 - [x] **New Deployment**: Successfully launched the application on a new Cloudflare Pages project: [https://hendy-dominoes.pages.dev](https://hendy-dominoes.pages.dev).
@@ -18,11 +20,6 @@
 - [x] **Audit: AI Algorithm**: Performed a vibe audit on `dominoes_ai.dart` resulting in 3 structural flaws identified primarily regarding MCTS backpropagation in Six-Love mode. Added these fixes to technical backlog.
 
 ## Completed Tasks
-<<<<<<< SEARCH
-- Added `allpepper-memory-bank` to `mcp_config.json`.
-=======
-- Added `allpepper-memory-bank` to `mcp_config.json`.
->>>>>>> REPLACE
 - Added `allpepper-memory-bank` to `mcp_config.json`.
 - Set `MEMORY_BANK_ROOT` to `E:/antigravity/dominoes/memory-bank`.
 - Created initial set of memory files for the Dominoes project.
@@ -111,3 +108,5 @@
 - [x] **Aesthetic: Premium Status Pill**: Implemented a glassmorphism "Smart Indicator" pill that combines match context and live game status with perfect vertical centering.
 - [x] **Layout: Zero-Footprint Design**: Ensured the HUD remains a transparent overlay that takes no space away from the green board, maintaining equal professional spacing across all devices.
 - [x] **UI Polish**: Removed redundant Column wrapper from the unified Status indicator to ensure a strict single-row layout and prevent old status lines from reappearing.
+- [x] **Fix: Partners Mode Match End**: Corrected `MatchModel.isMatchOver` to use the `matchWinner` getter.
+- [x] **Global Rewind Feature**: Decoupled the Rewind/Undo system from the 'Legend' difficulty level. All players now have access to the move history buffer across all skill levels. History is now persistent across difficulty switches.

@@ -89,6 +89,10 @@ class GameController extends ChangeNotifier {
   bool _matchStatsSaved = false;
   bool _isSetupComplete = false;
   bool _needsResume = false;
+
+  // Session-based series scores (track wins for the current sitting)
+  List<int> _sessionMatchWins = [0, 0, 0, 0];
+  List<int> _sessionMatchLosses = [0, 0, 0, 0];
   
   /// Stores history of MatchModel snapshots for rewind capability.
   final List<MatchModel> _rewindHistory = [];
@@ -113,7 +117,8 @@ class GameController extends ChangeNotifier {
   int? get knockingPlayerIndex => _knockingPlayerIndex;
   bool get showNextRoundButton => _showNextRoundButton;
   bool get showReviewBoard => _showReviewBoard;
-  bool get canRewind => _currentDifficulty == DifficultyLevel.legend && _rewindHistory.isNotEmpty;
+    bool get canRewind => _rewindHistory.isNotEmpty;
+
   int get rewindStepCount => _rewindHistory.length;
   bool get isInitialized => _match.currentRound != null;
   DominoTile? get selectedTile => _selectedTile;
@@ -126,6 +131,8 @@ class GameController extends ChangeNotifier {
   bool get isEliteJailerMatch => _isEliteJailerMatch;
   bool get needsResume => _needsResume;
   Map<String, dynamic>? get lastRoundResult => _lastRoundResult;
+  List<int> get sessionMatchWins => _sessionMatchWins;
+  List<int> get sessionMatchLosses => _sessionMatchLosses;
 
   int get sixLoveChampionIndex {
     int maxDishes = _lifetimeDishCounts.reduce(math.max);
@@ -355,6 +362,11 @@ class GameController extends ChangeNotifier {
       _match.currentRound!.matchTarget = currentMode == ScoringMode.sixLove ? 6 : currentTarget;
     }
     
+    if (goToSetup) {
+      _sessionMatchWins = [0, 0, 0, 0];
+      _sessionMatchLosses = [0, 0, 0, 0];
+    }
+    
     _isSetupComplete = !goToSetup;
     notifyListeners();
   }
@@ -447,7 +459,8 @@ class GameController extends ChangeNotifier {
   void setDifficulty(DifficultyLevel level) {
     if (_currentDifficulty == level) return;
     _currentDifficulty = level;
-    _rewindHistory.clear(); // History is per-difficulty (only for Legend)
+        // History is preserved across difficulty changes
+
     AIWorker.instance.resetRoot(); // Clear AI search tree
     _saveLifetimeStats();
     _updateStatusMessage();
@@ -562,7 +575,8 @@ class GameController extends ChangeNotifier {
 
   void _captureSnapshot() {
     // Only capture for Legend difficulty
-    if (_currentDifficulty != DifficultyLevel.legend) return;
+    // Captured for all difficulties
+
     
     // HUMAN-CENTERED: Only capture snapshots of states where the human (Player 0) is about to act.
     if (_match.currentRound?.currentPlayer != 0) return;
@@ -683,16 +697,20 @@ class GameController extends ChangeNotifier {
               for (int i = 0; i < 4; i++) {
                 if (i % 2 == winnerTeam) {
                   _lifetimeMatchWins[i]++;
+                  _sessionMatchWins[i]++;
                 } else {
                   _lifetimeMatchLosses[i]++;
+                  _sessionMatchLosses[i]++;
                 }
               }
             } else {
               for (int i = 0; i < 4; i++) {
                 if (i == winner) {
                   _lifetimeMatchWins[i]++;
+                  _sessionMatchWins[i]++;
                 } else {
                   _lifetimeMatchLosses[i]++;
+                  _sessionMatchLosses[i]++;
                 }
               }
             }
@@ -1576,22 +1594,19 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                                             ),
                                                       ),
                                                       child: controller.match.playStyle == PlayStyle.partners
-                                                          ? _TeamMatchStatus(
-                                                              team1Score: controller.lifetimeMatchWins[0] + controller.lifetimeMatchWins[2],
-                                                              team2Score: controller.lifetimeMatchWins[1] + controller.lifetimeMatchWins[3],
-                                                              team1Dishes: controller.lifetimeDishCounts[0] + controller.lifetimeDishCounts[2],
-                                                              team2Dishes: controller.lifetimeDishCounts[1] + controller.lifetimeDishCounts[3],
-                                                              team1Social: controller.lifetimeSocialPoints[0] + controller.lifetimeSocialPoints[2],
-                                                              team2Social: controller.lifetimeSocialPoints[1] + controller.lifetimeSocialPoints[3],
-                                                              team1Adjustment: controller.lastMatchSocialAdjustments != null 
-                                                                  ? (controller.lastMatchSocialAdjustments![0] + controller.lastMatchSocialAdjustments![2]) 
-                                                                  : null,
-                                                              team2Adjustment: controller.lastMatchSocialAdjustments != null 
-                                                                  ? (controller.lastMatchSocialAdjustments![1] + controller.lastMatchSocialAdjustments![3]) 
-                                                                  : null,
-                                                              winningTeam: (controller.lifetimeMatchWins[0] + controller.lifetimeMatchWins[2]) >= 
-                                                                           (controller.lifetimeMatchWins[1] + controller.lifetimeMatchWins[3]) ? 0 : 1,
-                                                            )
+                                                       ? _TeamMatchStatus(
+                                                               team1MatchScore: controller.match.scores[0] + controller.match.scores[2],
+                                                               team2MatchScore: controller.match.scores[1] + controller.match.scores[3],
+                                                               team1SeriesWins: controller.sessionMatchWins[0] + controller.sessionMatchWins[2],
+                                                               team2SeriesWins: controller.sessionMatchWins[1] + controller.sessionMatchWins[3],
+                                                               team1LifetimeWins: controller.lifetimeMatchWins[0] + controller.lifetimeMatchWins[2],
+                                                               team1LifetimeLosses: controller.lifetimeMatchLosses[0] + controller.lifetimeMatchLosses[2],
+                                                               team2LifetimeWins: controller.lifetimeMatchWins[1] + controller.lifetimeMatchWins[3],
+                                                               team2LifetimeLosses: controller.lifetimeMatchLosses[1] + controller.lifetimeMatchLosses[3],
+                                                               isPointsMode: controller.match.mode == ScoringMode.traditional,
+                                                               targetScore: controller.match.targetScore,
+                                                               winningTeam: controller.match.matchWinner == -1 ? -1 : controller.match.matchWinner % 2,
+                                                             )
                                                           : Column(
                                                               children: (() {
                                                                 final indices =
@@ -4609,25 +4624,29 @@ class _PointBadge extends StatelessWidget {
 }
 
 class _TeamMatchStatus extends StatelessWidget {
-  final int team1Score;
-  final int team2Score;
-  final int team1Dishes;
-  final int team2Dishes;
-  final int team1Social;
-  final int team2Social;
-  final int? team1Adjustment;
-  final int? team2Adjustment;
+  final int team1MatchScore;
+  final int team2MatchScore;
+  final int team1SeriesWins;
+  final int team2SeriesWins;
+  final int team1LifetimeWins;
+  final int team1LifetimeLosses;
+  final int team2LifetimeWins;
+  final int team2LifetimeLosses;
+  final bool isPointsMode;
+  final int targetScore;
   final int winningTeam; // 0 for TeamHendy, 1 for TeamAI, -1 for none
 
   const _TeamMatchStatus({
-    required this.team1Score,
-    required this.team2Score,
-    required this.team1Dishes,
-    required this.team2Dishes,
-    required this.team1Social,
-    required this.team2Social,
-    this.team1Adjustment,
-    this.team2Adjustment,
+    required this.team1MatchScore,
+    required this.team2MatchScore,
+    required this.team1SeriesWins,
+    required this.team2SeriesWins,
+    required this.team1LifetimeWins,
+    required this.team1LifetimeLosses,
+    required this.team2LifetimeWins,
+    required this.team2LifetimeLosses,
+    required this.isPointsMode,
+    required this.targetScore,
     required this.winningTeam,
   });
 
@@ -4635,62 +4654,45 @@ class _TeamMatchStatus extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final isWide = constraints.maxWidth > 350;
+        final isMobile = constraints.maxWidth < 400;
 
-        if (isWide) {
-          return Row(
+        final team1Card = _buildTeamCard(
+          context,
+          "${context.read<GameController>().playerName} Team",
+          team1MatchScore,
+          team1SeriesWins,
+          team1LifetimeWins,
+          team1LifetimeLosses,
+          winningTeam == 0,
+          const Color(0xFF2BEE4B),
+        );
+
+        final team2Card = _buildTeamCard(
+          context,
+          "AI Team",
+          team2MatchScore,
+          team2SeriesWins,
+          team2LifetimeWins,
+          team2LifetimeLosses,
+          winningTeam == 1,
+          Colors.orangeAccent,
+        );
+
+        if (isMobile) {
+          return Column(
             children: [
-              Expanded(
-                child: _buildTeamCard(
-                  context,
-                  "Team ${context.read<GameController>().getPlayerName(0)}",
-                  team1Score,
-                  team1Dishes,
-                  team1Social,
-                  team1Adjustment,
-                  winningTeam == 0,
-                  const Color(0xFF2BEE4B),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _buildTeamCard(
-                  context,
-                  "TeamAI",
-                  team2Score,
-                  team2Dishes,
-                  team2Social,
-                  team2Adjustment,
-                  winningTeam == 1,
-                  Colors.orangeAccent,
-                ),
-              ),
+              team1Card,
+              const SizedBox(height: 12),
+              team2Card,
             ],
           );
         } else {
-          return Column(
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildTeamCard(
-                context,
-                "Team ${context.read<GameController>().getPlayerName(0)}",
-                team1Score,
-                team1Dishes,
-                team1Social,
-                team1Adjustment,
-                winningTeam == 0,
-                const Color(0xFF2BEE4B),
-              ),
-              const SizedBox(height: 8),
-              _buildTeamCard(
-                context,
-                "TeamAI",
-                team2Score,
-                team2Dishes,
-                team2Social,
-                team2Adjustment,
-                winningTeam == 1,
-                Colors.orangeAccent,
-              ),
+              Expanded(child: team1Card),
+              const SizedBox(width: 12),
+              Expanded(child: team2Card),
             ],
           );
         }
@@ -4702,115 +4704,115 @@ class _TeamMatchStatus extends StatelessWidget {
     BuildContext context,
     String name,
     int score,
-    int dishes,
-    int social,
-    int? adjustment,
+    int seriesWins,
+    int lifetimeWins,
+    int lifetimeLosses,
     bool isWinner,
     Color color,
   ) {
+    final progress = isPointsMode ? (score / targetScore).clamp(0.0, 1.0) : null;
+
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isWinner ? color.withOpacity(0.12) : Colors.black26,
-        borderRadius: BorderRadius.circular(16),
+        color: isWinner ? color.withOpacity(0.08) : Colors.black26,
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(
           color: isWinner ? color : Colors.white10,
           width: isWinner ? 2 : 1,
         ),
-        boxShadow: isWinner
-            ? [
-                BoxShadow(
-                  color: color.withOpacity(0.2),
-                  blurRadius: 10,
-                  spreadRadius: 1,
-                )
-              ]
-            : null,
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              if (isWinner) ...[
-                const Text('🏆', style: TextStyle(fontSize: 16)),
-                const SizedBox(width: 6),
-              ],
               Text(
-                name,
+                name.toUpperCase(),
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: 12,
                   fontWeight: FontWeight.w900,
-                  color: isWinner ? color : Colors.white70,
-                  letterSpacing: 1.1,
+                  color: isWinner ? color : Colors.white54,
+                  letterSpacing: 1.2,
                 ),
               ),
+              const Spacer(),
+              if (isWinner)
+                Icon(Icons.emoji_events, color: color, size: 16),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           Row(
-            mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.baseline,
             textBaseline: TextBaseline.alphabetic,
             children: [
               Text(
                 score.toString(),
                 style: TextStyle(
-                  fontSize: 32,
+                  fontSize: 40,
                   fontWeight: FontWeight.w900,
                   color: isWinner ? color : Colors.white,
+                  height: 1,
                 ),
               ),
-              const SizedBox(width: 4),
-              const Text(
-                'WINS',
+              const SizedBox(width: 8),
+              Text(
+                isPointsMode ? 'POINTS' : 'WINS',
                 style: TextStyle(
                   fontSize: 10,
-                  color: Colors.white38,
-                  fontWeight: FontWeight.bold,
+                  color: isWinner ? color.withOpacity(0.7) : Colors.white30,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
             ],
           ),
-          if (adjustment != null && adjustment != 0)
-            Text(
-              adjustment > 0 ? '+$adjustment pts' : '$adjustment pts',
-              style: TextStyle(
-                fontSize: 10,
-                color: adjustment > 0 ? const Color(0xFF2BEE4B) : Colors.redAccent,
-                fontWeight: FontWeight.bold,
+          if (isPointsMode) ...[
+            const SizedBox(height: 8),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: progress,
+                backgroundColor: Colors.white.withOpacity(0.05),
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  isWinner ? color : color.withOpacity(0.4),
+                ),
+                minHeight: 6,
               ),
             ),
-          const Divider(height: 16, color: Colors.white10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildSmallStat('DISHES', dishes.toString(), '🍽️'),
-              _buildSmallStat('POINTS', social.toString(), '⭐'),
-            ],
+          ],
+          const SizedBox(height: 20),
+          _buildStatRow('SERIES', seriesWins.toString(), color, isWinner),
+          const SizedBox(height: 8),
+          _buildStatRow(
+            'LONG STANDING',
+            '${lifetimeWins}W - ${lifetimeLosses}L',
+            color,
+            isWinner,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildSmallStat(String label, String value, String icon) {
-    return Column(
+  Widget _buildStatRow(String label, String value, Color color, bool isWinner) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(
-          value,
+          label,
           style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
+            fontSize: 9,
+            color: Colors.white30,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.5,
           ),
         ),
         Text(
-          "$icon $label",
-          style: const TextStyle(
-            fontSize: 7,
-            color: Colors.white38,
-            fontWeight: FontWeight.bold,
+          value,
+          style: TextStyle(
+            fontSize: 11,
+            color: isWinner ? Colors.white : Colors.white70,
+            fontWeight: FontWeight.w900,
           ),
         ),
       ],

@@ -209,7 +209,8 @@
       <ul>
         <li><strong>Play Style:</strong> Select either <strong>CUT-THROAT</strong> (1 vs 1 vs 1 vs 1) for a solo challenge, or <strong>PARTNERS</strong> (2 vs 2) to team up with an AI ally against two opponents.</li>
         <li><strong>Game Mode & Target Goals:</strong> Choose your arena. You can select a traditional point-based target match (with configurable finish lines of <strong>100, 150, or 200 points</strong>) or dive into the historic Jamaican Six-Love matching rules.</li>
-        <li><strong>AI Difficulty:</strong> Select your opponent's skill level—choose from Rookie, Casual, Pro, or Legend. In Partners mode, your teammate will operate at the same skill level as your opponents.</li>
+        <li><strong>AI Difficulty:</strong> Select your opponent's skill level—choose from Rookie, Casual, Pro, or Legend. Each level utilizes an advanced strategy brain to simulate realistic gameplay experience.</li>
+        <li><strong>Interactive Info (ⓘ):</strong> Notice the small info icons throughout the menu. Tapping these will display brief, helpful descriptions of rules and strategies to help you master the game.</li>
       </ul>
 
       <h3>2. The Match HUD (Heads-Up Display)</h3>
@@ -217,6 +218,8 @@
       <ul>
         <li><strong>Scores & Standings:</strong> View current round points and aggregate match wins. In <strong>Partners</strong> mode, your score is combined with your teammate's score for a shared total.</li>
         <li><strong>The Champion Crown (👑):</strong> Pay close attention to the leaderboards. The all-time match leader will wear the digital crown directly beside their name on the HUD.</li>
+        <li><strong>Match Info Pills:</strong> Look for the dynamic labels like <strong>TRGT=150</strong> or <strong>STRK=6</strong> at the top center. These keep you updated on the current match goal and scoring mode at a glance.</li>
+        <li><strong>Indicator Pip:</strong> A pulsing green dot (the "Pip") appears next to the player whose turn it is. It syncs with AI thinking animations to show you exactly who is currently in control of the board.</li>
         <li><strong>Hand & Score Counters (#/#):</strong> Just beneath each player's name, you will see a pair of numbers separated by a slash. The <strong>first number</strong> represents the total number of dominoes currently in that player's hand. The <strong>second number</strong> indicates that player's (or team's) accumulated score in the current match.</li>
       </ul>
 
@@ -234,6 +237,19 @@
 
       <h3>"Six-Love" Mode</h3>
       <p>The authentic Jamaican gauntlet. Points don't matter across rounds; only pure round victories counts. The first player (or team) to secure <strong>6 separate round wins</strong> instantly wins the championship.</p>
+
+      <div class="highlight-box">
+        <p><strong>Running Champion System:</strong><br>
+        Six-Love matches track long-term prestige using a performance-based point system.
+        <br><br>
+        • <strong>+10 Points (Dish Out):</strong> Awarded for winning a round.
+        <br>
+        • <strong>+2 Points (Escapee):</strong> Awarded for avoiding a "six-love" shutout.
+        <br>
+        • <strong>-5 Points (Inmate):</strong> Deducted when you are "dished" (shutout).
+        <br><br>
+        The player with the highest cumulative points across sessions wears the <strong>Permanent Crown 👑</strong>.</p>
+      </div>
       
       <div class="highlight-box">
         <p><strong>What is a "Game Bruk"?</strong><br>In Six-Love mode, if the competition is so fierce that <strong>EVERY side managed to win at least one round</strong>, a "Game Bruk" triggers.
@@ -246,7 +262,31 @@
       </div>
     </section>
 
-    <!-- Section 3: End of Match -->
+    <!-- Section 3: The Review Board -->
+    <section>
+      <h2><span class="icon-badge">🔍</span> The Review Board</h2>
+      <p>Ever wonder what the AI was holding? The Review Board is your tool for strategic mastery.</p>
+      
+      <h3>1. Post-Round Revelation</h3>
+      <p>Immediately after a round ends, the game transitions into "Review Mode." The board stays active, but every player's hidden hand is revealed face-up.</p>
+      
+      <h3>2. Detailed Observation</h3>
+      <p>You have a 15-second window to inspect the final state of the board. You can see exactly which tiles were left in your opponents' hands and analyze why they made their final moves. This is the best way to learn how to predict opponent behavior in future rounds.</p>
+      
+      <div class="highlight-box">
+        <p><strong>Ready to continue?</strong><br>
+        If you've seen enough, you can tap the <strong>Round Summary</strong> banner at any time to skip the timer and jump straight to the scoring screen.</p>
+      </div>
+
+      <h3>3. Rewind & Correct (Legend Difficulty Only)</h3>
+      <p>Mastering dominoes requires learning from your mistakes. Exclusively in **Legend** difficulty, you can use the Rewind system:</p>
+      <ul>
+        <li><strong>The History Button:</strong> Tap the "History" (rewind) icon in the top HUD to step the game back by one turn. You can do this repeatedly (up to 40 turns) to explore "what if" scenarios.</li>
+        <li><strong>Experimental Strategy:</strong> Use Rewind to test different plays on the same board and see how the AI reacts. This is the ultimate tool for strategic growth.</li>
+      </ul>
+    </section>
+
+    <!-- Section 4: End of Match -->
     <section>
       <h2><span class="icon-badge">🏆</span> End of Match Reporting</h2>
       <p>When the dust settles and a champion is crowned, the application instantly transitions to the post-match debrief.</p>
@@ -255,6 +295,7 @@
       <p>A cinematic Game Over screen will overlay the board. It features:</p>
       <ul>
         <li><strong>The Champion Reveal:</strong> The victor is highlighted, displaying their legendary crown (👑) status if applicable.</li>
+        <li><strong>Trophy Room (Partners Mode):</strong> A specialized team-centric layout that highlights the combined efforts of TeamHendy vs TeamAI, showing aggregate "Dishes" and social points.</li>
         <li><strong>Lifetime Metrics & Win Distribution:</strong> A complete breakdown of all historical match results, helping you track your long-term success against the AI.</li>
       </ul>
 
@@ -276,13 +317,16 @@
       <p>You have total control over the flow of your session. At the bottom of the reporting modal, choose your path:</p>
       <ul>
         <li><strong>PLAY AGAIN:</strong> Bypasses the setup menu entirely. Instantly drops you into a fresh round retaining your exact difficulty and mode settings. Ideal for non-stop action.</li>
+        <li><strong>QUICK REWIND:</strong> (Legend Only) Immediately jumps the board back 3 turns. Perfect if you realize you made a fatal error only after the round concluded.</li>
         <li><strong>CHANGE RULES:</strong> Returns you to the main Match Setup menu if you want to dial up the AI difficulty or switch scoring formats.</li>
       </ul>
     </section>
   </main>
 
   <footer>
-    <p>&copy; HendyDominoes. Hosted securely on Cloudflare Pages.</p>
+    <p><strong>Pro Tip:</strong> If you lose audio, look for the "RESUME TO PLAY" button. Modern browsers require a single tap to enable high-fidelity game sounds!</p>
+    <br>
+    <p>&copy; HendyDominoes. High-performance engine hosted on Cloudflare Pages.</p>
   </footer>
 
 </body>

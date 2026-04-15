@@ -14,6 +14,7 @@
 - **New Project Deployment**: Successfully deployed to a brand new Cloudflare Pages project: `hendy-dominoes`.
 - **Branding Update**: Formally renamed the application to **"HendyDominoes"** across all mobile/web configuration files.
 - **Bruk Protocol Validation**: Verified that both teams reset to 0-0 cleanly using a dedicated reproduction test.
+- **Partners Mode Scoring Fix**: Resolved a bug where Traditional matches (e.g., Target 100) failed to end when a team collectively reached the target score. Updated `isMatchOver` to correctly aggregate team points.
 
 - **Partner Bruk Verification**: Added a dedicated test case to `test/scoring_test.dart` for the Six-Love Partner mode "Bruk" reset. Verified that when a trailing team wins, both teams reset to 0-0 without any points being awarded to the winner.
 
@@ -29,6 +30,8 @@
 - [x] **Production Maintenance**: Resolved WASM production build linting issues and redeployed. HUD now features perfect vertical centering and professional equal spacing across all device widths.
 - [x] **UI: Dynamic Player Name Propagation**: Successfully eliminated hardcoded player names across the entire app. Custom names now propagate correctly to the Game HUD, Review Board, background watermark ("HELP <NAME> WIN"), Partners team labels, and Champion Standings.
 - [x] **HUD Syntax Fix**: Removed redundant Column wrapper from the unified Status Pill to ensure a strict single-row layout and prevent previous status updates from resurfacing.
+- [x] **Fix: Partners Mode Match End**: Corrected `MatchModel.isMatchOver` to use `matchWinner` for all scoring modes, ensuring team-based targets are respected in Partners mode.
+- [x] **Global Rewind Feature**: Removed the 'Legend' difficulty restriction from the rewind system. Users can now access the 40-turn move buffer across all difficulties (Rookie, Casual, Professional, Legend), and history is preserved when changing difficulties mid-game.
 
 
 
