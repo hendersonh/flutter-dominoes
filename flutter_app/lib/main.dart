@@ -734,9 +734,7 @@ class GameController extends ChangeNotifier {
       _bottomOverlayMessage = null;
       _knockingPlayerIndex =
           null; // Clear knock state on every valid state check
-      _statusMessage = game!.currentPlayer == 0
-          ? "${playerNames[0]}'s Turn"
-          : "${playerNames[game!.currentPlayer]} Thinking...";
+      _statusMessage = null; // Removed turn info to keep pill clean
       if (game!.currentPlayer == 0) {
         _handlePlayerAutoTurn();
       }
@@ -795,7 +793,7 @@ class GameController extends ChangeNotifier {
     final int knockDelayMs = 400;
 
     _isAiThinking = true;
-    _statusMessage = "${playerNames[cp]} Thinking...";
+    _statusMessage = null; // Removed "Thinking..." to keep pill compact
     notifyListeners();
 
     // Natural delay before starting to "think"
@@ -1907,8 +1905,8 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                              
                                              return Container(
                                                padding: const EdgeInsets.symmetric(
-                                                 horizontal: 16,
-                                                 vertical: 8,
+                                                 horizontal: 14,
+                                                 vertical: 6,
                                                ),
                                                decoration: BoxDecoration(
                                                  color: Colors.black.withOpacity(0.5),
@@ -1923,23 +1921,23 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                                      children: [
                                                        Text(
                                                          controller.match.playStyle == PlayStyle.partners ? 'PARTNERS' : 'SOLO',
-                                                         style: const TextStyle(color: Colors.white70, fontSize: 9, fontWeight: FontWeight.bold),
+                                                         style: const TextStyle(color: Colors.white70, fontSize: 11.5, fontWeight: FontWeight.w900),
                                                        ),
                                                        const SizedBox(width: 6),
-                                                       Container(width: 1, height: 8, color: Colors.white24),
+                                                       Container(width: 1, height: 10, color: Colors.white24),
                                                        const SizedBox(width: 6),
                                                        Text(
                                                          controller.scoringMode == ScoringMode.sixLove ? '6-0' : 'Target: ${controller.match.targetScore}',
-                                                         style: const TextStyle(color: Colors.white70, fontSize: 9, fontWeight: FontWeight.bold),
+                                                         style: const TextStyle(color: Colors.white70, fontSize: 11.5, fontWeight: FontWeight.w900),
                                                        ),
                                                        const SizedBox(width: 6),
-                                                       Container(width: 1, height: 8, color: Colors.white24),
+                                                       Container(width: 1, height: 10, color: Colors.white24),
                                                        const SizedBox(width: 6),
                                                        Text(
                                                          isNarrow && controller.currentDifficulty == DifficultyLevel.professional 
                                                            ? 'PRO' 
                                                            : controller.currentDifficulty.name.toUpperCase(),
-                                                         style: const TextStyle(color: Color(0xFF2BEE4B), fontSize: 9, fontWeight: FontWeight.w900),
+                                                         style: const TextStyle(color: Color(0xFF2BEE4B), fontSize: 11.5, fontWeight: FontWeight.w900),
                                                        ),
                                                      ],
                                                    ),
