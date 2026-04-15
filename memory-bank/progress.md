@@ -1,3 +1,4 @@
+- [x] **UI: Dynamic Player Name Propagation**: Successfully eliminated hardcoded player names across the entire app. Custom names now propagate correctly to the Game HUD, Review Board, background watermark ("HELP <NAME> WIN"), Partners team labels, and Champion Standings.
 - [x] **Brand Migration**: Formally renamed the app to **"HendyDominoes"** across all config files and user guides.
 - [x] **New Deployment**: Successfully launched the application on a new Cloudflare Pages project: [https://hendy-dominoes.pages.dev](https://hendy-dominoes.pages.dev).
 - [x] **A/B Test: AI Perspective Fix**: Validated the "Jailer" coordination logic (+40% resets, +29% duration) using a 200-match simulation.

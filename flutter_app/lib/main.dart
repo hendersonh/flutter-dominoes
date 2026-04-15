@@ -61,6 +61,7 @@ class DominoesApp extends StatelessWidget {
 
 class GameController extends ChangeNotifier {
   late MatchModel _match;
+  String _playerName = 'Hendy';
   bool _isAiThinking = false;
   String? _statusMessage;
   String? _topOverlayMessage;
@@ -101,6 +102,9 @@ class GameController extends ChangeNotifier {
   }
 
   MatchModel get match => _match;
+  String get playerName => _playerName;
+  List<String> get dynamicPlayerNames => [_playerName, playerNames[1], playerNames[2], playerNames[3]];
+  String getPlayerName(int index) => index == 0 ? _playerName : playerNames[index];
   GameModel? get game => _match.currentRound;
   bool get isAiThinking => _isAiThinking;
   String? get statusMessage => _statusMessage;
@@ -148,9 +152,21 @@ class GameController extends ChangeNotifier {
 
   static const String _kMatchKey = 'dominoes_match_data';
 
+  Future<void> setPlayerName(String name) async {
+    String cleanName = name.trim();
+    if (cleanName.isEmpty) cleanName = 'Hendy';
+    if (cleanName.length > 11) cleanName = cleanName.substring(0, 11);
+    if (_playerName == cleanName) return;
+    _playerName = cleanName;
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('player_name', _playerName);
+  }
+
   Future<void> _loadLifetimeStats() async {
     try {
       final prefs = await SharedPreferences.getInstance();
+      _playerName = prefs.getString('player_name') ?? 'Hendy';
       final winsJson = prefs.getString('lifetime_match_wins_list');
       if (winsJson != null) {
         _lifetimeMatchWins = List<int>.from(jsonDecode(winsJson));
@@ -258,7 +274,7 @@ class GameController extends ChangeNotifier {
         int winnerTeam = _match.matchWinner % 2;
         _statusMessage = "MATCH OVER: TEAM ${winnerTeam + 1} Wins!";
       } else {
-        _statusMessage = "MATCH OVER: ${playerNames[_match.matchWinner]} Wins!";
+        _statusMessage = "MATCH OVER: ${getPlayerName(_match.matchWinner)} Wins!";
       }
       return;
     }
@@ -272,9 +288,9 @@ class GameController extends ChangeNotifier {
           _bottomOverlayMessage = "TEAM ${winnerTeam + 1} Wins Round!";
         } else {
           if (winner == 0) {
-            _bottomOverlayMessage = "${playerNames[0]} Wins Round!";
+            _bottomOverlayMessage = "${getPlayerName(0)} Wins Round!";
           } else if (winner != -1) {
-            _bottomOverlayMessage = "${playerNames[winner]} Wins Round!";
+            _bottomOverlayMessage = "${getPlayerName(winner)} Wins Round!";
           } else {
             _bottomOverlayMessage = "Round Drawn!";
           }
@@ -286,8 +302,8 @@ class GameController extends ChangeNotifier {
     }
 
     _statusMessage = _match.currentRound!.currentPlayer == 0
-        ? "${playerNames[0]}'s Turn"
-        : "${playerNames[_match.currentRound!.currentPlayer]} Thinking...";
+        ? "${getPlayerName(0)}'s Turn"
+        : "${getPlayerName(_match.currentRound!.currentPlayer)} Thinking...";
   }
 
   Future<void> _saveMatch() async {
@@ -633,10 +649,8 @@ class GameController extends ChangeNotifier {
         if (_match.playStyle == PlayStyle.partners) {
           int winnerTeam = _match.matchWinner % 2;
           capturedStatus = "MATCH OVER: TEAM ${winnerTeam + 1} Wins!";
-        } else if (_match.matchWinner == 0) {
-          capturedStatus = "MATCH OVER: ${playerNames[0]} Wins!";
         } else if (_match.matchWinner != -1) {
-          capturedStatus = "MATCH OVER: ${playerNames[_match.matchWinner]} Wins!";
+          capturedStatus = "MATCH OVER: ${getPlayerName(_match.matchWinner)} Wins!";
         } else {
           capturedStatus = "MATCH OVER: Tie!";
         }
@@ -646,7 +660,7 @@ class GameController extends ChangeNotifier {
             int winnerTeam = roundWinner % 2;
             capturedStatus = "TEAM ${winnerTeam + 1} gets +$pointsAdded";
           } else {
-            capturedStatus = "${playerNames[roundWinner]} gets +$pointsAdded";
+            capturedStatus = "${getPlayerName(roundWinner)} gets +$pointsAdded";
           }
         } else {
           capturedStatus = "Round Drawn!";
@@ -1093,7 +1107,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                   Align(
                                     alignment: Alignment.bottomCenter,
                                     child: _EdgeScore(
-                                      name: 'Hendy',
+                                      name: controller.getPlayerName(0),
                                       tiles: game.hands[0].length,
                                       score: controller.match.playStyle == PlayStyle.partners
                                           ? controller.match.scores[0] + controller.match.scores[2]
@@ -1113,7 +1127,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                         40 +
                                         _edYOffset,
                                     child: _EdgeScore(
-                                      name: 'Ed',
+                                      name: controller.getPlayerName(1),
                                       tiles: game.hands[1].length,
                                       score: controller.match.playStyle == PlayStyle.partners
                                           ? controller.match.scores[1] + controller.match.scores[3]
@@ -1130,7 +1144,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                     child: Padding(
                                       padding: const EdgeInsets.only(top: 50.0),
                                       child: _EdgeScore(
-                                        name: 'Paul',
+                                        name: controller.getPlayerName(2),
                                         tiles: game.hands[2].length,
                                         score: controller.match.playStyle == PlayStyle.partners
                                             ? controller.match.scores[0] + controller.match.scores[2]
@@ -1152,7 +1166,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                         40 +
                                         _timYOffset,
                                     child: _EdgeScore(
-                                      name: 'Tim',
+                                      name: controller.getPlayerName(3),
                                       tiles: game.hands[3].length,
                                       score: controller.match.playStyle == PlayStyle.partners
                                           ? controller.match.scores[1] + controller.match.scores[3]
@@ -1177,7 +1191,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                                   ),
                                                 )
                                               : Text(
-                                                  '${playerNames[game.currentPlayer]} is starting...',
+                                                  '${controller.getPlayerName(game.currentPlayer)} is starting...',
                                                 ))
                                         : Stack(
                                             children: [
@@ -1186,7 +1200,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                                 child: Opacity(
                                                   opacity: 0.1,
                                                   child: _CurvedText(
-                                                    text: "HELP HENDY WIN",
+                                                    text: "HELP ${controller.getPlayerName(0).toUpperCase()} WIN",
                                                     style: GoogleFonts.outfit(
                                                       fontSize: 32,
                                                       fontWeight:
@@ -1469,7 +1483,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                                                   Row(
                                                                     children: [
                                                                       Text(
-                                                                        playerNames[pIdx],
+                                                                        controller.getPlayerName(pIdx),
                                                                         style: const TextStyle(
                                                                           color: Colors.white,
                                                                           fontWeight: FontWeight.bold,
@@ -1531,7 +1545,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                                           .lifetimeDishCounts,
                                                       socialPoints: controller
                                                           .lifetimeSocialPoints,
-                                                      playerNames: playerNames,
+                                                      playerNames: controller.dynamicPlayerNames,
                                                     ),
                                                   ],
                                                   if (controller.scoringMode ==
@@ -1659,7 +1673,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                                                             Row(
                                                                               children: [
                                                                                 Text(
-                                                                                  playerNames[index],
+                                                                                  controller.getPlayerName(index),
                                                                                   style: TextStyle(
                                                                                     color: isChamp
                                                                                         ? const Color(
@@ -3057,10 +3071,10 @@ class _EdgeScoreState extends State<_EdgeScore> with TickerProviderStateMixin {
                 ),
                 if ((context.watch<GameController>().scoringMode == ScoringMode.sixLove &&
                         context.watch<GameController>().sixLoveChampionIndex ==
-                            playerNames.indexOf(widget.name)) ||
+                            context.watch<GameController>().dynamicPlayerNames.indexOf(widget.name)) ||
                     (context.watch<GameController>().scoringMode == ScoringMode.traditional &&
                         context.watch<GameController>().lifetimeLeaderIndex ==
-                            playerNames.indexOf(widget.name)))
+                            context.watch<GameController>().dynamicPlayerNames.indexOf(widget.name)))
                   Padding(
                     padding: const EdgeInsets.only(left: 4.0),
                     child: Tooltip(
@@ -3376,10 +3390,12 @@ class _MatchSetupView extends StatefulWidget {
 
 class _MatchSetupViewState extends State<_MatchSetupView> {
   bool _isInteractable = false;
+  late TextEditingController _nameController;
 
   @override
   void initState() {
     super.initState();
+    _nameController = TextEditingController(text: widget.controller.playerName);
     // Safety delay to prevent "tap-through" from previous screen buttons
     Future.delayed(const Duration(milliseconds: 500), () {
       if (mounted) {
@@ -3388,6 +3404,33 @@ class _MatchSetupViewState extends State<_MatchSetupView> {
         });
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    super.dispose();
+  }
+
+  void _showInfo(String title, String content) {
+    showDialog(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: Text(title, style: const TextStyle(color: Color(0xFF2BEE4B))),
+        backgroundColor: const Color(0xFF1A1A1A),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+            child: Text(content, style: const TextStyle(color: Colors.white70)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK', style: TextStyle(color: Color(0xFF2BEE4B))),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -3403,7 +3446,7 @@ class _MatchSetupViewState extends State<_MatchSetupView> {
           horizontal: isNarrow ? 8 : 24,
           vertical: 16,
         ),
-        padding: EdgeInsets.all(isNarrow ? 10 : 16),
+        padding: EdgeInsets.all(isNarrow ? 12 : 16),
         decoration: BoxDecoration(
           color: Colors.black.withOpacity(0.6),
           borderRadius: BorderRadius.circular(24),
@@ -3420,27 +3463,88 @@ class _MatchSetupViewState extends State<_MatchSetupView> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
-                Icons.local_fire_department,
-                size: 32,
-                color: Colors.orangeAccent,
-              ),
-              const SizedBox(height: 8),
-              const Text(
+              if (!isNarrow) ...[
+                const Icon(
+                  Icons.local_fire_department,
+                  size: 32,
+                  color: Colors.orangeAccent,
+                ),
+                const SizedBox(height: 8),
+              ],
+              Text(
                 'Match Setup',
                 style: TextStyle(
-                  fontSize: 20,
+                  fontSize: isNarrow ? 18 : 20,
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
                 ),
               ),
-              const SizedBox(height: 4),
-              const Text(
-                'Select the scoring rules for this match.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 14, color: Colors.white70),
+              if (!isNarrow) ...[
+                const SizedBox(height: 4),
+                const Text(
+                  'Select the scoring rules for this match.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 14, color: Colors.white70),
+                ),
+              ],
+              SizedBox(height: isNarrow ? 8 : 16),
+              Text(
+                'Your Name',
+                style: TextStyle(fontSize: isNarrow ? 12 : 14, color: Colors.white70),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 4),
+              SizedBox(
+                height: isNarrow ? 40 : 48,
+                child: TextField(
+                  controller: _nameController,
+                  onChanged: (val) {
+                    if (_isInteractable) {
+                      widget.controller.setPlayerName(val.trim().isNotEmpty ? val : "Hendy");
+                    }
+                  },
+                  style: TextStyle(color: Colors.white, fontSize: isNarrow ? 13 : 14),
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: Colors.black.withOpacity(0.5),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Colors.white24),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Colors.white24),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFF2BEE4B)),
+                    ),
+                  ),
+                ),
+              ),
+              SizedBox(height: isNarrow ? 8 : 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'Scoring Mode',
+                    style: TextStyle(fontSize: isNarrow ? 12 : 14, color: Colors.white70),
+                  ),
+                  if (isNarrow)
+                    IconButton(
+                      icon: const Icon(Icons.info_outline, size: 16, color: Color(0xFF2BEE4B)),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      onPressed: () => _showInfo(
+                        'Scoring Rules',
+                        widget.controller.scoringMode == ScoringMode.traditional
+                            ? 'Win by accumulating ${widget.controller.match.targetScore} points from opponent hands.'
+                            : 'First to 6 points wins. All scores reset (Game Bruk) if EVERY player wins at least 1 round.',
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 4),
               SegmentedButton<ScoringMode>(
                 showSelectedIcon: false,
                 segments: [
@@ -3488,12 +3592,12 @@ class _MatchSetupViewState extends State<_MatchSetupView> {
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
-              const Text(
+              SizedBox(height: isNarrow ? 8 : 16),
+              Text(
                 'Play Style',
-                style: TextStyle(fontSize: 14, color: Colors.white70),
+                style: TextStyle(fontSize: isNarrow ? 12 : 14, color: Colors.white70),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 4),
               SegmentedButton<PlayStyle>(
                 showSelectedIcon: false,
                 segments: [
@@ -3536,12 +3640,12 @@ class _MatchSetupViewState extends State<_MatchSetupView> {
                 ),
               ),
               if (widget.controller.scoringMode == ScoringMode.traditional) ...[
-                const SizedBox(height: 16),
-                const Text(
+                SizedBox(height: isNarrow ? 8 : 16),
+                Text(
                   'Target Points',
-                  style: TextStyle(fontSize: 14, color: Colors.white70),
+                  style: TextStyle(fontSize: isNarrow ? 12 : 14, color: Colors.white70),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 4),
                 SegmentedButton<int>(
                   showSelectedIcon: false,
                   segments: [
@@ -3583,12 +3687,41 @@ class _MatchSetupViewState extends State<_MatchSetupView> {
                   ),
                 ),
               ],
-              const SizedBox(height: 16),
-              const Text(
-                'AI Difficulty',
-                style: TextStyle(fontSize: 14, color: Colors.white70),
+              SizedBox(height: isNarrow ? 8 : 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'AI Difficulty',
+                    style: TextStyle(fontSize: isNarrow ? 12 : 14, color: Colors.white70),
+                  ),
+                  if (isNarrow)
+                    IconButton(
+                      icon: const Icon(Icons.info_outline, size: 16, color: Color(0xFF2BEE4B)),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      onPressed: () {
+                        final String desc;
+                        switch (widget.controller.currentDifficulty) {
+                          case DifficultyLevel.rookie:
+                            desc = 'Learning the ropes. Focuses on playing high-value tiles.';
+                            break;
+                          case DifficultyLevel.casual:
+                            desc = 'Standard strategy with awareness of basic board states.';
+                            break;
+                          case DifficultyLevel.professional:
+                            desc = 'Skilled strategy with opportunistic plays and strong defense.';
+                            break;
+                          case DifficultyLevel.legend:
+                            desc = 'Master strategy. Remembers played tiles and counts opponent pips.';
+                            break;
+                        }
+                        _showInfo('AI Strategy', desc);
+                      },
+                    ),
+                ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 4),
               SegmentedButton<DifficultyLevel>(
                 showSelectedIcon: false,
                 segments: [
@@ -3649,16 +3782,8 @@ class _MatchSetupViewState extends State<_MatchSetupView> {
                 ),
               ),
               const SizedBox(height: 16),
-              if (isNarrow) ...[
-                _ModeDescription(
-                  mode: widget.controller.scoringMode,
-                  targetScore: widget.controller.match.targetScore,
-                ),
-                const SizedBox(height: 8),
-                _DifficultyDescription(
-                  level: widget.controller.currentDifficulty,
-                ),
-              ] else
+              if (!isNarrow) ...[
+                const SizedBox(height: 16),
                 Row(
                   children: [
                     Expanded(
@@ -3675,10 +3800,11 @@ class _MatchSetupViewState extends State<_MatchSetupView> {
                     ),
                   ],
                 ),
-              const SizedBox(height: 16),
+              ],
+              SizedBox(height: isNarrow ? 10 : 16),
               SizedBox(
                 width: double.infinity,
-                height: 48,
+                height: isNarrow ? 44 : 48,
                 child: ElevatedButton(
                   onPressed: _isInteractable
                       ? widget.controller.startMatch
@@ -3693,10 +3819,10 @@ class _MatchSetupViewState extends State<_MatchSetupView> {
                     ),
                     elevation: 8,
                   ),
-                  child: const Text(
+                  child: Text(
                     'START MATCH',
                     style: TextStyle(
-                      fontSize: 18,
+                      fontSize: isNarrow ? 16 : 18,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 1.2,
                     ),
@@ -3809,7 +3935,7 @@ class ReviewBoardOverlay extends StatelessWidget {
                     flex: 8,
                     child: Center(
                       child: _MiniHand(
-                        name: playerNames[2],
+                        name: controller.getPlayerName(2),
                         tiles: game.hands[2],
                         position: 'North',
                         teamName: controller.match.playStyle == PlayStyle.partners ? 'TEAM 1' : null,
@@ -3826,7 +3952,7 @@ class ReviewBoardOverlay extends StatelessWidget {
                       child: Row(
                         children: [
                           _MiniHand(
-                            name: playerNames[1],
+                            name: controller.getPlayerName(1),
                             tiles: game.hands[1],
                             position: 'West',
                             teamName: controller.match.playStyle == PlayStyle.partners ? 'TEAM 2' : null,
@@ -3852,7 +3978,7 @@ class ReviewBoardOverlay extends StatelessWidget {
                             ),
                           ),
                           _MiniHand(
-                            name: playerNames[3],
+                            name: controller.getPlayerName(3),
                             tiles: game.hands[3],
                             position: 'East',
                             teamName: controller.match.playStyle == PlayStyle.partners ? 'TEAM 2' : null,
@@ -4047,11 +4173,11 @@ class _MiniHand extends StatelessWidget {
               if ((context.watch<GameController>().scoringMode ==
                           ScoringMode.sixLove &&
                       context.watch<GameController>().sixLoveChampionIndex ==
-                          playerNames.indexOf(name)) ||
+                          context.watch<GameController>().dynamicPlayerNames.indexOf(name)) ||
                   (context.watch<GameController>().scoringMode ==
                           ScoringMode.traditional &&
                       context.watch<GameController>().lifetimeLeaderIndex ==
-                          playerNames.indexOf(name)))
+                          context.watch<GameController>().dynamicPlayerNames.indexOf(name)))
                 const Padding(
                   padding: EdgeInsets.only(left: 4.0),
                   child: Text('👑', style: TextStyle(fontSize: 14)),
@@ -4517,7 +4643,7 @@ class _TeamMatchStatus extends StatelessWidget {
               Expanded(
                 child: _buildTeamCard(
                   context,
-                  "TeamHendy",
+                  "Team ${context.read<GameController>().getPlayerName(0)}",
                   team1Score,
                   team1Dishes,
                   team1Social,
@@ -4546,7 +4672,7 @@ class _TeamMatchStatus extends StatelessWidget {
             children: [
               _buildTeamCard(
                 context,
-                "TeamHendy",
+                "Team ${context.read<GameController>().getPlayerName(0)}",
                 team1Score,
                 team1Dishes,
                 team1Social,
