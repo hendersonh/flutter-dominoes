@@ -27,6 +27,7 @@
 - [x] **Fix: Human-Centered Rewind Logic**: Refactored the snapshot system to focus exclusively on "Human Decision Points". Every rewind lands exactly on a playable human turn.
 - [x] **Phase 7: Unified Board HUD**: Consolidated all dispersed UI overlays (Settings, Match Info, Status Message, Rewind, Help) into a single cohesive row. Created a glassmorphism "Status Indicator Pill" for match context and live game status.
 - [x] **Production Maintenance**: Resolved WASM production build linting issues and redeployed. HUD now features perfect vertical centering and professional equal spacing across all device widths.
+- [x] **HUD Syntax Fix**: Removed redundant Column wrapper from the unified Status Pill to ensure a strict single-row layout and prevent previous status updates from resurfacing.
 
 
 

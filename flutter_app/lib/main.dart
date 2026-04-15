@@ -1913,46 +1913,29 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                                  borderRadius: BorderRadius.circular(20),
                                                  border: Border.all(color: Colors.white12, width: 0.5),
                                                ),
-                                               child: Column(
+                                               child: Row(
                                                  mainAxisSize: MainAxisSize.min,
                                                  children: [
-                                                   Row(
-                                                     mainAxisSize: MainAxisSize.min,
-                                                     children: [
-                                                       Text(
-                                                         controller.match.playStyle == PlayStyle.partners ? 'PARTNERS' : 'SOLO',
-                                                         style: const TextStyle(color: Colors.white70, fontSize: 11.5, fontWeight: FontWeight.w900),
-                                                       ),
-                                                       const SizedBox(width: 6),
-                                                       Container(width: 1, height: 10, color: Colors.white24),
-                                                       const SizedBox(width: 6),
-                                                       Text(
-                                                         controller.scoringMode == ScoringMode.sixLove ? '6-0' : 'Target: ${controller.match.targetScore}',
-                                                         style: const TextStyle(color: Colors.white70, fontSize: 11.5, fontWeight: FontWeight.w900),
-                                                       ),
-                                                       const SizedBox(width: 6),
-                                                       Container(width: 1, height: 10, color: Colors.white24),
-                                                       const SizedBox(width: 6),
-                                                       Text(
-                                                         isNarrow && controller.currentDifficulty == DifficultyLevel.professional 
-                                                           ? 'PRO' 
-                                                           : controller.currentDifficulty.name.toUpperCase(),
-                                                         style: const TextStyle(color: Color(0xFF2BEE4B), fontSize: 11.5, fontWeight: FontWeight.w900),
-                                                       ),
-                                                     ],
+                                                   Text(
+                                                     controller.match.playStyle == PlayStyle.partners ? 'PARTNERS' : 'SOLO',
+                                                     style: const TextStyle(color: Colors.white70, fontSize: 11.5, fontWeight: FontWeight.w900),
                                                    ),
-                                                   if (hasStatus) ...[
-                                                     const SizedBox(height: 2),
-                                                     Text(
-                                                       controller.statusMessage!.toUpperCase(),
-                                                       style: const TextStyle(
-                                                         color: Colors.white,
-                                                         fontSize: 11,
-                                                         fontWeight: FontWeight.w900,
-                                                         letterSpacing: 0.5,
-                                                       ),
-                                                     ),
-                                                   ],
+                                                   const SizedBox(width: 6),
+                                                   Container(width: 1, height: 10, color: Colors.white24),
+                                                   const SizedBox(width: 6),
+                                                   Text(
+                                                     controller.scoringMode == ScoringMode.sixLove ? '6-0' : 'Target: ${controller.match.targetScore}',
+                                                     style: const TextStyle(color: Colors.white70, fontSize: 11.5, fontWeight: FontWeight.w900),
+                                                   ),
+                                                   const SizedBox(width: 6),
+                                                   Container(width: 1, height: 10, color: Colors.white24),
+                                                   const SizedBox(width: 6),
+                                                   Text(
+                                                     isNarrow && controller.currentDifficulty == DifficultyLevel.professional 
+                                                       ? 'PRO' 
+                                                       : controller.currentDifficulty.name.toUpperCase(),
+                                                     style: const TextStyle(color: Color(0xFF2BEE4B), fontSize: 11.5, fontWeight: FontWeight.w900),
+                                                   ),
                                                  ],
                                                ),
                                              );

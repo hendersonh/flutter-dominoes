@@ -109,3 +109,4 @@
 - [x] **UI: Unified Board HUD**: Consolidated dispersed `Positioned` overlays (Settings, Match Info, Status, Rewind, Help) into a single, cohesive HUD row.
 - [x] **Aesthetic: Premium Status Pill**: Implemented a glassmorphism "Smart Indicator" pill that combines match context and live game status with perfect vertical centering.
 - [x] **Layout: Zero-Footprint Design**: Ensured the HUD remains a transparent overlay that takes no space away from the green board, maintaining equal professional spacing across all devices.
+- [x] **UI Polish**: Removed redundant Column wrapper from the unified Status indicator to ensure a strict single-row layout and prevent old status lines from reappearing.
