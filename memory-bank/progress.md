@@ -110,3 +110,4 @@
 - [x] **UI Polish**: Removed redundant Column wrapper from the unified Status indicator to ensure a strict single-row layout and prevent old status lines from reappearing.
 - [x] **Fix: Partners Mode Match End**: Corrected `MatchModel.isMatchOver` to use the `matchWinner` getter.
 - [x] **Global Rewind Feature**: Decoupled the Rewind/Undo system from the 'Legend' difficulty level. All players now have access to the move history buffer across all skill levels. History is now persistent across difficulty switches.
+- [x] **Build & Deploy**: Successfully generated build version `1776265498842` and deployed the Global Rewind updates to the `test` branch.
