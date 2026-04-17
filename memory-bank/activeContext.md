@@ -1,45 +1,18 @@
 # Active Context
 
-> [!CAUTION] 
-> **COMMAND SAFETY GUARDRAIL**
-> - **NEVER** use the `grep` shell command. It is prone to failure on this Windows/PowerShell system.
-> - **ALWAYS** use the **`grep_search`** tool for text-based searches.
-> - **ALWAYS** use **`resolve_workspace_symbol`** for finding Dart/Flutter code definitions.
-> - This is a mandatory project-wide constraint.
+## Current Objective
+Ensure the production environment (https://hendy-dominoes.pages.dev) is updated correctly so the "refresh banner" (Update Notice) appears for users.
 
+## Recent Changes
+- **Deployment Rectification**: Discovered that previous deployments from the `feature/partners` branch were creating preview deployments instead of updating the production environment.
+- **Production Build**: Regenerated `version.json` (1776433489841) and rebuilt the WASM binary.
+- **Production Deploy**: Executed `npx wrangler pages deploy build/web --branch main` to specifically target the production environment.
+- **Verification**: Confirmed via URL check that `https://hendy-dominoes.pages.dev/version.json` now returns the latest version ID.
 
-- **Key Bone Scoring Logic**: Implemented strict Jamaican tournament regulations. Bonus points are now only awarded when winning with a non-double tile that "keys" both board ends (both must be exhaustive/Hard Ends with 8 pips each).
-- **Match Over Modal Redesign**: Transitioned to a team-based "Trophy Room" layout for Partners mode.
-- **Scoring Engine Fix**: Resolved a "Game Bruk" bug in Partner Six-Love mode where points were incorrectly awarded to the winner after a score reset.
-- **New Project Deployment**: Successfully deployed to a brand new Cloudflare Pages project: `hendy-dominoes`.
-- **Branding Update**: Formally renamed the application to **"HendyDominoes"** across all mobile/web configuration files.
-- **Bruk Protocol Validation**: Verified that both teams reset to 0-0 cleanly using a dedicated reproduction test.
-- **Partners Mode Scoring Fix**: Resolved a bug where Traditional matches (e.g., Target 100) failed to end when a team collectively reached the target score. Updated `isMatchOver` to correctly aggregate team points.
+## Next Steps
+- [ ] Confirm with the user that the refresh banner is now appearing on their mobile device.
+- [ ] Monitor the application for any other reported mobile UI/UX issues.
 
-- **Partner Bruk Verification**: Added a dedicated test case to `test/scoring_test.dart` for the Six-Love Partner mode "Bruk" reset. Verified that when a trailing team wins, both teams reset to 0-0 without any points being awarded to the winner.
-
-## Current Focus
-- [x] **Phase 1: ZSP Inversion Fix**: Completed and verified.
-- [x] **Phase 2: MCTS Determinization Sync**: Completed. Implemented tree-pruning, AISyncMove, and 'Legend' match heuristics.
-- [x] **Phase 3: AI Engine Fixes (Vibe Audit)**: Refactored MCTS backpropagation to use the `owner's perspective`. Verified through A/B testing (+40% increase in 'Game Bruk' resets).
-- [x] **Phase 4: Six-Love A/B Test Validation**: 200-match study confirmed the "Jailer" coordination logic transformed the AI into a competitive defensive specialist. Match duration increased by 29%.
-- [x] **Phase 5: Brand Migration**: Migrated deployment to `hendy-dominoes` and updated app labels to **HendyDominoes**.
-- [x] **Phase 6: Legend Training (Rewind)**: Implemented a smart 10-turn rewind for Legend difficulty.
-- [x] **Fix: Human-Centered Rewind Logic**: Refactored the snapshot system to focus exclusively on "Human Decision Points". Every rewind lands exactly on a playable human turn.
-- [x] **Phase 7: Unified Board HUD**: Consolidated all dispersed UI overlays (Settings, Match Info, Status Message, Rewind, Help) into a single cohesive row. Created a glassmorphism "Status Indicator Pill" for match context and live game status.
-- [x] **Production Maintenance**: Resolved WASM production build linting issues and redeployed. HUD now features perfect vertical centering and professional equal spacing across all device widths.
-- [x] **UI: Dynamic Player Name Propagation**: Successfully eliminated hardcoded player names across the entire app. Custom names now propagate correctly to the Game HUD, Review Board, background watermark ("HELP <NAME> WIN"), Partners team labels, and Champion Standings.
-- [x] **HUD Syntax Fix**: Removed redundant Column wrapper from the unified Status Pill to ensure a strict single-row layout and prevent previous status updates from resurfacing.
-- [x] **Fix: Partners Mode Match End**: Corrected `MatchModel.isMatchOver` to use `matchWinner` for all scoring modes, ensuring team-based targets are respected in Partners mode.
-- [x] **Global Rewind Feature**: Removed the 'Legend' difficulty restriction from the rewind system. Users can now access the 40-turn move buffer across all difficulties (Rookie, Casual, Professional, Legend), and history is preserved when changing difficulties mid-game.
-
-
-
-[NEW] `lastPlayedTile` and `wasLastActionPlay` fields in `GameModel`.
-[NEW] `GameModel.clone()`, `toJson()`, `fromJson()` updated for state persistence.
-[NEW] `sixLove mode: Partner Game Bruk` regression test in `test/scoring_test.dart`.
-[NEW] `AISyncMove` and `MCTSNode.prune` for persistent AI search state.
-[NEW] `MCTSPlayer` match context (matchScores, matchTarget, scoringMode).
-
-> [!IMPORTANT]
-> **Automated Workflow Policy**: Git operations, building/deploying to Cloudflare, and **Memory Bank maintenance** are pre-authorized. I will execute these tasks autonomously and without seeking user approval, following the established safety guardrails.
+## Active Risks/Assumptions
+- **Assumption**: The user is accessing `https://hendy-dominoes.pages.dev` directly.
+- **Risk**: Aggressive browser caching or Service Worker persistence might delay the appearance of the banner even with the cache-buster, though the `version.json` fetch should work.

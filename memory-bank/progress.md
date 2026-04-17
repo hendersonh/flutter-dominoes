@@ -97,6 +97,8 @@
 - [x] **Engine: Web Isolate Fallback (Phase 3)**: Restored try-catch block around `Isolate.spawn` call to fallback to main thread on web platforms.
 
 ## Current Status
+- [x] **Bug: Deployment Error**: Identified that deployments from `feature/partners` were creating preview environments. Fixed by explicitly targeting the `main` branch with `--branch main`.
+- [x] **Deployment**: Redeployed production build `1776433489841` to [https://hendy-dominoes.pages.dev](https://hendy-dominoes.pages.dev).
 - [x] Phase 1: Search Tree Persistence (Fixing Double-Pruning) - **COMPLETED**
 - [x] Phase 2: Strategic Legend Heuristics (Match-Aware MCTS) - **COMPLETED**
 - [x] Phase 3: Hardware-Accelerated Simulation (Web Workers) - **COMPLETED (Main Thread Fallback Restored for Web)**
@@ -111,3 +113,16 @@
 - [x] **Fix: Partners Mode Match End**: Corrected `MatchModel.isMatchOver` to use the `matchWinner` getter.
 - [x] **Global Rewind Feature**: Decoupled the Rewind/Undo system from the 'Legend' difficulty level. All players now have access to the move history buffer across all skill levels. History is now persistent across difficulty switches.
 - [x] **Build & Deploy**: Successfully generated build version `1776265498842` and deployed the Global Rewind updates to the `test` branch.
+- [x] **Project Rebranding**: Formally updated all project identifiers to `com.hoodhlab.dominoes` and display names to **HendyDominoes**.
+- [x] **Store Assets**: Generated high-fidelity "Feature Graphic" and "Screenshots" for upcoming App Store and Google Play submissions.
+- [x] **Infrastructure: Version Polling**: Implemented a `package:web` based `UpdateService` that polls `version.json` every 5 seconds to notify users of live updates.
+- [x] **WASM Production Fix**: Resolved a compilation error by migrating from `dart:html` to `package:web`, enabling successful WASM builds.
+- [x] **Deployment: Production Launch**: Successfully deployed the latest stable build (including Partners Mode and Privacy Policy) to the **Production** environment ([https://hendy-dominoes.pages.dev](https://hendy-dominoes.pages.dev)) using the `main` branch label.
+
+## Current Status
+- [x] **Production Stability**: The live site is now synchronized with the latest feature set.
+- [x] **Marketing Readiness**: Store assets are prepared and located in the `artifacts/` folder.
+- [x] **Visual Identity Update**: Successfully replaced the legacy app icon with `assets/app-icon.png` and regenerated all launcher icons using the `flutter_launcher_icons` package.
+- [x] **Deployment**: Rebuilt the WASM binary and successfully deployed the branding update to [https://hendy-dominoes.pages.dev](https://hendy-dominoes.pages.dev) (Build: 1776433162317).
+
+

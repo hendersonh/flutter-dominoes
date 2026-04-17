@@ -45,24 +45,32 @@ migrate_working_dir/
 flutter_app/app.*.symbols
 flutter_app/app.*.map.json
 
+# Signing & Keystores
+**/android/key.properties
+**/*.jks
+**/*.keystore
+
 # Wrangler
 .wrangler/
 
 # Temp/Drafts
 *_files.txt
 *.md
+# --- Root Docs & Workflows ---
 !README.md
 !migrate_help.md
 !wasmResearch.md
+!memory-bank/*.md
+!.agents/workflows/*.md
+
+# --- Workspace Artifacts ---
 !implementation_plan.md
 !walkthrough.md
 !task.md
-!activeContext.md
-!progress.md
-!productContext.md
-!techContext.md
-!decisionLog.md
+
+# --- Help Assets ---
 !assets/help_*.md
+
 projects.txt
 help_web*.txt
 flutter_help*.txt
