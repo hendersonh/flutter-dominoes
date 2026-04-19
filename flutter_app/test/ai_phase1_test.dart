@@ -39,7 +39,7 @@ void main() {
 
     test('MCTSPlayer uses existingRoot to persist search knowledge', () {
       final hands = [
-        [const DominoTile(6, 6), const DominoTile(6, 5)],
+        [const DominoTile(6, 6), const DominoTile(6, 5), const DominoTile(6, 4)],
         [const DominoTile(1, 1)],
         [const DominoTile(2, 2)],
         [const DominoTile(3, 3)],
@@ -69,16 +69,21 @@ void main() {
       expect(root2.visits, equals(childVisits));
       
       // 3. Next think (e.g. after opponent moved)
-      // For simplicity, let's say opponent passed
-      final opponentAction = PassAction();
-      /* final rootAfterOpponent = */ root2.prune(opponentAction, 2);
+      // For simplicity, let's say all 3 opponents passed
+      final rootAfterOpp1 = root2.prune(PassAction(), 2);
+      nextState.applyAction(PassAction()); // Player 1
+      final rootAfterOpp2 = rootAfterOpp1.prune(PassAction(), 3);
+      nextState.applyAction(PassAction()); // Player 2
+      final rootAfterOpp3 = rootAfterOpp2.prune(PassAction(), 0);
+      nextState.applyAction(PassAction()); // Player 3
       
-      // If opponent passed, and we didn't have a node for it, rootAfterOpponent visits will be 0
-      // But if we did, it should be > 0.
+      // Now it's player 0's turn again (nextState.currentPlayer == 0)
       
-      // The key test: calling getBestAction with root2 should start with visits > 0
-      /* final action2 = */ player.getBestAction(nextState, timeLimitMs: 100, existingRoot: root2);
-      expect(player.lastRoot!.visits, greaterThanOrEqualTo(childVisits + 10));
+      // The key test: calling getBestAction with the properly pruned root should start with visits > 0
+      /* final action2 = */ player.getBestAction(nextState, timeLimitMs: 100, existingRoot: rootAfterOpp3);
+      
+      // The old visits (for the specific branch that actually happened) plus the new iterations
+      expect(player.lastRoot!.visits, greaterThanOrEqualTo(20));
     });
   });
 }

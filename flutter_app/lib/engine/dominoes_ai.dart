@@ -452,9 +452,9 @@ class MCTSNode {
               partnerVoids.contains(nextRight)) {
             // If we are leading in Six-Love, liquidation is catastrophic
             if (teamScores != null && teamScores[player % 2] > 0) {
-              ucb1 -= 10.0; // THE SHIELD (Lead Protection)
+              ucb1 -= 0.40; // THE SHIELD (Lead Protection)
             } else {
-              ucb1 -= 1.5; // Standard Defensive Shield
+              ucb1 -= 0.15; // Standard Defensive Shield
             }
           }
 
@@ -465,7 +465,7 @@ class MCTSNode {
               passedSuits[opp1].contains(nextRight) ||
               passedSuits[opp2].contains(nextLeft) ||
               passedSuits[opp2].contains(nextRight)) {
-            ucb1 += 0.5; // THE SQUEEZE
+            ucb1 += 0.10; // THE SQUEEZE
           }
 
           // 3. THE ASSIST / THE TELL: Partner Weakness or Strength
@@ -474,12 +474,12 @@ class MCTSNode {
             // Tell 1: Snap Play (< 1.5s). Means they had no choices (only one valid tile). Weak.
             if ((speeds[nextLeft] != null && speeds[nextLeft]! < 1.5) ||
                 (speeds[nextRight] != null && speeds[nextRight]! < 1.5)) {
-              ucb1 -= 0.3; // Avoid leading back to a 'snap play' end
+              ucb1 -= 0.05; // Avoid leading back to a 'snap play' end
             }
             // Tell 2: Hesitation (> 3.0s). Means they weighed multiple choices. Strong.
             else if ((speeds[nextLeft] != null && speeds[nextLeft]! > 3.0) ||
                      (speeds[nextRight] != null && speeds[nextRight]! > 3.0)) {
-              ucb1 += 0.2; // THE ASSIST
+              ucb1 += 0.05; // THE ASSIST
             }
           }
         }
@@ -503,7 +503,7 @@ class MCTSNode {
           }
           final voids = passedSuits[victimId];
           if (!voids.contains(nextLeft) && !voids.contains(nextRight)) {
-            ucb1 -= 2.0; // ZSP Penalty
+            ucb1 -= 0.30; // ZSP Penalty
           }
         }
 
@@ -924,7 +924,7 @@ class MCTSPlayer {
           } else {
             int myPips = state.hands[p].fold(0, (sum, t) => sum + t.score);
             rewardMap[p] = 0.4 *
-                (1.0 - (myPips / rootState.matchTarget.toDouble()))
+                (1.0 - (myPips / 60.0))
                     .clamp(0.0, 1.0);
           }
         } else {
@@ -1162,30 +1162,28 @@ class AIWorker {
     final receivePort = ReceivePort();
     mainSendPort.send(receivePort.sendPort);
 
-    MCTSNode? lastRoot;
-    int lastPlayerId = -1;
+    Map<int, MCTSNode> playerRoots = {};
 
     receivePort.listen((message) {
       if (message is AIRootReset) {
-        lastRoot = null;
+        playerRoots.clear();
       } else if (message is AISyncMove) {
-        if (lastRoot != null) {
-          lastRoot = lastRoot!.prune(message.action, message.nextPlayer);
-        }
+        playerRoots.forEach((id, root) {
+          playerRoots[id] = root.prune(message.action, message.nextPlayer);
+        });
       } else if (message is AIThinkMessage) {
         final state = message.state;
         final playerId = message.playerId;
 
-        if (lastRoot == null || lastPlayerId != playerId) {
-          lastRoot = MCTSNode(player: (playerId + 3) % 4);
+        if (!playerRoots.containsKey(playerId)) {
+          playerRoots[playerId] = MCTSNode(player: (playerId + 3) % 4);
         }
-        lastPlayerId = playerId;
 
         final player = MCTSPlayer(playerId, difficulty: message.difficulty);
         final action = player.getBestAction(
           state,
           timeLimitMs: message.timeLimitMs,
-          existingRoot: lastRoot,
+          existingRoot: playerRoots[playerId],
           matchScores: message.matchScores,
           matchTarget: message.matchTarget,
           scoringMode: message.scoringMode,
@@ -1193,7 +1191,9 @@ class AIWorker {
 
         mainSendPort.send(AIResponseMessage(action));
         // Update persistent root to the one used for search
-        lastRoot = player.lastRoot;
+        if (player.lastRoot != null) {
+          playerRoots[playerId] = player.lastRoot!;
+        }
       } else if (message is AIStopMessage) {
         Isolate.exit();
       }

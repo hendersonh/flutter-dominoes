@@ -14,7 +14,7 @@
 - [x] **Key Bone Scoring Bug**: Resolved incorrect bonus point awards by switching from single-suit exhaustion to dual-ended validation.
 - [x] **Validation**: Verified the new engine logic against the user's screenshot scenario, confirming a correct 2-point Key Bone award when both 1 and 6 ends are exhausted.
 - [x] **UI Cleanup**: Conditionally removed the individual "Current Champion" banner in Partners mode to prioritize team stats.
-- [x] **Deployment**: Built and deployed latest refinements (AI MCTS fixes) to the Cloudflare `test` branch (https://test.hendy-dominoes.pages.dev) with version `1776568097242`.
+- [x] **Deployment**: Built and deployed latest refinements (AI MCTS fixes) to the Cloudflare `test` branch (https://test.hendy-dominoes.pages.dev) with version `1776613897273`.
 - [x] **Verification**: Confirmed successful build and deployment alias accessibility.
 
 - [x] **Engine: ZSP Inversion Fix**: Resolved a logic error in `getZSPValue` where it was sabotaging its own suits instead of protecting them. Verified with regression tests.
