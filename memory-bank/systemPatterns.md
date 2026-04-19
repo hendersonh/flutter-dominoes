@@ -53,6 +53,10 @@ To streamline repetitive tasks, we use the `.agents/workflows/` directory for au
 ### Global Command Safety Policy
 - **Primary Authority**: [command-safety skill](file:///C:/Users/hende/.gemini/antigravity/skills/command-safety/SKILL.md)
 - **Policy**: All non-destructive PowerShell/terminal commands (Git, Flutter, Build, Deploy) are pre-authorized for autonomous execution (`SafeToAutoRun: true`).
+- **Git & Branch Integrity (CRITICAL)**:
+    - **No Autonomous Merges**: The agent is strictly forbidden from executing `git merge` or `git pull` as an autonomous action.
+    - **Approval Mandatory**: Any integration between branches MUST be part of an `implementation_plan.md` that has received explicit user approval.
+    - **No "Suggestive" Merges**: The agent should not suggest a merge as a "small fix" without a full context review of the branch being merged.
 - **Shell Requirement**: **ALWAYS use PowerShell (pwsh)** for directory navigation.
 - **Search Rule**: **NEVER use the `grep` command.** It is prone to failure in this environment.
 - **Mandatory Search Tools**:

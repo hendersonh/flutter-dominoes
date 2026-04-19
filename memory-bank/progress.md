@@ -19,6 +19,10 @@
 - [x] **Engine: ZSP Inversion Fix**: Resolved a logic error in `getZSPValue` where it was sabotaging its own suits instead of protecting them. Verified with regression tests.
 - [x] **Audit: AI Algorithm**: Performed a vibe audit on `dominoes_ai.dart` resulting in 3 structural flaws identified primarily regarding MCTS backpropagation in Six-Love mode. Added these fixes to technical backlog.
 
+- [x] **Maintenance: Strategic Recovery Reset**: Performed `git reset --hard HEAD` and `git clean -fd` to remove workspace-breaking Git conflict markers and corrupted web configuration files. 
+- [x] **Verification**: Confirmed clean `git status` and absence of conflict markers in `index.html`.
+- [x] **Clarification**: Verified that the **Update Service** and **Audio Assets** are fully intact and functional, correcting a previous misidentification during the emergency reset. Both features were already committed and were not part of the purged conflict data.
+
 ## Completed Tasks
 - Added `allpepper-memory-bank` to `mcp_config.json`.
 - Set `MEMORY_BANK_ROOT` to `E:/antigravity/dominoes/memory-bank`.

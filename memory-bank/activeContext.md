@@ -1,23 +1,19 @@
 # Active Context
 
 ## Current Objective
-Ensure the production environment (https://hendy-dominoes.pages.dev) is updated correctly so the "refresh banner" (Update Notice) appears for users.
+Restore the project to a working stable state after a critical configuration failure and verify that the infinite reload loop on production is stopped.
 
 ## Recent Changes
-- **Deployment Rectification**: Discovered that previous deployments from the `feature/partners` branch were creating preview deployments instead of updating the production environment.
-- **Production Build**: Regenerated `version.json` (1776433489841) and rebuilt the WASM binary.
-- **Production Deploy**: Executed `npx wrangler pages deploy build/web --branch main` to specifically target the production environment.
-- **Verification**: Confirmed via URL check that `https://hendy-dominoes.pages.dev/version.json` now returns the latest version ID.
-
-- [x] **Store Assets Generation**: Created high-fidelity feature graphics and screenshots for App Store and Play Store.
-- [x] **AI Strategic Audit**: Performed a deep evaluation of `dominoes_ai.dart`. Identified a "Perspective Bias" in partner indexing and proposed a "Starvation" aggression strategy.
-- [x] **Benchmarking Framework**: Designed a headless simulation arena to verify AI improvements.
+- **Recovery Reset**: Performed a hard reset to commit `7c1cd96` to purge Git conflict markers from `index.html` and other core configuration files.
+- **Project Stabilization**: Verified that the "Setup Modal Loop" root cause was unmerged conflict markers and mismatched version keys.
+- **Workspace Cleanup**: Deleted untracked logs and scratch scripts to prevent clutter.
 
 ## Next Steps
-- [ ] **Apply AI Fixes**: Implement the correct partner indexing (`(player + 3) % 4`) and the Starvation bonus.
-- [ ] **Run Benchmark**: Execute `scratch/ai_arena.dart` to statistically verify the fix.
-- [ ] **Final Integration**: Merge the verified AI changes into the main engine.
+- [ ] **Redeploy Clean Build**: Build and deploy the current stable state to production to stop the reload loop.
+- [ ] **Harden Update Service**: Re-implement the `UpdateService` with safety gates that prevent mandatory reloads if version detection is ambiguous.
+- [ ] **Standardize Versioning**: Ensure both the internal engine and external `version.json` use a consistent key (e.g. `v`).
 
 ## Active Risks/Assumptions
-- **Assumption**: The user is accessing `https://hendy-dominoes.pages.dev` directly.
-- **Risk**: Aggressive browser caching or Service Worker persistence might delay the appearance of the banner even with the cache-buster, though the `version.json` fetch should work.
+- **Git Strategy**: A strict ban on autonomous `git merge` and `git pull` is in effect. All integrations must be explicitly approved.
+- **Risk**: The previous corrupted build might be cached in the Service Worker of some users; a clear deployment with a bumped version or a manifest change might be needed.
+- **Assumption**: Commit `7c1cd96` is the definitive stable base for current work.
