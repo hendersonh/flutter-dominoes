@@ -431,14 +431,8 @@ class MCTSNode {
             currentLeft != null &&
             currentRight != null &&
             passedSuits != null) {
-          int partnerId =
-              (player + 2) %
-              4; // Node's 'player' is the one who MOVED to reach here.
-          // Wait, 'player' is the actor who created THIS node.
-          // The next actor is (player + 1) % 4.
-          // The partner of the NEXT actor is ((player + 1) + 2) % 4 = (player + 3) % 4.
-          // Actually, let's just use the current node's perspective.
-          // if I am Player 0, my partner is 2.
+          int actingPlayer = (player + 1) % 4;
+          int partnerId = (actingPlayer + 2) % 4;
 
           int? nextLeft = currentLeft;
           int? nextRight = currentRight;
@@ -465,8 +459,8 @@ class MCTSNode {
           }
 
           // 2. THE SQUEEZE: Open for opponent's void
-          int opp1 = (player + 1) % 4;
-          int opp2 = (player + 3) % 4;
+          int opp1 = (actingPlayer + 1) % 4;
+          int opp2 = (actingPlayer + 3) % 4;
           if (passedSuits[opp1].contains(nextLeft) ||
               passedSuits[opp1].contains(nextRight) ||
               passedSuits[opp2].contains(nextLeft) ||
@@ -902,7 +896,7 @@ class MCTSPlayer {
           } else {
             // Liquidator Penalty: If partner team leads and opponents win
             if (rootState.matchScores[p % 2] > 0) {
-              rewardMap[p] = -10.0;
+              rewardMap[p] = 0.0; // Normalized failure for liquidation
             } else {
               rewardMap[p] = 0.0;
             }
@@ -912,11 +906,11 @@ class MCTSPlayer {
           // --- SIX-LOVE / ZSP REWARDS ---
           if (p == victimId) {
             // I am the victim. Survival (Bruk or Win) is my only goal.
-            rewardMap[p] = (winner == p) ? 10.0 : 0.0;
+            rewardMap[p] = (winner == p) ? 1.0 : 0.0; // Normalized victim reward
           } else {
             // I am a Jailer. COORDINATION matters more than personal glory.
             if (winner == victimId) {
-              rewardMap[p] = -100.0; // FAILURE: Victim escaped!
+              rewardMap[p] = 0.0; // FAILURE: Victim escaped! (Normalized)
             } else {
               // SUCCESS: Any jailer won, victim lost.
               // We use 1.0 for all jailers to simulate pure cooperation.

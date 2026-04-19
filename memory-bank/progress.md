@@ -14,10 +14,15 @@
 - [x] **Key Bone Scoring Bug**: Resolved incorrect bonus point awards by switching from single-suit exhaustion to dual-ended validation.
 - [x] **Validation**: Verified the new engine logic against the user's screenshot scenario, confirming a correct 2-point Key Bone award when both 1 and 6 ends are exhausted.
 - [x] **UI Cleanup**: Conditionally removed the individual "Current Champion" banner in Partners mode to prioritize team stats.
-- [x] **Deployment**: Built and deployed Key Bone fix to the Cloudflare `test` branch (https://test.cut-throat-dom.pages.dev).
+- [x] **Deployment**: Built and deployed latest refinements (AI MCTS fixes) to the Cloudflare `test` branch (https://test.hendy-dominoes.pages.dev) with version `1776568097242`.
+- [x] **Verification**: Confirmed successful build and deployment alias accessibility.
 
 - [x] **Engine: ZSP Inversion Fix**: Resolved a logic error in `getZSPValue` where it was sabotaging its own suits instead of protecting them. Verified with regression tests.
-- [x] **Audit: AI Algorithm**: Performed a vibe audit on `dominoes_ai.dart` resulting in 3 structural flaws identified primarily regarding MCTS backpropagation in Six-Love mode. Added these fixes to technical backlog.
+- [x] **Audit: AI Algorithm**: Performed a vibe audit on `dominoes_ai.dart` resulting in 3 structural flaws identified primarily regarding MCTS backpropagation in Six-Love mode. 
+- [x] **Engine: MCTS Perspective Fix**: Corrected the algorithmic inversion bug where the AI was protecting opponents' voids during search. Verified with `test/mcts_perspective_test.dart`.
+- [x] **Engine: Reward Normalization**: Normalized MCTS backpropagation rewards to [0, 1] range, preventing exploration collapse caused by extreme negative penalties (-100.0). Verified with `test/repro_zsp_bug_test.dart`.
+- [x] **Verification**: Confirmed AI logic restoration with a comprehensive logic-trace unit test and ZSP regression simulation.
+- [x] **Task Completion**: Successfully implemented the two most major MCTS errors identified during the code audit.
 
 - [x] **Maintenance: Strategic Recovery Reset**: Performed `git reset --hard HEAD` and `git clean -fd` to remove workspace-breaking Git conflict markers and corrupted web configuration files. 
 - [x] **Verification**: Confirmed clean `git status` and absence of conflict markers in `index.html`.
