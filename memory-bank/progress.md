@@ -114,15 +114,10 @@
 - [x] **Global Rewind Feature**: Decoupled the Rewind/Undo system from the 'Legend' difficulty level. All players now have access to the move history buffer across all skill levels. History is now persistent across difficulty switches.
 - [x] **Build & Deploy**: Successfully generated build version `1776265498842` and deployed the Global Rewind updates to the `test` branch.
 - [x] **Project Rebranding**: Formally updated all project identifiers to `com.hoodhlab.dominoes` and display names to **HendyDominoes**.
-- [x] **Store Assets**: Generated high-fidelity "Feature Graphic" and "Screenshots" for upcoming App Store and Google Play submissions.
-- [x] **Infrastructure: Version Polling**: Implemented a `package:web` based `UpdateService` that polls `version.json` every 5 seconds to notify users of live updates.
-- [x] **WASM Production Fix**: Resolved a compilation error by migrating from `dart:html` to `package:web`, enabling successful WASM builds.
-- [x] **Deployment: Production Launch**: Successfully deployed the latest stable build (including Partners Mode and Privacy Policy) to the **Production** environment ([https://hendy-dominoes.pages.dev](https://hendy-dominoes.pages.dev)) using the `main` branch label.
+- [x] **Store Assets**: Generated high-fidelity feature graphics and screenshots (Help, Main Menu, Setup, Gameplay, Snake Board) for Mobile App Store submissions.
+- [x] **AI Audit**: Completed a strategic evaluation of the MCTS engine. Identified the "Opponent Shielding" perspective bug and documented the "Starvation Strategy" fix.
 
 ## Current Status
-- [x] **Production Stability**: The live site is now synchronized with the latest feature set.
-- [x] **Marketing Readiness**: Store assets are prepared and located in the `artifacts/` folder.
-- [x] **Visual Identity Update**: Successfully replaced the legacy app icon with `assets/app-icon.png` and regenerated all launcher icons using the `flutter_launcher_icons` package.
-- [x] **Deployment**: Rebuilt the WASM binary and successfully deployed the branding update to [https://hendy-dominoes.pages.dev](https://hendy-dominoes.pages.dev) (Build: 1776433162317).
-
-
+- [x] **Marketing Readiness**: Store assets are prepared and located in the `flutter_app/assets/` folder.
+- [x] **Strategic Roadmap**: AI fixes are planned and ready for implementation.
+- [x] **Production Maintenance**: Resolved WASM production build linting issues and redeployed build `1776433489841`.

@@ -33,7 +33,21 @@ Run from the `flutter_app/` directory:
 npx wrangler pages deploy build/web --project-name cut-throat-dom
 ```
 
-## 2. Environment Setup
+## 2. Android Deployment (.aab)
+
+We use the **Android App Bundle (.aab)** format for Google Play distribution. Signing is managed via `android/key.properties`.
+
+### Build Command
+Run from the `flutter_app/` directory:
+```bash
+flutter build appbundle
+```
+
+### Output Location
+The signed bundle is generated at:
+`build/app/outputs/bundle/release/app-release.aab`
+
+## 3. Environment Setup
 
 ### Required Headers
 For WASM/Workers to function correctly (Multi-threading/SharedArrayBuffer), the following headers must be served:
@@ -43,14 +57,14 @@ Cross-Origin-Embedder-Policy: require-corp
 ```
 These are configured in `web/_headers`.
 
-## 3. Local Development (Chrome)
+## 4. Local Development (Chrome)
 
 For testing the WASM build locally:
 ```bash
 flutter run -d chrome --wasm
 ```
 
-## 4. Troubleshooting
+## 5. Troubleshooting
 
 ### "memory access out of bounds"
 - **Cause**: Likely running with the `skwasm` renderer.
