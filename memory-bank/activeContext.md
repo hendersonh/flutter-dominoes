@@ -1,16 +1,16 @@
 # Active Context
 
 ## Current Objective
-Monitor the behavior of the newly calibrated MCTS AI engine in testing. The primary AI flaws involving ZSP starvation, opponent void shielding, and UCB1 exploration collapse have been resolved.
+Test and evaluate the newly implemented MCTS math bounds and "Jail Protocol" collusion logic in the Dominoes AI engine. The engine should now perfectly balance mathematical calculation with Caribbean cultural realism.
 
 ## Recent Changes
-- **MCTS Perspective Fix**: Corrected the `getBestChild` logic to use the acting player's perspective, stopping the AI from accidentally protecting opponents' void suits.
-- **Reward Normalization**: Scaled ISMCTS backpropagation rewards from extreme values (-100.0) to a normalized [0, 1] range to preserve UCB1 exploration integrity.
-- **Deployment**: Verified the test suite passed perfectly and deployed the updated AI to the `test` branch (version 1776613897273).
+- **Progressive UCB1 Bias**: Upgraded MCTS cultural move penalties (Shield, ZSP, Squeeze) to decay over deep simulations instead of hard-clipping mathematical possibilities.
+- **Greedy Determinisation Fallback**: Ensured exact void-suit matching is maintained even when the 5000-depth backtracking timeout triggers, significantly boosting memory accuracy.
+- **Six-Love Solo Jail Protocol**: Added backpropagation collusion so standard/cutthroat players inherently gang up to deny any victory to a player stuck precisely at a 0 score in a match to 6.
 
 ## Next Steps
-- [ ] **Feedback & Review**: Await user feedback on the `Legend` difficulty's new gameplay behavior on the testing branch.
-- [ ] **Deployment**: Target production branch once the new AI mechanics are proven stable.
+- [ ] **Feedback & Review**: Have the user execute tests against the new "Six-Love Jail Protocol" scenario. 
+- [ ] **Deployment**: Target `test` or `production` branch depending on evaluation outcome.
 
 ## Active Risks/Assumptions
 - **Git Strategy**: A strict ban on autonomous `git merge` and `git pull` is in effect. All integrations must be explicitly approved.

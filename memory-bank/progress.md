@@ -130,3 +130,8 @@
 - [x] **Marketing Readiness**: Store assets are prepared and located in the `flutter_app/assets/` folder.
 - [x] **Strategic Roadmap**: AI fixes are planned and ready for implementation.
 - [x] **Production Maintenance**: Resolved WASM production build linting issues and redeployed build `1776433489841`.
+- [x] **Engine: MCTS Determinisation Fix**: Implemented a "Greedy Constraint Fallback" to drastically improve AI card counting during timeout fallbacks.
+- [x] **Engine: Progressive UCB1 Bias**: Converted hard exploration bounds on cultural moves to a decaying `heuristicBias`.
+- [x] **Engine: Six-Love Solo Jail Protocol**: Programmed the AI to implicitly collude to block a player strictly trapped at 0 points in a 6-point Cutthroat match.
+- [x] **Deployment**: Built and deployed the latest AI engine updates to the Cloudflare `test` branch with version `1776617711430`.
+- [x] **Verification**: Confirmed successful build and deployment alias accessibility at [https://test.hendy-dominoes.pages.dev](https://test.hendy-dominoes.pages.dev).

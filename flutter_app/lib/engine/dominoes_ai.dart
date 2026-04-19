@@ -424,6 +424,7 @@ class MCTSNode {
         int Ni = availabilityCount[action] ?? 1;
 
         double ucb1 = (child.wins / ni) + explorationParam * sqrt(log(Ni) / ni);
+        double heuristicBias = 0.0;
 
         // --- PARTNER HEURISTICS ---
         if (playStyle == PlayStyle.partners &&
@@ -452,9 +453,9 @@ class MCTSNode {
               partnerVoids.contains(nextRight)) {
             // If we are leading in Six-Love, liquidation is catastrophic
             if (teamScores != null && teamScores[player % 2] > 0) {
-              ucb1 -= 0.40; // THE SHIELD (Lead Protection)
+              heuristicBias -= 0.40; // THE SHIELD (Lead Protection)
             } else {
-              ucb1 -= 0.15; // Standard Defensive Shield
+              heuristicBias -= 0.15; // Standard Defensive Shield
             }
           }
 
@@ -465,7 +466,7 @@ class MCTSNode {
               passedSuits[opp1].contains(nextRight) ||
               passedSuits[opp2].contains(nextLeft) ||
               passedSuits[opp2].contains(nextRight)) {
-            ucb1 += 0.10; // THE SQUEEZE
+            heuristicBias += 0.10; // THE SQUEEZE
           }
 
           // 3. THE ASSIST / THE TELL: Partner Weakness or Strength
@@ -474,12 +475,12 @@ class MCTSNode {
             // Tell 1: Snap Play (< 1.5s). Means they had no choices (only one valid tile). Weak.
             if ((speeds[nextLeft] != null && speeds[nextLeft]! < 1.5) ||
                 (speeds[nextRight] != null && speeds[nextRight]! < 1.5)) {
-              ucb1 -= 0.05; // Avoid leading back to a 'snap play' end
+              heuristicBias -= 0.05; // Avoid leading back to a 'snap play' end
             }
             // Tell 2: Hesitation (> 3.0s). Means they weighed multiple choices. Strong.
             else if ((speeds[nextLeft] != null && speeds[nextLeft]! > 3.0) ||
                      (speeds[nextRight] != null && speeds[nextRight]! > 3.0)) {
-              ucb1 += 0.05; // THE ASSIST
+              heuristicBias += 0.05; // THE ASSIST
             }
           }
         }
@@ -503,9 +504,11 @@ class MCTSNode {
           }
           final voids = passedSuits[victimId];
           if (!voids.contains(nextLeft) && !voids.contains(nextRight)) {
-            ucb1 -= 0.30; // ZSP Penalty
+            heuristicBias -= 0.30; // ZSP Penalty
           }
         }
+
+        ucb1 += heuristicBias / (ni + 1.0);
 
         if (ucb1 > bestValue) {
           bestValue = ucb1;
@@ -622,20 +625,35 @@ class MCTSPlayer {
     bool success = assignTilesRec(0);
 
     if (!success) {
-      // Fallback: If absolutely impossible to satisfy constraints, distribute randomly
+      // Fallback: Greedy assignment to preserve constraints as much as mathematically possible
       for (int i = 0; i < 4; i++) {
         if (i != playerId) detState.hands[i] = [];
       }
-      unknownTiles.shuffle(random);
-      int tileIndex = 0;
+      List<int> neededFallback = List.filled(4, 0);
       for (int i = 0; i < 4; i++) {
-        if (i == playerId) continue;
-        int assignCount = state.hands[i].length;
-        detState.hands[i] = unknownTiles.sublist(
-          tileIndex,
-          tileIndex + assignCount,
-        );
-        tileIndex += assignCount;
+        if (i != playerId) neededFallback[i] = state.hands[i].length;
+      }
+      unknownTiles.shuffle(random);
+      for (final t in unknownTiles) {
+        int bestP = -1;
+        // 1. Try to find player who needs it and didn't pass on it
+        for (int p in opponents) {
+          if (neededFallback[p] > 0 && !voids[p].contains(t.end1) && !voids[p].contains(t.end2)) {
+            bestP = p;
+            break;
+          }
+        }
+        // 2. If no valid match, break constraint (worst case)
+        if (bestP == -1) {
+          for (int p in opponents) {
+            if (neededFallback[p] > 0) {
+              bestP = p;
+              break;
+            }
+          }
+        }
+        detState.hands[bestP].add(t);
+        neededFallback[bestP]--;
       }
     }
 
@@ -899,6 +917,23 @@ class MCTSPlayer {
               rewardMap[p] = 0.0; // Normalized failure for liquidation
             } else {
               rewardMap[p] = 0.0;
+            }
+          }
+        } else if (rootState.scoringMode == ScoringMode.sixLove &&
+            !isPartnerMode &&
+            rootState.matchScores.where((s) => s == 0).length == 1 &&
+            rootState.matchScores.where((s) => s > 0).isNotEmpty) {
+          // --- SIX-LOVE SOLO JAIL PROTOCOL ---
+          int jailId = rootState.matchScores.indexOf(0);
+          if (p == jailId) {
+            // I am in jail. I must win to survive.
+            rewardMap[p] = (winner == p) ? 1.0 : 0.0;
+          } else {
+            // I am NOT in jail. Time to playfully collude so the jail guy gets swept.
+            if (winner == jailId) {
+              rewardMap[p] = 0.0; // Failure: The jailed guy won!
+            } else {
+              rewardMap[p] = 1.0; // Success: Any non-jailer won.
             }
           }
         } else if (rootState.scoringMode == ScoringMode.sixLove &&
