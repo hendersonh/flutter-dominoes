@@ -1,4 +1,6 @@
+- [x] **Production Release**: Promoted `feature/partners` to `main`, establishing the current Partner Mode and AI fixes as the new production baseline.
 - [x] **Fix: Partners Mode Match End**: Corrected `MatchModel.isMatchOver` to use the `matchWinner` getter, ensuring that in Traditional mode, collective team scores reach the target correctly.
+
 - [x] **Verification**: Added `repro_partners_100bug_test.dart` and confirmed that a collective team score of 105 ends the match correctly even when individual players are below 100.
 - [x] **UI: Dynamic Player Name Propagation**: Successfully eliminated hardcoded player names across the entire app. Custom names now propagate correctly to the Game HUD, Review Board, background watermark ("HELP <NAME> WIN"), Partners team labels, and Champion Standings.
 - [x] **Brand Migration**: Formally renamed the app to **"HendyDominoes"** across all config files and user guides.
