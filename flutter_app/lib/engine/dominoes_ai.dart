@@ -366,7 +366,6 @@ class GameModel {
   }
 }
 
-
 /// Information Set MCTS Node
 class MCTSNode {
   final Action? action;
@@ -479,7 +478,7 @@ class MCTSNode {
             }
             // Tell 2: Hesitation (> 3.0s). Means they weighed multiple choices. Strong.
             else if ((speeds[nextLeft] != null && speeds[nextLeft]! > 3.0) ||
-                     (speeds[nextRight] != null && speeds[nextRight]! > 3.0)) {
+                (speeds[nextRight] != null && speeds[nextRight]! > 3.0)) {
               heuristicBias += 0.05; // THE ASSIST
             }
           }
@@ -638,7 +637,9 @@ class MCTSPlayer {
         int bestP = -1;
         // 1. Try to find player who needs it and didn't pass on it
         for (int p in opponents) {
-          if (neededFallback[p] > 0 && !voids[p].contains(t.end1) && !voids[p].contains(t.end2)) {
+          if (neededFallback[p] > 0 &&
+              !voids[p].contains(t.end1) &&
+              !voids[p].contains(t.end2)) {
             bestP = p;
             break;
           }
@@ -659,7 +660,6 @@ class MCTSPlayer {
 
     return detState;
   }
-
 
   MCTSNode? lastRoot;
 
@@ -703,7 +703,8 @@ class MCTSPlayer {
       iterationLimit = 500;
     }
 
-    MCTSNode rootNode = existingRoot ?? MCTSNode(player: (rootState.currentPlayer - 1 + 4) % 4);
+    MCTSNode rootNode =
+        existingRoot ?? MCTSNode(player: (rootState.currentPlayer - 1 + 4) % 4);
     lastRoot = rootNode;
 
     Stopwatch sw = Stopwatch()..start();
@@ -941,7 +942,9 @@ class MCTSPlayer {
           // --- SIX-LOVE / ZSP REWARDS ---
           if (p == victimId) {
             // I am the victim. Survival (Bruk or Win) is my only goal.
-            rewardMap[p] = (winner == p) ? 1.0 : 0.0; // Normalized victim reward
+            rewardMap[p] = (winner == p)
+                ? 1.0
+                : 0.0; // Normalized victim reward
           } else {
             // I am a Jailer. COORDINATION matters more than personal glory.
             if (winner == victimId) {
@@ -958,9 +961,7 @@ class MCTSPlayer {
             rewardMap[p] = 1.0;
           } else {
             int myPips = state.hands[p].fold(0, (sum, t) => sum + t.score);
-            rewardMap[p] = 0.4 *
-                (1.0 - (myPips / 60.0))
-                    .clamp(0.0, 1.0);
+            rewardMap[p] = 0.4 * (1.0 - (myPips / 60.0)).clamp(0.0, 1.0);
           }
         } else {
           // --- MATCH LEADERBOARD AWARENESS (Neutral Mode) ---
@@ -1156,7 +1157,9 @@ class AIWorker {
   }
 
   void syncMove(Action action, int nextPlayer, GameModel state) {
-    _sendPort?.send(AISyncMove(action: action, nextPlayer: nextPlayer, state: state));
+    _sendPort?.send(
+      AISyncMove(action: action, nextPlayer: nextPlayer, state: state),
+    );
   }
 
   void resetRoot() {
@@ -1175,15 +1178,17 @@ class AIWorker {
   ) async {
     await _ensureStarted();
     _thinkCompleter = Completer<Action>();
-    _sendPort?.send(AIThinkMessage(
-      state,
-      playerId,
-      timeLimitMs,
-      difficulty,
-      matchScores,
-      matchTarget,
-      scoringMode,
-    ));
+    _sendPort?.send(
+      AIThinkMessage(
+        state,
+        playerId,
+        timeLimitMs,
+        difficulty,
+        matchScores,
+        matchTarget,
+        scoringMode,
+      ),
+    );
     return _thinkCompleter!.future;
   }
 
@@ -1265,10 +1270,10 @@ class MatchModel {
 
   MatchModel clone() {
     return MatchModel(
-      targetScore: targetScore,
-      mode: mode,
-      playStyle: playStyle,
-    )
+        targetScore: targetScore,
+        mode: mode,
+        playStyle: playStyle,
+      )
       ..scores = List<int>.from(scores)
       ..roundNumber = roundNumber
       ..nextStarter = nextStarter

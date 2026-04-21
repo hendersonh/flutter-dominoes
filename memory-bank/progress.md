@@ -135,3 +135,4 @@
 - [x] **Engine: Six-Love Solo Jail Protocol**: Programmed the AI to implicitly collude to block a player strictly trapped at 0 points in a 6-point Cutthroat match.
 - [x] **Deployment**: Built and deployed the latest AI engine updates to the Cloudflare `test` branch with version `1776617711430`.
 - [x] **Verification**: Confirmed successful build and deployment alias accessibility at [https://test.hendy-dominoes.pages.dev](https://test.hendy-dominoes.pages.dev).
+- [x] **AI Undo Bug Audit & Verification (Phase 1)**: Investigated logic for AI "hallucination" on user Undo. Confirmed `AIWorker.instance.resetRoot()` is properly called during `rewindTo`. Created and ran `test/undo_stability_test.dart` to verify memory destruction. Bug symptom was caused by deeper tactical limits, not a search tree persistence failure.
