@@ -5,7 +5,9 @@ Investigate and resolve the underlying cause of AI degradation following an Undo
 
 ## Recent Changes
 - **Production Sync**: Promoted `feature/partners` to `main`, establishing the current Partner Mode and AI fixes as the new production baseline.
+- **Repository Cleanup**: Deleted the redundant `feature/partners` branch both locally and remotely after confirming synchronization.
 - **AI Undo Bug Audit & Verification (Phase 1)**: Investigated logic for AI "hallucination" on user Undo. Confirmed `AIWorker.instance.resetRoot()` is properly called during `rewindTo`. Created and ran `test/undo_stability_test.dart` to verify memory destruction. Bug symptom was caused by deeper tactical limits, not a search tree persistence failure.
+
 
 - **Progressive UCB1 Bias**: Upgraded MCTS cultural move penalties (Shield, ZSP, Squeeze) to decay over deep simulations instead of hard-clipping mathematical possibilities.
 - **Greedy Determinisation Fallback**: Ensured exact void-suit matching is maintained even when the 5000-depth backtracking timeout triggers.
