@@ -357,9 +357,7 @@ class GameController extends ChangeNotifier {
     _match.mode = currentMode;
     _match.playStyle = currentPlayStyle;
     if (_match.currentRound != null) {
-      _match.currentRound!.scoringMode = currentMode;
-      _match.currentRound!.playStyle = currentPlayStyle;
-      _match.currentRound!.matchTarget = currentMode == ScoringMode.sixLove ? 6 : currentTarget;
+      _match.startNewRound(_match.nextStarter, isFirstHand: true);
     }
     
     if (goToSetup) {
@@ -367,8 +365,15 @@ class GameController extends ChangeNotifier {
       _sessionMatchLosses = [0, 0, 0, 0];
     }
     
+    _isAiThinking = false;
     _isSetupComplete = !goToSetup;
     notifyListeners();
+
+    if (!_isSetupComplete) return;
+
+    if (_match.currentRound != null && _match.currentRound!.currentPlayer != 0) {
+      _runAiTurn();
+    }
   }
 
   void setNeedsResume(bool val) {
@@ -448,7 +453,7 @@ class GameController extends ChangeNotifier {
     if (isMatchStarted) return;
     _match.playStyle = style;
     if (_match.currentRound != null) {
-      _match.currentRound!.playStyle = style;
+      _match.startNewRound(_match.nextStarter, isFirstHand: _match.roundNumber <= 1);
     }
     _saveMatch();
     notifyListeners();
@@ -513,8 +518,31 @@ class GameController extends ChangeNotifier {
     if (game!.currentPlayer != 0) {
       _runAiTurn();
     } else {
-      _handlePlayerAutoTurn();
+      if (canDraw) {
+        // User needs to draw manually
+        notifyListeners();
+      } else {
+        _handlePlayerAutoTurn();
+      }
     }
+  }
+
+  bool get canDraw => game != null && 
+                      !game!.isGameOver && 
+                      game!.currentPlayer == 0 && 
+                      !_isAiThinking &&
+                      !game!.canPlayerPlay(0) && 
+                      game!.boneyard.isNotEmpty;
+
+  void drawFromBoneyard() {
+    if (!canDraw || _isAiThinking) return;
+    
+    _gameExecutionId++;
+    game!.applyAction(DrawAction());
+    SoundService().playSfx('assets/sounds/tile_place.wav');
+    _sortPlayerHand();
+    _checkGameState(); // This will call _handlePlayerAutoTurn if they still can't play and boneyard is empty
+    notifyListeners();
   }
 
   void selectTile(DominoTile tile) {
@@ -775,6 +803,11 @@ class GameController extends ChangeNotifier {
 
   void _handlePlayerAutoTurn() {
     if (game != null && !game!.canPlayerPlay(0)) {
+      // In Draw mode, don't auto-pass if we can draw
+      if (game!.playStyle == PlayStyle.draw1v1 && game!.boneyard.isNotEmpty) {
+        return;
+      }
+
       final executionId = _gameExecutionId;
       
       // Contextual Knock for Human
@@ -870,12 +903,18 @@ class GameController extends ChangeNotifier {
         game!.applyAction(aiAction);
         AIWorker.instance.syncMove(aiAction, game!.currentPlayer, game!);
         SoundService().playSfx('assets/sounds/tile_place.wav');
+        print("Player $cp played ${aiAction.toString()}");
+      } else if (aiAction is DrawAction) {
+        game!.applyAction(aiAction);
+        // We don't sync draw action to AI worker as search tree doesn't track boneyard contents for others
+        SoundService().playSfx('assets/sounds/tile_place.wav');
+        print("Player $cp drew from boneyard. Remaining: ${game!.boneyard.length}");
       } else {
         game!.applyAction(aiAction);
         AIWorker.instance.syncMove(aiAction, game!.currentPlayer, game!);
+        print("Player $cp passed");
       }
-      notifyListeners(); // Immediate update to show the tile
-      print("Player $cp played ${aiAction.toString()}");
+      notifyListeners(); // Immediate update to show the tile or new card
     }
 
     // Brief pause to allow the user to see the move before turn indicator shifts
@@ -1136,66 +1175,85 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                       teamName: controller.match.playStyle == PlayStyle.partners ? 'TEAM 1' : null,
                                     ),
                                   ),
-                                  AnimatedPositioned(
-                                    duration: const Duration(milliseconds: 500),
-                                    curve: Curves.easeOutCubic,
-                                    left: 16,
-                                    top:
-                                        _containerSize.height / 2 -
-                                        40 +
-                                        _edYOffset,
-                                    child: _EdgeScore(
-                                      name: controller.getPlayerName(1),
-                                      tiles: game.hands[1].length,
-                                      score: controller.match.playStyle == PlayStyle.partners
-                                          ? controller.match.scores[1] + controller.match.scores[3]
-                                          : controller.match.scores[1],
-                                      isActive: game.currentPlayer == 1,
-                                      isKnocking:
-                                          controller.knockingPlayerIndex == 1,
-                                      isThinking: game.currentPlayer == 1,
-                                      teamName: controller.match.playStyle == PlayStyle.partners ? 'TEAM 2' : null,
-                                    ),
-                                  ),
-                                  Align(
-                                    alignment: Alignment.topCenter,
-                                    child: Padding(
-                                      padding: const EdgeInsets.only(top: 50.0),
+                                  if (controller.match.playStyle == PlayStyle.draw1v1)
+                                    Align(
+                                      alignment: Alignment.topCenter,
+                                      child: Padding(
+                                        padding: const EdgeInsets.only(top: 50.0),
+                                        child: _EdgeScore(
+                                          name: controller.getPlayerName(1),
+                                          tiles: game.hands[1].length,
+                                          score: controller.match.scores[1],
+                                          isActive: game.currentPlayer == 1,
+                                          isKnocking:
+                                              controller.knockingPlayerIndex == 1,
+                                          isThinking: game.currentPlayer == 1,
+                                        ),
+                                      ),
+                                    )
+                                  else
+                                    AnimatedPositioned(
+                                      duration: const Duration(milliseconds: 500),
+                                      curve: Curves.easeOutCubic,
+                                      left: 16,
+                                      top:
+                                          _containerSize.height / 2 -
+                                          40 +
+                                          _edYOffset,
                                       child: _EdgeScore(
-                                        name: controller.getPlayerName(2),
-                                        tiles: game.hands[2].length,
+                                        name: controller.getPlayerName(1),
+                                        tiles: game.hands[1].length,
                                         score: controller.match.playStyle == PlayStyle.partners
-                                            ? controller.match.scores[0] + controller.match.scores[2]
-                                            : controller.match.scores[2],
-                                        isActive: game.currentPlayer == 2,
+                                            ? controller.match.scores[1] + controller.match.scores[3]
+                                            : controller.match.scores[1],
+                                        isActive: game.currentPlayer == 1,
                                         isKnocking:
-                                            controller.knockingPlayerIndex == 2,
-                                        isThinking: game.currentPlayer == 2,
-                                        teamName: controller.match.playStyle == PlayStyle.partners ? 'TEAM 1' : null,
+                                            controller.knockingPlayerIndex == 1,
+                                        isThinking: game.currentPlayer == 1,
+                                        teamName: controller.match.playStyle == PlayStyle.partners ? 'TEAM 2' : null,
                                       ),
                                     ),
-                                  ),
-                                  AnimatedPositioned(
-                                    duration: const Duration(milliseconds: 500),
-                                    curve: Curves.easeOutCubic,
-                                    right: 16,
-                                    top:
-                                        _containerSize.height / 2 -
-                                        40 +
-                                        _timYOffset,
-                                    child: _EdgeScore(
-                                      name: controller.getPlayerName(3),
-                                      tiles: game.hands[3].length,
-                                      score: controller.match.playStyle == PlayStyle.partners
-                                          ? controller.match.scores[1] + controller.match.scores[3]
-                                          : controller.match.scores[3],
-                                      isActive: game.currentPlayer == 3,
-                                      isKnocking:
-                                          controller.knockingPlayerIndex == 3,
-                                      isThinking: game.currentPlayer == 3,
-                                      teamName: controller.match.playStyle == PlayStyle.partners ? 'TEAM 2' : null,
+                                  if (controller.match.playStyle != PlayStyle.draw1v1)
+                                    Align(
+                                      alignment: Alignment.topCenter,
+                                      child: Padding(
+                                        padding: const EdgeInsets.only(top: 50.0),
+                                        child: _EdgeScore(
+                                          name: controller.getPlayerName(2),
+                                          tiles: game.hands[2].length,
+                                          score: controller.match.playStyle == PlayStyle.partners
+                                              ? controller.match.scores[0] + controller.match.scores[2]
+                                              : controller.match.scores[2],
+                                          isActive: game.currentPlayer == 2,
+                                          isKnocking:
+                                              controller.knockingPlayerIndex == 2,
+                                          isThinking: game.currentPlayer == 2,
+                                          teamName: controller.match.playStyle == PlayStyle.partners ? 'TEAM 1' : null,
+                                        ),
+                                      ),
                                     ),
-                                  ),
+                                  if (controller.match.playStyle != PlayStyle.draw1v1)
+                                    AnimatedPositioned(
+                                      duration: const Duration(milliseconds: 500),
+                                      curve: Curves.easeOutCubic,
+                                      right: 16,
+                                      top:
+                                          _containerSize.height / 2 -
+                                          40 +
+                                          _timYOffset,
+                                      child: _EdgeScore(
+                                        name: controller.getPlayerName(3),
+                                        tiles: game.hands[3].length,
+                                        score: controller.match.playStyle == PlayStyle.partners
+                                            ? controller.match.scores[1] + controller.match.scores[3]
+                                            : controller.match.scores[3],
+                                        isActive: game.currentPlayer == 3,
+                                        isKnocking:
+                                            controller.knockingPlayerIndex == 3,
+                                        isThinking: game.currentPlayer == 3,
+                                        teamName: controller.match.playStyle == PlayStyle.partners ? 'TEAM 2' : null,
+                                      ),
+                                    ),
 
                                   // Interactive Board Content
                                   Center(
@@ -1901,7 +1959,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
 
                                    // --- UNIFIED GAME HUD (Top Bar) ---
                                    Positioned(
-                                     top: 16,
+                                     top: 4,
                                      left: 0,
                                      right: 0,
                                      child: Row(
@@ -1932,21 +1990,24 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                              final bool hasStatus = controller.statusMessage != null && 
                                                                   controller.statusMessage!.isNotEmpty;
                                              
-                                             return Container(
-                                               padding: const EdgeInsets.symmetric(
-                                                 horizontal: 14,
-                                                 vertical: 6,
-                                               ),
-                                               decoration: BoxDecoration(
-                                                 color: Colors.black.withOpacity(0.5),
-                                                 borderRadius: BorderRadius.circular(20),
-                                                 border: Border.all(color: Colors.white12, width: 0.5),
-                                               ),
-                                               child: Row(
-                                                 mainAxisSize: MainAxisSize.min,
+                                             return Column(
+                                               mainAxisSize: MainAxisSize.min,
+                                               children: [
+                                                 Container(
+                                                   padding: const EdgeInsets.symmetric(
+                                                     horizontal: 14,
+                                                     vertical: 6,
+                                                   ),
+                                                   decoration: BoxDecoration(
+                                                     color: Colors.black.withOpacity(0.5),
+                                                     borderRadius: BorderRadius.circular(20),
+                                                     border: Border.all(color: Colors.white12, width: 0.5),
+                                                   ),
+                                                   child: Row(
+                                                     mainAxisSize: MainAxisSize.min,
                                                  children: [
                                                    Text(
-                                                     controller.match.playStyle == PlayStyle.partners ? 'PARTNERS' : 'SOLO',
+                                                     controller.match.playStyle == PlayStyle.partners ? 'PARTNERS' : (controller.match.playStyle == PlayStyle.draw1v1 ? 'DRAW' : 'SOLO'),
                                                      style: const TextStyle(color: Colors.white70, fontSize: 11.5, fontWeight: FontWeight.w900),
                                                    ),
                                                    const SizedBox(width: 6),
@@ -1967,6 +2028,14 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                                    ),
                                                  ],
                                                ),
+                                             ),
+                                                 // Dot Indicator for Boneyard
+                                                 if (controller.game?.playStyle == PlayStyle.draw1v1 && (controller.game?.boneyard.isNotEmpty ?? false))
+                                                   Padding(
+                                                     padding: const EdgeInsets.only(top: 4.0),
+                                                     child: _BoneyardDots(count: controller.game!.boneyard.length),
+                                                   ),
+                                               ],
                                              );
                                            }
                                          ),
@@ -2058,15 +2127,37 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                       ),
 
                       // Control Area (Ends)
-                      if (game.board.isNotEmpty &&
-                          controller.statusMessage == "Your Turn" &&
+                      if (game.currentPlayer == 0 &&
                           controller.selectedTile == null)
                         Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 8.0),
+                          padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              const Text('Tap a tile in your hand to play'),
+                              if (controller.canDraw)
+                                Expanded(
+                                  child: ElevatedButton.icon(
+                                    onPressed: controller.drawFromBoneyard,
+                                    icon: const Icon(Icons.style, size: 20),
+                                    label: Text(
+                                      'DRAW (${game.boneyard.length})',
+                                      style: GoogleFonts.outfit(fontWeight: FontWeight.w900),
+                                    ),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF2BEE4B),
+                                      foregroundColor: Colors.black,
+                                      padding: const EdgeInsets.symmetric(vertical: 12),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                    ),
+                                  ),
+                                )
+                              else
+                                const Text(
+                                  'Tap a tile in your hand to play',
+                                  style: TextStyle(color: Colors.white70),
+                                ),
                             ],
                           ),
                         ),
@@ -3632,6 +3723,14 @@ class _MatchSetupViewState extends State<_MatchSetupView> {
                     ),
                     icon: hideIcons ? null : const Icon(Icons.group),
                   ),
+                  ButtonSegment(
+                    value: PlayStyle.draw1v1,
+                    label: const FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text('Draw'),
+                    ),
+                    icon: hideIcons ? null : const Icon(Icons.style_outlined),
+                  ),
                 ],
                 selected: {widget.controller.match.playStyle},
                 onSelectionChanged: (Set<PlayStyle> selection) {
@@ -4816,6 +4915,32 @@ class _TeamMatchStatus extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _BoneyardDots extends StatelessWidget {
+  final int count;
+
+  const _BoneyardDots({Key? key, required this.count}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    if (count <= 0) return const SizedBox.shrink();
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: List.generate(count, (index) {
+        return Container(
+          width: 4,
+          height: 4,
+          margin: const EdgeInsets.symmetric(horizontal: 2),
+          decoration: const BoxDecoration(
+            color: Colors.white54,
+            shape: BoxShape.circle,
+          ),
+        );
+      }),
     );
   }
 }
