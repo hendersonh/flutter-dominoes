@@ -1,6 +1,12 @@
 - [x] **Production Release**: Promoted `feature/partners` to `main`, establishing the current Partner Mode and AI fixes as the new production baseline.
 - [x] **Fix: Partners Mode Match End**: Corrected `MatchModel.isMatchOver` to use the `matchWinner` getter, ensuring that in Traditional mode, collective team scores reach the target correctly.
 
+## Project Status
+- [x] Brainstorm/Plan 1v1 Draw Mode
+- [ ] Milestone 1: Engine Logic (DrawAction, Boneyard state)
+- [ ] Milestone 2: AI Adaptation (MCTS Determinization)
+- [ ] Milestone 3: UI & Interactive Boneyard
+
 - [x] **Verification**: Added `repro_partners_100bug_test.dart` and confirmed that a collective team score of 105 ends the match correctly even when individual players are below 100.
 - [x] **UI: Dynamic Player Name Propagation**: Successfully eliminated hardcoded player names across the entire app. Custom names now propagate correctly to the Game HUD, Review Board, background watermark ("HELP <NAME> WIN"), Partners team labels, and Champion Standings.
 - [x] **Brand Migration**: Formally renamed the app to **"HendyDominoes"** across all config files and user guides.
@@ -138,3 +144,6 @@
 - [x] **Deployment**: Built and deployed the latest AI engine updates to the Cloudflare `test` branch with version `1776617711430`.
 - [x] **Verification**: Confirmed successful build and deployment alias accessibility at [https://test.hendy-dominoes.pages.dev](https://test.hendy-dominoes.pages.dev).
 - [x] **AI Undo Bug Audit & Verification (Phase 1)**: Investigated logic for AI "hallucination" on user Undo. Confirmed `AIWorker.instance.resetRoot()` is properly called during `rewindTo`. Created and ran `test/undo_stability_test.dart` to verify memory destruction. Bug symptom was caused by deeper tactical limits, not a search tree persistence failure.
+- [x] **Bug Fix: AI Turn on Restart**: Fixed a UI deadlock where tapping "PLAY AGAIN" (bypassing setup) didn't trigger `_runAiTurn()` if the AI was selected as the first starter of the new match.
+- [x] **Deployment**: Generated new version and deployed the WebAssembly build to `test` branch on Cloudflare.
+- [/] **Feature: 1v1 Draw Mode**: Transitioning to 2-player support with boneyard and draw mechanics. Planning phase complete.
