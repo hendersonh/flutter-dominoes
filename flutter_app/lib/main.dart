@@ -1022,15 +1022,15 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
   }
 
   void _scrollToEnd() {
-    if (_scrollController.hasClients) {
-      Future.delayed(const Duration(milliseconds: 100), () {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
         _scrollController.animateTo(
           _scrollController.position.maxScrollExtent,
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeOut,
         );
-      });
-    }
+      }
+    });
   }
 
   void _handleBoardLayoutCalculated(Size boardSize, List<Rect> tileRects) {
@@ -1119,8 +1119,10 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
 
     final game = controller.game!;
 
-    // Detect if hand size increased
-    if (game.hands[0].length > _lastHandSize) {
+    // Detect if hand size increased and needs scrolling (more than 8 tiles)
+    if (game.hands[0].length > _lastHandSize &&
+        game.hands[0].length > 7 &&
+        game.currentPlayer == 0) {
       _scrollToEnd();
     }
     _lastHandSize = game.hands[0].length;

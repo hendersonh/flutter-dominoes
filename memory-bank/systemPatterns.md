@@ -41,11 +41,12 @@ To prevent landing preview code on the production site (or vice versa), the foll
 
 ### Environment Definitions
 - **Production**: Uses the `main` branch. Main domain: `https://hendy-dominoes.pages.dev`.
-- **Test/Staging**: Uses the `test` branch. Test domain: `https://test.cut-throat-dom.pages.dev`.
+- **Test/Preview**: Uses dynamic branch-based previews. Deploys to a Cloudflare environment named after the current Git branch using `wrangler pages deploy --branch $(git branch --show-current)`.
+- **Targeting**: This allows testing features in isolation (e.g., `feat/1v1-draw`) before they are merged to `main`.
 
-### The "Ask First" Rule
-- If a deployment is requested without an explicit environment (e.g., "deploy the fix"), the agent **must** ask for clarification: **"Deploy to Production (main) or Test (test)?"**
-- For automated workflows (`deploy.md`, `deploy-test.md`), the first step is always a manual verification check.
+### Deployment Verification
+- **Update Notification**: The `UpdateService` fetches `version.json` from the deployed site.
+- **Refresh Banner**: A floating banner appears in the UI when a new version is detected, prompting the user to refresh.
 
 ## Automation & Workflows
 To streamline repetitive tasks, we use the `.agents/workflows/` directory for automated command sequences, governed by the global **`command-safety`** skill.
