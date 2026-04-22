@@ -536,11 +536,26 @@ class GameController extends ChangeNotifier {
 
   void drawFromBoneyard() {
     if (!canDraw || _isAiThinking) return;
-    
+
+    final oldSize = game!.hands[0].length;
     _gameExecutionId++;
     game!.applyAction(DrawAction());
     SoundService().playSfx('assets/sounds/tile_place.wav');
+
+    final drawnTile = game!.hands[0].length > oldSize ? game!.hands[0].last : null;
+
     _sortPlayerHand();
+
+    // Auto-focus if hand is getting large and the drawn tile is playable.
+    // We don't use selectTile() here because that might trigger an auto-play.
+    if (game!.hands[0].length > 7 && drawnTile != null) {
+      bool canPlayLeft = game!.board.isEmpty || drawnTile.contains(game!.leftEnd!);
+      bool canPlayRight = game!.board.isEmpty || drawnTile.contains(game!.rightEnd!);
+      if (canPlayLeft || canPlayRight) {
+        _selectedTile = drawnTile;
+      }
+    }
+
     _checkGameState(); // This will call _handlePlayerAutoTurn if they still can't play and boneyard is empty
     notifyListeners();
   }

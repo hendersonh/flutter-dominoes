@@ -18,8 +18,9 @@ We are implementing **1v1 Draw Mode** (1 Human vs. 1 AI).
 Key features: 14-tile boneyard, manual drawing, sequential AI pacing, and pip-count scoring.
 
 ## Recent Changes
-- Completed brainstorming for 1v1 Draw Mode.
-- Defined phased implementation plan (Engine -> AI -> UI).
+- **UI: Auto-Focus Drawn Tiles**: Implemented logic to automatically focus a newly drawn playable tile when the hand size exceeds 7, minimizing scrolling effort.
+- **Phased Planning**: Finalized the implementation plan for 1v1 Draw Mode (Engine -> AI -> UI).
+- **Bug Fixes**: Resolved AI-turn deadlocks on match restart and verified Undo stability.
 
 ## Next Steps
 - Create `feat/1v1-draw` branch.
