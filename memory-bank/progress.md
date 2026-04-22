@@ -146,4 +146,6 @@
 - [x] **AI Undo Bug Audit & Verification (Phase 1)**: Investigated logic for AI "hallucination" on user Undo. Confirmed `AIWorker.instance.resetRoot()` is properly called during `rewindTo`. Created and ran `test/undo_stability_test.dart` to verify memory destruction. Bug symptom was caused by deeper tactical limits, not a search tree persistence failure.
 - [x] **Bug Fix: AI Turn on Restart**: Fixed a UI deadlock where tapping "PLAY AGAIN" (bypassing setup) didn't trigger `_runAiTurn()` if the AI was selected as the first starter of the new match.
 - [x] **Deployment**: Generated new version and deployed the WebAssembly build to `test` branch on Cloudflare.
+- [x] **UI: Auto-Focus Drawn Tiles**: Implemented logic in `lib/main.dart` to automatically focus (select) a newly drawn tile if it is playable and the player's hand size exceeds 7. This improves UX by reducing manual scrolling during draw streaks.
+- [x] **Verification**: Confirmed syntax and logic correctness with `flutter analyze`.
 - [/] **Feature: 1v1 Draw Mode**: Transitioning to 2-player support with boneyard and draw mechanics. Planning phase complete.
