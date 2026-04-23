@@ -3,9 +3,9 @@
 
 ## Project Status
 - [x] Brainstorm/Plan 1v1 Draw Mode
-- [ ] Milestone 1: Engine Logic (DrawAction, Boneyard state)
-- [ ] Milestone 2: AI Adaptation (MCTS Determinization)
-- [ ] Milestone 3: UI & Interactive Boneyard
+- [x] Milestone 1: Engine Logic (DrawAction, Boneyard state)
+- [x] Milestone 2: AI Adaptation (MCTS Determinization)
+- [x] Milestone 3: UI & Interactive Boneyard
 
 - [x] **Verification**: Added `repro_partners_100bug_test.dart` and confirmed that a collective team score of 105 ends the match correctly even when individual players are below 100.
 - [x] **UI: Dynamic Player Name Propagation**: Successfully eliminated hardcoded player names across the entire app. Custom names now propagate correctly to the Game HUD, Review Board, background watermark ("HELP <NAME> WIN"), Partners team labels, and Champion Standings.
@@ -148,4 +148,4 @@
 - [x] **Deployment**: Generated new version and deployed the WebAssembly build to `test` branch on Cloudflare.
 - [x] **UI: Auto-Focus Drawn Tiles**: Implemented logic in `lib/main.dart` to automatically focus (select) a newly drawn tile if it is playable and the player's hand size exceeds 7. This improves UX by reducing manual scrolling during draw streaks.
 - [x] **Verification**: Confirmed syntax and logic correctness with `flutter analyze`.
-- [/] **Feature: 1v1 Draw Mode**: Transitioning to 2-player support with boneyard and draw mechanics. Planning phase complete.
+- [x] **Feature: 1v1 Draw Mode**: Successfully implemented 2-player support with boneyard and draw mechanics. Includes engine updates for `PlayStyle.draw1v1`, MCTS determinization for hidden tiles, and responsive UI layout for 1v1 matches.

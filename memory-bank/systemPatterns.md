@@ -34,6 +34,8 @@
 - **Dynamic Asset Loading Pattern**: Help manual content is stored as external `.md` files in `assets/`. The game uses `rootBundle.loadString()` to fetch these at runtime, allowing documentation updates without recompiling logic.
 - **Round Result Messaging Pattern**: Replaces the generic "AI Thinking" status with a post-round announcement: `"<Name> gets +<Points>"`. This matches the Jamaican cut-throat style and prevents stale UI states.
 - **Scoring Rule Pattern (Strict Key Bone)**: Implemented in `MatchModel.recordRoundResult`. It uses `pipsOnBoard` to verify that both board ends are "Hard Ends" before awarding a 2-point bonus. This ensures engine integrity against loose state interpretation.
+- **1v1 Draw Mode Pattern**: Utilizes `PlayStyle.draw1v1` to trigger a 2-player match state with a **14-tile Boneyard**. Includes "Draw Until Play" mechanics and AI adaptation for hidden tiles.
+- **2-Player Layout Pattern**: Conditional logic in the UI repositions elements for 1v1 matches, ensuring a clean visual experience by hiding partner-specific components and centering player seats.
 
 ## Deployment Protocol
 

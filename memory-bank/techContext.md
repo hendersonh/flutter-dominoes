@@ -30,6 +30,7 @@
 - **ReviewBoardOverlay & _MiniHand**: Post-round summary screen featuring high-legibility unplayed tiles and consistent leader branding.
 - **_MatchSetupView**: Mobile-optimized modal for match configuration and target score selection (100, 150, 200). Now optionally skippable via the "PLAY AGAIN" flow.
 - **GameController**: Centralized state management using `ChangeNotifier` and `SharedPreferences` for persistence. Updated `resetMatch` and `restartGame` with `goToSetup` logic for continuous sessions.
+- **1v1 Draw Engine**: Support for `PlayStyle.draw1v1` with a dynamic boneyard state, manual draw actions, and AI search adjustments for partial information (hidden boneyard tiles).
 
 ## Deployment
 - **Production URL**: [https://hendy-dominoes.pages.dev](https://hendy-dominoes.pages.dev)
