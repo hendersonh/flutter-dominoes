@@ -747,7 +747,7 @@ class GameController extends ChangeNotifier {
                 }
               }
             } else {
-              for (int i = 0; i < 4; i++) {
+              for (int i in _match.activeIndices) {
                 if (i == winner) {
                   _lifetimeMatchWins[i]++;
                   _sessionMatchWins[i]++;
@@ -765,7 +765,7 @@ class GameController extends ChangeNotifier {
               _lastMatchSocialAdjustments = adjustments;
               _isEliteJailerMatch = socialResult['isEliteJailer'] as bool;
 
-              for (int i = 0; i < 4; i++) {
+              for (int i in _match.activeIndices) {
                 _lifetimeSocialPoints[i] += adjustments[i];
               }
 
@@ -1514,11 +1514,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                                       ),
                                                       child: Column(
                                                         children: (() {
-                                                          final indices =
-                                                              List.generate(
-                                                                4,
-                                                                (i) => i,
-                                                              );
+                                                          final indices = controller.match.activeIndices;
                                                           indices.sort((a, b) {
                                                             int winComp = controller
                                                                 .lifetimeMatchWins[
@@ -1556,7 +1552,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                                               ),
                                                               decoration:
                                                                   BoxDecoration(
-                                                                border: pos < 3
+                                                                border: pos < (controller.match.activeIndices.length - 1)
                                                                     ? const Border(
                                                                         bottom:
                                                                             BorderSide(
@@ -1637,6 +1633,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                                       socialPoints: controller
                                                           .lifetimeSocialPoints,
                                                       playerNames: controller.dynamicPlayerNames,
+                                                      activeIndices: controller.match.activeIndices,
                                                     ),
                                                   ],
                                                   if (controller.scoringMode ==
@@ -1682,11 +1679,7 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                                              )
                                                           : Column(
                                                               children: (() {
-                                                                final indices =
-                                                                    List.generate(
-                                                                      4,
-                                                                      (i) => i,
-                                                                    );
+                                                                final indices = List<int>.from(controller.match.activeIndices);
                                                                 indices.sort(
                                                                   (a, b) => controller
                                                                       .lifetimeSocialPoints[b]
@@ -3307,12 +3300,14 @@ class _ChampionStatus extends StatelessWidget {
   final List<int> dishCounts;
   final List<int> socialPoints;
   final List<String> playerNames;
+  final List<int> activeIndices;
 
   const _ChampionStatus({
     required this.championIndex,
     required this.dishCounts,
     required this.socialPoints,
     required this.playerNames,
+    required this.activeIndices,
   });
 
   @override
@@ -3333,7 +3328,7 @@ class _ChampionStatus extends StatelessWidget {
       // Find top contender
       int maxDishes = -1;
       int topIndex = -1;
-      for (int i = 0; i < dishCounts.length; i++) {
+      for (int i in activeIndices) {
         if (dishCounts[i] > maxDishes) {
           maxDishes = dishCounts[i];
           topIndex = i;
@@ -3350,7 +3345,7 @@ class _ChampionStatus extends StatelessWidget {
         // Use social points if no dishes yet
         int maxPoints = -1000;
         int topSocialIndex = -1;
-        for (int i = 0; i < socialPoints.length; i++) {
+        for (int i in activeIndices) {
           if (socialPoints[i] > maxPoints) {
             maxPoints = socialPoints[i];
             topSocialIndex = i;
@@ -4059,19 +4054,19 @@ class ReviewBoardOverlay extends StatelessWidget {
                     ),
                   ),
 
-                  // Main Content Area: North Player
-                  Expanded(
-                    flex: 8,
-                    child: Center(
-                      child: _MiniHand(
-                        name: controller.getPlayerName(2),
-                        tiles: game.hands[2],
-                        position: 'North',
-                        teamName: controller.match.playStyle == PlayStyle.partners ? 'TEAM 1' : null,
-                        isReviewMode: true,
+                  if (controller.match.playStyle != PlayStyle.draw1v1)
+                    Expanded(
+                      flex: 8,
+                      child: Center(
+                        child: _MiniHand(
+                          name: controller.getPlayerName(2),
+                          tiles: game.hands[2],
+                          position: 'North',
+                          teamName: controller.match.playStyle == PlayStyle.partners ? 'TEAM 1' : null,
+                          isReviewMode: true,
+                        ),
                       ),
                     ),
-                  ),
 
                   // Middle Row: West Player | Board | East Player
                   Expanded(
@@ -4106,13 +4101,14 @@ class ReviewBoardOverlay extends StatelessWidget {
                               ),
                             ),
                           ),
-                          _MiniHand(
-                            name: controller.getPlayerName(3),
-                            tiles: game.hands[3],
-                            position: 'East',
-                            teamName: controller.match.playStyle == PlayStyle.partners ? 'TEAM 2' : null,
-                            isReviewMode: true,
-                          ),
+                          if (controller.match.playStyle != PlayStyle.draw1v1)
+                            _MiniHand(
+                              name: controller.getPlayerName(3),
+                              tiles: game.hands[3],
+                              position: 'East',
+                              teamName: controller.match.playStyle == PlayStyle.partners ? 'TEAM 2' : null,
+                              isReviewMode: true,
+                            ),
                         ],
                       ),
                     ),

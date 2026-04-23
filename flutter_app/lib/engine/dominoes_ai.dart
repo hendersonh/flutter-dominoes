@@ -1305,6 +1305,14 @@ class MatchModel {
       ..currentRound = currentRound?.clone();
   }
 
+  /// Returns the indices of players actively participating in the match.
+  List<int> get activeIndices {
+    if (playStyle == PlayStyle.draw1v1) {
+      return [0, 1];
+    }
+    return [0, 1, 2, 3];
+  }
+
   bool get isMatchOver => matchWinner != -1;
 
   /// Returns true if the match winner won with an "Elite Jailer" score of 6-0-0-0 or team 6-0.
@@ -1368,7 +1376,7 @@ class MatchModel {
       }
     } else {
       adjustments[winner] += 10;
-      for (int i = 0; i < 4; i++) {
+      for (int i in activeIndices) {
         if (i == winner) continue;
         if (scores[i] == 0 && isElite) {
           adjustments[i] -= 5;

@@ -1,10 +1,12 @@
 # Active Context
 
 ## Current Objective
-Finalize project documentation and perform final QA on the 1v1 Draw Mode before production deployment.
+- Finalize the "Ghost Player" fix and Match Modal overhaul for 1v1 Draw Mode.
+- [RECOVERY POINT] Last stable commit: `d39b6bcead562de36973e9dab23e2f975682bb8f` (Verified as of 2026-04-23)
 
 ## Recent Changes
-- **Feature: 1v1 Draw Mode**: Fully implemented 2-player support with a 14-tile boneyard. Features include manual drawing, "draw until play" mechanics, and AI adaptation for hidden boneyard tiles.
+- [x] **Feature: 1v1 Draw Mode**: Successfully implemented 2-player support with boneyard and draw mechanics.
+- [x] **Safety Check**: Stored last stable commit `d39b6bcead562de36973e9dab23e2f975682bb8f` before ghost player fix and modal refactor.
 - **UI: 1v1 Layout Optimization**: Verified responsive layout switches for 1v1 mode, ensuring seat positions and scores are correctly aligned for two players.
 - **UI: Auto-Focus Drawn Tiles**: Implemented logic to automatically focus a newly drawn playable tile when the hand size exceeds 7, minimizing scrolling effort.
 - **Production Sync**: Promoted `feature/partners` to `main`, establishing the current Partner Mode and AI fixes as the new production baseline.

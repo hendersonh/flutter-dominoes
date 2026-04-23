@@ -1,8 +1,9 @@
 - [x] **Production Release**: Promoted `feature/partners` to `main`, establishing the current Partner Mode and AI fixes as the new production baseline.
 - [x] **Fix: Partners Mode Match End**: Corrected `MatchModel.isMatchOver` to use the `matchWinner` getter, ensuring that in Traditional mode, collective team scores reach the target correctly.
 
-## Project Status
-- [x] Brainstorm/Plan 1v1 Draw Mode
+## Active Context
+- Last Good Commit: `d39b6bcead562de36973e9dab23e2f975682bb8f` (Restoration point before Match Modal changes)
+- Working on: Implementing 1v1 Draw Mode Match Modal improvements.
 - [x] Milestone 1: Engine Logic (DrawAction, Boneyard state)
 - [x] Milestone 2: AI Adaptation (MCTS Determinization)
 - [x] Milestone 3: UI & Interactive Boneyard
@@ -126,6 +127,8 @@
 - [x] **UI: Unified Board HUD**: Consolidated dispersed `Positioned` overlays (Settings, Match Info, Status, Rewind, Help) into a single, cohesive HUD row.
 - [x] **Aesthetic: Premium Status Pill**: Implemented a glassmorphism "Smart Indicator" pill that combines match context and live game status with perfect vertical centering.
 - [x] **Layout: Zero-Footprint Design**: Ensured the HUD remains a transparent overlay that takes no space away from the green board, maintaining equal professional spacing across all devices.
+- [x] **Ghost Player Fix**: Logic updated across all layers to ensure only active players are processed. (2026-04-23)
+- [x] **1v1 Summary Overlay**: Refactored `ReviewBoardOverlay` to hide North/East hands in 1v1 mode. (2026-04-23)
 - [x] **UI Polish**: Removed redundant Column wrapper from the unified Status indicator to ensure a strict single-row layout and prevent old status lines from reappearing.
 - [x] **Fix: Partners Mode Match End**: Corrected `MatchModel.isMatchOver` to use the `matchWinner` getter.
 - [x] **Global Rewind Feature**: Decoupled the Rewind/Undo system from the 'Legend' difficulty level. All players now have access to the move history buffer across all skill levels. History is now persistent across difficulty switches.
@@ -143,9 +146,9 @@
 - [x] **Engine: Six-Love Solo Jail Protocol**: Programmed the AI to implicitly collude to block a player strictly trapped at 0 points in a 6-point Cutthroat match.
 - [x] **Deployment**: Built and deployed the latest AI engine updates to the Cloudflare `test` branch with version `1776617711430`.
 - [x] **Verification**: Confirmed successful build and deployment alias accessibility at [https://test.hendy-dominoes.pages.dev](https://test.hendy-dominoes.pages.dev).
-- [x] **AI Undo Bug Audit & Verification (Phase 1)**: Investigated logic for AI "hallucination" on user Undo. Confirmed `AIWorker.instance.resetRoot()` is properly called during `rewindTo`. Created and ran `test/undo_stability_test.dart` to verify memory destruction. Bug symptom was caused by deeper tactical limits, not a search tree persistence failure.
-- [x] **Bug Fix: AI Turn on Restart**: Fixed a UI deadlock where tapping "PLAY AGAIN" (bypassing setup) didn't trigger `_runAiTurn()` if the AI was selected as the first starter of the new match.
-- [x] **Deployment**: Generated new version and deployed the WebAssembly build to `test` branch on Cloudflare.
-- [x] **UI: Auto-Focus Drawn Tiles**: Implemented logic in `lib/main.dart` to automatically focus (select) a newly drawn tile if it is playable and the player's hand size exceeds 7. This improves UX by reducing manual scrolling during draw streaks.
-- [x] **Verification**: Confirmed syntax and logic correctness with `flutter analyze`.
-- [x] **Feature: 1v1 Draw Mode**: Successfully implemented 2-player support with boneyard and draw mechanics. Includes engine updates for `PlayStyle.draw1v1`, MCTS determinization for hidden tiles, and responsive UI layout for 1v1 matches.
+- [x] **Production Release**: Promoted `feature/partners` to `main`, establishing the current Partner Mode and AI fixes as the new production baseline.
+- [x] **Fix: Partners Mode Match End**: Corrected `MatchModel.isMatchOver` to use the `matchWinner` getter, ensuring that in Traditional mode, collective team scores reach the target correctly.
+- [x] **Ghost Player Fix**: Refactored `MatchModel`, `DominoesAI`, and `main.dart` to honor `activeIndices`, preventing inactive players from appearing in stat updates or end-of-game overlays.
+- [x] **1v1 UI Overhaul**: Updated the leaderboard and Match Result modal to dynamically scale and hide inactive seats during 2-player matches.
+- [x] **UI: 1v1 Draw Match Modal Fix**: Refactored the Match Over modal to correctly handle 2-player Draw mode without "Ghost Players".
+- [x] **Safety Check**: Stored last stable commit `d39b6bcead562de36973e9dab23e2f975682bb8f` as a recovery point.
