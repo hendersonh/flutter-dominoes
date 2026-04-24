@@ -5,6 +5,7 @@
 - [RECOVERY POINT] Last stable commit: `d39b6bcead562de36973e9dab23e2f975682bb8f` (Verified as of 2026-04-23)
 
 ## Recent Changes
+- [x] **UI: Smart Auto-Scroll for Drawn Tiles**: Replaced the default right-scroll behavior with a targeted scroll that calculates the exact offset of a newly drawn tile after sorting, ensuring the tile remains fully visible regardless of its sorted position in the hand.
 - [x] **Feature: 1v1 Draw Mode**: Successfully implemented 2-player support with boneyard and draw mechanics.
 - [x] **Safety Check**: Stored last stable commit `d39b6bcead562de36973e9dab23e2f975682bb8f` before ghost player fix and modal refactor.
 - **UI: 1v1 Layout Optimization**: Verified responsive layout switches for 1v1 mode, ensuring seat positions and scores are correctly aligned for two players.

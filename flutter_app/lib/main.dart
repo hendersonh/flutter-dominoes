@@ -75,6 +75,9 @@ class GameController extends ChangeNotifier {
 
   DominoTile? _selectedTile;
 
+  DominoTile? _lastDrawnTile;
+  DominoTile? get lastDrawnTile => _lastDrawnTile;
+
   List<int> _lifetimeMatchWins = [0, 0, 0, 0];
   List<int> _lifetimeMatchLosses = [0, 0, 0, 0];
   // Index 0: Human, 1-3: AIs. Tracks total matches won by 6-0.
@@ -545,6 +548,8 @@ class GameController extends ChangeNotifier {
     final drawnTile = game!.hands[0].length > oldSize ? game!.hands[0].last : null;
 
     _sortPlayerHand();
+    
+    _lastDrawnTile = drawnTile;
 
     // Auto-focus if hand is getting large and the drawn tile is playable.
     // We don't use selectTile() here because that might trigger an auto-play.
@@ -1021,6 +1026,22 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
     }
   }
 
+  void _scrollToTile(int index, double tileScale, double screenWidth) {
+    if (_scrollController.hasClients) {
+      Future.delayed(const Duration(milliseconds: 100), () {
+        final tileFullWidth = 63.0 * tileScale; 
+        final targetOffset = (index * tileFullWidth) - (screenWidth / 2) + (tileFullWidth / 2);
+        final clampedOffset = targetOffset.clamp(0.0, _scrollController.position.maxScrollExtent);
+
+        _scrollController.animateTo(
+          clampedOffset,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      });
+    }
+  }
+
   void _scrollToEnd() {
     if (_scrollController.hasClients) {
       Future.delayed(const Duration(milliseconds: 100), () {
@@ -1119,9 +1140,22 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
 
     final game = controller.game!;
 
-    // Detect if hand size increased
-    if (game.hands[0].length > _lastHandSize) {
-      _scrollToEnd();
+    // Detect if hand size increased beyond the initial 7 tiles
+    if (game.hands[0].length > _lastHandSize && game.hands[0].length > 7) {
+      if (controller.lastDrawnTile != null) {
+        final index = game.hands[0].indexOf(controller.lastDrawnTile!);
+        if (index != -1) {
+          final screenWidth = MediaQuery.of(context).size.width;
+          final availableWidth = screenWidth - 32;
+          final tileScale = (availableWidth / 422).clamp(0.5, 1.0);
+          
+          _scrollToTile(index, tileScale, screenWidth);
+        } else {
+          _scrollToEnd();
+        }
+      } else {
+        _scrollToEnd();
+      }
     }
     _lastHandSize = game.hands[0].length;
 
@@ -1315,10 +1349,8 @@ class _GameScreenState extends State<GameScreen> with WidgetsBindingObserver {
                                                       rootIndex: game.rootIndex,
                                                       maxWidth:
                                                           constraints.maxWidth,
-                                                      isSelectingSide:
-                                                          controller
-                                                              .selectedTile !=
-                                                          null,
+                                                      canPlayLeft: controller.selectedTile != null && game.board.isNotEmpty && controller.selectedTile!.contains(game.leftEnd!),
+                                                      canPlayRight: controller.selectedTile != null && game.board.isNotEmpty && controller.selectedTile!.contains(game.rightEnd!) && (game.leftEnd != game.rightEnd || !controller.selectedTile!.contains(game.leftEnd!)),
                                                       onSelectSide: controller
                                                           .confirmPlay,
                                                       onLayoutCalculated:
@@ -2710,7 +2742,8 @@ class SnakingBoard extends StatelessWidget {
   final int rootIndex;
   final double maxWidth;
   final bool isReviewMode;
-  final bool isSelectingSide;
+  final bool canPlayLeft;
+  final bool canPlayRight;
   final Function(String)? onSelectSide;
   final Function(Size, List<Rect>)? onLayoutCalculated;
 
@@ -2720,7 +2753,8 @@ class SnakingBoard extends StatelessWidget {
     required this.rootIndex,
     required this.maxWidth,
     this.isReviewMode = false,
-    this.isSelectingSide = false,
+    this.canPlayLeft = false,
+    this.canPlayRight = false,
     this.onSelectSide,
     this.onLayoutCalculated,
   });
@@ -2952,7 +2986,7 @@ class SnakingBoard extends StatelessWidget {
                 ),
               );
             }),
-            if (isSelectingSide && board.length > 1) ...[
+            if (canPlayLeft && board.length > 1)
               Positioned(
                 left: positions[0]!.offset.dx - minX - (20 * scale),
                 top: positions[0]!.offset.dy - minY - (20 * scale),
@@ -2979,6 +3013,7 @@ class SnakingBoard extends StatelessWidget {
                   ),
                 ),
               ),
+            if (canPlayRight && board.length > 1)
               Positioned(
                 left:
                     positions[board.length - 1]!.offset.dx -
@@ -3015,7 +3050,6 @@ class SnakingBoard extends StatelessWidget {
                   ),
                 ),
               ),
-            ],
           ],
         ),
       ),
